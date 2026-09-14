@@ -4,6 +4,7 @@ import {
 } from "./config.mjs";
 import { deepClone } from "./foundry-api.mjs";
 import { rollD100, promptedD100, promptNextRoll } from "./dice/percentile.mjs";
+import { UPB_COUNT_TABLE } from "./data/upb.mjs";
 
 function d100() { return Math.floor(Math.random() * 100) + 1; }
 
@@ -32,17 +33,11 @@ export function generateHero({ originId = null, rollOrigin = false } = {}) {
     talents: lookupTable(SPECIAL_COUNT_TABLE, d100()).talents,
     contacts: lookupTable(SPECIAL_COUNT_TABLE, d100()).contacts
   };
-  if (origin.id === "mutant") counts.powers[0] = Math.min(5, counts.powers[0] + 1);
-  if (origin.id === "alien") {
-    counts.powers[0] = Math.max(2, counts.powers[0] - 1);
-    counts.contacts[0] = Math.min(1, counts.contacts[0]);
-    counts.contacts[1] = 1;
-  }
   const popularity = origin.id === "mutant" || origin.id === "robot" ? 0 : 10;
   return { origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod, counts, powerCats: [], talentCats: [], popularity };
 }
 
-export async function rollHeroDice(actor, { originId = "altered", rollOrigin = false } = {}) {
+export async function rollHeroDice(actor, { originId = "altered", rollOrigin = false, useUpb = false } = {}) {
   let originRoll = null;
   let id = originId || "altered";
   if (rollOrigin) {
@@ -58,10 +53,7 @@ export async function rollHeroDice(actor, { originId = "altered", rollOrigin = f
   let step = 1;
   for (const key of order) {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
-    const go = await promptNextRoll(
-      "FASERIP " + step + " of 7 - " + label,
-      actor.name + " rolls <strong>" + label + "</strong> on Random Ranks column " + origin.column + " (" + origin.label + "). Click Roll 1d100."
-    );
+    const go = await promptNextRoll("FASERIP " + step + " of 7 - " + label, actor.name + " rolls <strong>" + label + "</strong> on column " + origin.column + ".");
     if (!go) return null;
     const total = await rollD100({ flavor: actor.name + " - " + label + " (column " + origin.column + ")", actor });
     abilityRolls[key] = total;
@@ -72,51 +64,32 @@ export async function rollHeroDice(actor, { originId = "altered", rollOrigin = f
   if (origin.id === "hitech") abilities.reason = shiftRank(abilities.reason, 2);
   const numbers = {};
   for (const key of ABILITIES) numbers[key] = rankMin(abilities[key]);
-  const resourceModRoll = await promptedD100({
-    title: "Resources",
-    body: "Roll 1d100 on the Ability Modifier table. Starting Resources are Typical (Good for Hi-Tech, Poor for Alien), then apply the column shift.",
-    flavor: actor.name + " - Resource modifier",
-    actor
-  });
+  const resourceModRoll = await promptedD100({ title: "Resources", body: "Roll 1d100 on the Ability Modifier table.", flavor: actor.name + " - Resource modifier", actor });
   if (resourceModRoll == null) return null;
   const resourceMod = lookupTable(ABILITY_MODIFIER_TABLE, resourceModRoll);
   let resources = origin.id === "hitech" ? "good" : origin.id === "alien" ? "poor" : "typical";
   resources = shiftRank(resources, resourceMod.cs);
   if (origin.id === "mutant") resources = shiftRank(resources, -1);
-  const powerRoll = await promptedD100({
-    title: "Number of Powers",
-    body: "Roll 1d100 for how many Powers this hero starts with.",
-    flavor: actor.name + " - Number of Powers",
-    actor
-  });
+  const table = useUpb ? UPB_COUNT_TABLE : SPECIAL_COUNT_TABLE;
+  const powerRoll = await promptedD100({ title: "Number of Powers", body: useUpb ? "UPB count table: roll 1d100 for Powers." : "Advanced Set table: roll 1d100 for Powers.", flavor: actor.name + " - Number of Powers", actor });
   if (powerRoll == null) return null;
-  const talentRoll = await promptedD100({
-    title: "Number of Talents",
-    body: "Roll 1d100 for how many Talents this hero starts with.",
-    flavor: actor.name + " - Number of Talents",
-    actor
-  });
+  const talentRoll = await promptedD100({ title: "Number of Talents", body: "Roll 1d100 for Talents.", flavor: actor.name + " - Number of Talents", actor });
   if (talentRoll == null) return null;
-  const contactRoll = await promptedD100({
-    title: "Number of Contacts",
-    body: "Roll 1d100 for how many Contacts this hero starts with.",
-    flavor: actor.name + " - Number of Contacts",
-    actor
-  });
+  const contactRoll = await promptedD100({ title: "Number of Contacts", body: "Roll 1d100 for Contacts.", flavor: actor.name + " - Number of Contacts", actor });
   if (contactRoll == null) return null;
   const counts = {
-    powers: lookupTable(SPECIAL_COUNT_TABLE, powerRoll).powers,
-    talents: lookupTable(SPECIAL_COUNT_TABLE, talentRoll).talents,
-    contacts: lookupTable(SPECIAL_COUNT_TABLE, contactRoll).contacts
+    powers: lookupTable(table, powerRoll).powers,
+    talents: lookupTable(table, talentRoll).talents,
+    contacts: lookupTable(table, contactRoll).contacts
   };
-  if (origin.id === "mutant") counts.powers[0] = Math.min(5, counts.powers[0] + 1);
-  if (origin.id === "alien") {
+  if (!useUpb && origin.id === "mutant") counts.powers[0] = Math.min(5, counts.powers[0] + 1);
+  if (!useUpb && origin.id === "alien") {
     counts.powers[0] = Math.max(2, counts.powers[0] - 1);
     counts.contacts[0] = Math.min(1, counts.contacts[0]);
     counts.contacts[1] = 1;
   }
   const popularity = origin.id === "mutant" || origin.id === "robot" ? 0 : 10;
-  return { origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod, counts, powerCats: [], talentCats: [], popularity };
+  return { origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod, counts, powerCats: [], talentCats: [], popularity, useUpb };
 }
 
 export async function applyGeneration(actor, result, {
@@ -159,11 +132,14 @@ export async function applyGeneration(actor, result, {
 
 export async function promptGeneration(actor) {
   const { runFullGeneration } = await import("./wizard.mjs");
+  let useUpb = false;
+  try { useUpb = game.settings.get("faserip", "useUltimatePowersBook") === true; } catch (e) {}
   return runFullGeneration(actor, {
     originId: "altered",
     rollOrigin: true,
     secretId: !!actor.system.identity?.secretId,
     publicId: actor.system.identity?.public,
-    secretName: actor.system.identity?.secret
+    secretName: actor.system.identity?.secret,
+    useUpb
   });
 }
