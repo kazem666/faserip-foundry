@@ -76,9 +76,15 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
     context.talents = decorate(items.filter((i) => i.type === "talent"));
     context.contacts = decorate(items.filter((i) => i.type === "contact"));
     context.gear = decorate(items.filter((i) => i.type === "equipment" || i.type === "weapon"));
-    const TextEditor = getTextEditor();
-    context.enrichedBiography = await TextEditor.enrichHTML(actor.system.biography ?? "", { secrets: actor.isOwner });
-    context.enrichedNotes = await TextEditor.enrichHTML(actor.system.notes ?? "", { secrets: actor.isOwner });
+    context.enrichedBiography = actor.system.biography ?? "";
+    context.enrichedNotes = actor.system.notes ?? "";
+    try {
+      const TextEditor = getTextEditor();
+      context.enrichedBiography = await TextEditor.enrichHTML(actor.system.biography ?? "", { secrets: actor.isOwner });
+      context.enrichedNotes = await TextEditor.enrichHTML(actor.system.notes ?? "", { secrets: actor.isOwner });
+    } catch (err) {
+      console.warn("FASERIP | enrichHTML skipped", err);
+    }
     const gen = actor.getFlag("faserip", "generation");
     context.generation = gen ? { ...gen, powerNeed: gen.powerCount?.[0] ?? 0, talentNeed: gen.talentCount?.[0] ?? 0, contactNeed: gen.contactCount?.[0] ?? 0, contactMax: gen.contactCount?.[1] ?? 0 } : null;
     return context;
@@ -122,7 +128,8 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
     await this.actor.createEmbeddedDocuments("Item", [{ name: type === "weapon" ? "New Weapon" : "New Equipment", type }]);
   }
   async addFromCatalog(type, catalog) {
-    const groups = Object.entries(catalog).map(([cat, list]) => `<optgroup label="${cat}">${list.map((n) => `<option value="${n.replace(/"/g, """)}">${n}</option>`).join("")}</optgroup>`).join("");
+    const esc = (n) => String(n).replaceAll('"', '"');
+    const groups = Object.entries(catalog).map(([cat, list]) => `<optgroup label="${cat}">${list.map((n) => `<option value="${esc(n)}">${n}</option>`).join("")}</optgroup>`).join("");
     const form = await promptForm({ title: `Add ${type}`, content: `<div class="form-group"><select name="pick"><option value="">custom</option>${groups}</select></div><div class="form-group"><input type="text" name="custom" /></div>`, okLabel: "Create" });
     if (!form) return;
     const name = formValue(form, "pick") || formValue(form, "custom") || `New ${type}`;
