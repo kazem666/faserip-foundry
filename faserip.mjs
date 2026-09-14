@@ -9,9 +9,33 @@ import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { generateHero, promptGeneration } from "./module/chargen.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
 
+function injectScrollableWindowStyles() {
+  if (document.getElementById("faserip-scroll-css")) return;
+  const style = document.createElement("style");
+  style.id = "faserip-scroll-css";
+  style.textContent = `
+    .application.dialog, .application.faserip-dialog, .application.faserip { max-height: 92vh; }
+    .application.dialog .window-content, .application.faserip-dialog .window-content {
+      display: flex; flex-direction: column; overflow: hidden !important; min-height: 0;
+      max-height: calc(92vh - 2.75rem);
+    }
+    .application.dialog form, .application.faserip-dialog form, .application.dialog .dialog-form {
+      display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex: 1 1 auto;
+    }
+    .application.dialog .dialog-content, .application.faserip-dialog .dialog-content, .faserip-dialog-scroll {
+      flex: 1 1 auto; overflow-y: auto !important; overflow-x: hidden; min-height: 0;
+      max-height: calc(92vh - 9rem);
+    }
+    .application.faserip .window-content { overflow-y: auto !important; max-height: calc(92vh - 2.75rem); }
+    .app.window-app .window-content { overflow-y: auto; }
+  `;
+  document.head.appendChild(style);
+}
+
 Hooks.once("init", () => {
   try {
     console.log("FASERIP | Initializing system (Foundry v14 ActorSheetV2)");
+    injectScrollableWindowStyles();
     CONFIG.Actor.documentClass = FaseripActor;
     CONFIG.Item.documentClass = FaseripItem;
     CONFIG.Actor.dataModels = { hero: HeroData, npc: NpcData };

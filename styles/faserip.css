@@ -1,7 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@400;600&family=Source+Sans+3:wght@400;600;700&display=swap");
 
 .faserip.sheet,
-.faserip.actor,
 .faserip-chat {
   --ink: #141414;
   --paper: #f6f1e4;
@@ -13,36 +12,46 @@
   --green: #15803d;
 }
 
-.faserip.actor .window-content,
 .faserip.sheet .window-content {
   background: var(--paper);
   color: var(--ink);
   font-family: "Source Sans 3", sans-serif;
-  overflow-y: auto !important;
-  overflow-x: hidden;
 }
 
+.faserip.actor .window-content,
+.faserip.item .window-content,
+.faserip.sheet .window-content,
+.application.faserip .window-content {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  max-height: calc(92vh - 2.75rem);
+}
+
+.application.faserip,
+.application.faserip-dialog,
+.application.dialog {
+  max-height: 92vh;
+}
 .faserip-sheet {
   display: flex;
   flex-direction: column;
   height: auto;
   min-height: min-content;
   gap: 14px;
-  padding: 8px 8px 28px;
+  padding-bottom: 24px;
 }
 
 .faserip-sheet .sheet-header {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   border: 3px solid var(--rule);
   background: var(--panel);
-  padding: 10px;
+  padding: 8px;
 }
 
 .faserip-sheet .profile {
   width: 96px;
   height: 96px;
-  flex: 0 0 96px;
   border: 3px solid var(--rule);
   object-fit: cover;
   background: #ddd;
@@ -55,30 +64,28 @@
 
 .faserip-sheet .hero-name input {
   font-family: "Bangers", Impact, sans-serif;
-  font-size: 30px;
+  font-size: 32px;
   letter-spacing: 1px;
   border: none;
   background: transparent;
   width: 100%;
-  height: 42px;
+  height: 40px;
 }
 
 .faserip-sheet .identity-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .faserip-sheet label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  min-width: 0;
 }
 
 .faserip-sheet input[type="text"],
@@ -87,10 +94,8 @@
   font-family: "Oswald", sans-serif;
   border: 2px solid var(--rule);
   background: white;
-  height: 28px;
+  height: 26px;
   padding: 0 6px;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .faserip-sheet .resource-row {
@@ -102,7 +107,7 @@
 .faserip-sheet .stat-box {
   border: 3px solid var(--rule);
   background: var(--panel);
-  padding: 8px;
+  padding: 6px;
   text-align: center;
 }
 
@@ -121,20 +126,30 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   font-family: "Oswald", sans-serif;
   font-size: 20px;
 }
 
 .faserip-sheet .stat-values input {
-  width: 72px;
+  width: 64px;
   text-align: center;
 }
+
+.faserip-sheet .bar {
+  height: 8px;
+  background: #ddd;
+  border: 1px solid var(--rule);
+  margin: 4px 0;
+}
+
+.faserip-sheet .health .bar span { display: block; height: 100%; background: var(--red); }
+.faserip-sheet .karma .bar span { display: block; height: 100%; background: var(--blue); }
 
 .faserip-sheet .abilities h2,
 .faserip-sheet .tab h3 {
   font-family: "Bangers", Impact, sans-serif;
-  margin: 8px 0;
+  margin: 4px 0;
   letter-spacing: 1px;
 }
 
@@ -149,7 +164,6 @@
   background: white;
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
 
 .faserip-sheet .ability-roll {
@@ -157,8 +171,8 @@
   color: white;
   border: none;
   border-radius: 0;
-  padding: 8px 4px;
-  line-height: 1.2;
+  padding: 6px 2px;
+  line-height: 1.1;
   cursor: pointer;
 }
 
@@ -176,41 +190,46 @@
   line-height: 1.2;
 }
 
-.faserip-sheet .ability-roll:hover { background: var(--red); }
+.faserip-sheet .ability-roll:hover {
+  background: var(--red);
+}
 
 .faserip-sheet .toolbox {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: end;
   border: 2px dashed var(--rule);
-  padding: 8px;
+  padding: 6px;
 }
 
 .faserip-sheet .toolbox button,
 .faserip-sheet .stat-box button,
 .faserip-sheet button.create,
-.faserip-sheet .item-list button,
-.faserip-sheet .catalog-add {
+.faserip-sheet .item-list button {
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   border: 2px solid var(--rule);
   background: var(--gold);
   color: var(--ink);
-  min-height: 28px;
-  line-height: 1.2;
+  height: 26px;
+  line-height: 22px;
   cursor: pointer;
+}
+
+.faserip-sheet .toolbox button:hover,
+.faserip-sheet button.create:hover {
+  background: #facc15;
 }
 
 .faserip-sheet .sheet-tabs {
   display: flex;
-  flex-wrap: wrap;
   gap: 4px;
   border-bottom: 3px solid var(--rule);
 }
 
 .faserip-sheet .sheet-tabs .item {
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   background: #ddd;
@@ -218,49 +237,120 @@
   border-bottom: none;
 }
 
-.faserip-sheet .sheet-tabs .item.active { background: var(--gold); }
+.faserip-sheet .sheet-tabs .item.active {
+  background: var(--gold);
+}
 
 .faserip-sheet .sheet-body {
-  min-height: 220px;
-  overflow: visible;
+  flex: 1;
+  min-height: 180px;
+  overflow: auto;
   border: 3px solid var(--rule);
   border-top: none;
   background: var(--panel);
-  padding: 10px;
+  padding: 8px;
 }
-
-.faserip-sheet .sheet-body .tab { display: none; }
-.faserip-sheet .sheet-body .tab.active { display: block; }
 
 .faserip-sheet .item-list {
   list-style: none;
-  margin: 0 0 12px;
+  margin: 0;
   padding: 0;
 }
 
 .faserip-sheet .item-list .item {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  gap: 8px;
+  grid-template-columns: 28px 1fr auto auto 22px 22px;
+  gap: 6px;
   align-items: center;
   border-bottom: 1px solid #ccc;
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
-.faserip-sheet .catalog details {
-  margin: 8px 0;
-  border: 2px solid var(--rule);
-  background: #fff;
+.faserip-sheet .item-list img {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--rule);
+}
+
+.faserip-sheet .item-rank {
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.faserip-item-sheet .sheet-header {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.faserip-item-sheet img {
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--rule);
+}
+
+.faserip-item-sheet .form-group {
+  margin-bottom: 8px;
+}
+
+.faserip-chat {
+  font-family: "Source Sans 3", sans-serif;
+  border: 3px solid #111;
+  background: #fffdf6;
+}
+
+.faserip-chat header {
+  display: flex;
+  justify-content: space-between;
   padding: 6px 8px;
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  background: #111;
+  color: white;
 }
 
-.faserip-sheet .catalog-add {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin: 3px 0;
-  background: #eee;
-  text-transform: none;
+.faserip-chat .result-banner {
+  text-align: center;
+  font-family: "Bangers", Impact, sans-serif;
+  font-size: 28px;
+  letter-spacing: 2px;
+  padding: 8px;
+  border-bottom: 3px solid #111;
+}
+
+.faserip-chat .result-banner.white { background: #f4f0e6; color: #111; }
+.faserip-chat .result-banner.green { background: #22c55e; color: #052e16; }
+.faserip-chat .result-banner.yellow { background: #facc15; color: #111; }
+.faserip-chat .result-banner.red { background: #dc2626; color: white; }
+
+.faserip-chat .hint {
+  text-align: center;
+  margin: 6px 0 0;
+  font-style: italic;
+}
+
+.faserip-chat dl {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 4px 8px;
+  padding: 8px;
+  margin: 0;
+}
+
+.faserip-chat dt {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.faserip-chat .mod {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.faserip-feat-dialog .form-group {
+  margin: 8px 0;
 }
 
 .faserip-sheet .derived-row {
@@ -275,7 +365,14 @@
 .faserip-sheet .derived-row div {
   border: 2px solid var(--rule);
   background: white;
-  padding: 4px 8px;
+  padding: 2px 8px;
+}
+
+.faserip-sheet .ability-card input[type="number"] {
+  width: 100%;
+  text-align: center;
+  height: 22px;
+  border-top: none;
 }
 
 .faserip-sheet label.check {
@@ -285,22 +382,125 @@
   text-transform: none;
 }
 
-.faserip-item-sheet .sheet-header {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+.faserip-sheet .stat-values.twin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  font-size: 12px;
 }
 
-.faserip-feat-dialog .form-group { margin: 8px 0; }
+.faserip-sheet .stat-values.twin input {
+  width: 100%;
+}
+
+.faserip-sheet .hint,
+.faserip-item-sheet .hint,
+.faserip-feat-dialog .hint {
+  font-size: 11px;
+  font-style: italic;
+  margin: 4px 0 0;
+}
+
+.faserip-chat .effect-banner {
+  text-align: center;
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  padding: 6px;
+  background: #111;
+  color: #facc15;
+  border-bottom: 3px solid #111;
+}
+
+.faserip-chat .intensity {
+  text-align: center;
+  margin: 4px 8px;
+  padding: 4px;
+  border: 2px solid #111;
+}
+
+.faserip-chat .intensity.pass { background: #dcfce7; }
+.faserip-chat .intensity.fail { background: #fee2e2; }
 
 .chargen-table {
   width: 100%;
   border-collapse: collapse;
   margin: 8px 0;
 }
+
 .chargen-table th,
 .chargen-table td {
   border: 1px solid #111;
-  padding: 4px 6px;
+  padding: 2px 6px;
   text-align: left;
+}
+
+
+.faserip-sheet .sheet-body .tab {
+  display: none;
+}
+.faserip-sheet .sheet-body .tab.active {
+  display: block;
+}
+.faserip-sheet .catalog details {
+  margin: 8px 0;
+  border: 2px solid var(--rule);
+  background: #fff;
+  padding: 4px 8px;
+}
+.faserip-sheet .catalog summary {
+  cursor: pointer;
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+}
+.faserip-sheet .catalog button.catalog-add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 2px 0;
+  background: #eee;
+  border: 1px solid var(--rule);
+}
+
+/* DialogV2 / ApplicationV2: keep action buttons visible and scroll the body. */
+.application.dialog .window-content,
+.application.faserip-dialog .window-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+  min-height: 0;
+  max-height: calc(92vh - 2.75rem);
+}
+
+.application.dialog form,
+.application.faserip-dialog form,
+.application.dialog .dialog-form,
+.application.faserip-dialog .dialog-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+}
+
+.application.dialog .dialog-content,
+.application.faserip-dialog .dialog-content,
+.faserip-dialog-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  min-height: 0;
+  max-height: calc(92vh - 9rem);
+  padding-right: 4px;
+}
+
+.application.dialog .form-footer,
+.application.faserip-dialog .form-footer,
+.application.dialog footer,
+.application.faserip-dialog footer {
+  flex: 0 0 auto;
+}
+
+/* AppV1 fallback windows */
+.app.window-app .window-content {
+  overflow-y: auto;
 }
