@@ -3,7 +3,7 @@ import {
   rankLabel, rollOnColumn, lookupTable, POWER_CATEGORIES, TALENT_CATEGORIES
 } from "./config.mjs";
 import { promptedD100 } from "./dice/percentile.mjs";
-import { UPB_POWER_CLASSES, UPB_POWERS, lookupBand, lookupUpbPower, UPB_WEAKNESS_STIMULUS, UPB_WEAKNESS_EFFECT, UPB_WEAKNESS_DURATION } from "./data/upb.mjs";
+import { isTwoSlotPower, cleanPowerName, slotCost } from "./data/slots.mjs";
 
 const WEAKNESSES = [
   "None",
@@ -64,8 +64,6 @@ export function collect(button, dialog) {
   return out;
 }
 
-function countsAsTwo(name) { return /counts as two/i.test(name); }
-
 export async function pickPowers(result, actor = null, useUpb = false) {
   if (useUpb || result.useUpb) {
     const { pickUpbPowers } = await import("./wizard-upb.mjs");
@@ -86,8 +84,9 @@ export async function pickPowers(result, actor = null, useUpb = false) {
     if (catRoll == null) return null;
     const cat = { roll: catRoll, ...lookupTable(POWER_CATEGORIES, catRoll) };
     const list = POWER_CATALOG[cat.id] ?? [];
-    const choice = await dialog("Power " + slot + " of " + needed + " (" + remaining + " slots left)",
-      "<p>Category <strong>" + esc(cat.label) + "</strong> (d100 " + cat.roll + "). Choose the Power. Counts-as-two spends two slots. Rank uses column " + result.origin.column + ".</p>" +
+    const choice = await dialog("Power slot " + (spent + 1) + "–" + needed + " (" + remaining + " slot" + (remaining === 1 ? "" : "s") + " left)",
+      "<p>Category <strong>" + esc(cat.label) + "</strong> (d100 " + cat.roll + "). Choose the Power. A power marked counts-as-two spends <strong>two</strong> of the " + needed + " slots. Rank uses column " + result.origin.column + ".</p>" +
+      "<p class='hint'>Used " + spent + " / " + needed + " slots. Current powers: " + (selected.map((p) => p.name + (p.cost === 2 ? " (2)" : "")).join(", ") || "none") + ".</p>" +
       "<div class='form-group'><label>Power</label><select name='power'>" + options(list) + "</select></div>" +
       "<div class='form-group'><label>Custom name</label><input name='custom' type='text' /></div>", [
       { action: "add", label: "Add Power", icon: "fa-solid fa-plus", default: true, callback: (_e, b) => ({ action: "add", ...collect(b) }) },
@@ -98,11 +97,12 @@ export async function pickPowers(result, actor = null, useUpb = false) {
     if (!choice || choice === "cancel") return null;
     if (choice === "skip") break;
     if (choice === "reroll") continue;
-    const name = (choice.custom || "").trim() || choice.power;
-    if (!name) continue;
-    const cost = countsAsTwo(name) && remaining >= 2 ? 2 : 1;
-    if (countsAsTwo(name) && remaining < 2) {
-      ui.notifications.warn(name + " costs two Power slots.");
+    const rawName = (choice.custom || "").trim() || choice.power;
+    if (!rawName) continue;
+    const name = cleanPowerName(rawName);
+    const cost = slotCost(rawName, {}, remaining);
+    if (isTwoSlotPower(rawName) && remaining < 2) {
+      ui.notifications.warn(name + " costs two Power slots. " + remaining + " left.");
       continue;
     }
     const rankRoll = await promptedD100({
@@ -114,12 +114,12 @@ export async function pickPowers(result, actor = null, useUpb = false) {
     if (rankRoll == null) return null;
     const rank = rollOnColumn(result.origin.column, rankRoll);
     selected.push({
-      name, category: cat.label, rank, rankRoll, cost,
+      name, category: cat.label, rank, rankRoll, cost, slotsTaken: cost,
       bodyArmor: /body armor/i.test(name),
       forceField: /force field/i.test(name)
     });
     spent += cost;
-    ui.notifications.info(name + ": " + rankLabel(rank) + " (d100 " + rankRoll + ")");
+    ui.notifications.info(name + ": " + rankLabel(rank) + " · " + cost + " slot" + (cost === 2 ? "s" : "") + " (" + spent + "/" + needed + ")");
   }
   return selected;
 }
@@ -195,75 +195,6 @@ export async function pickContacts(count, max, originId) {
     if (!choice || choice === "cancel") return null;
     if (choice === "skip") break;
     selected.push({ name: (choice.name || "").trim() || choice.type, type: choice.type });
-  }
-  return selected;
-}
-
-async function pickUpbPowers(result, actor) {
-  const needed = result.counts.powers[0];
-  const selected = [];
-  let spent = 0;
-  while (spent < needed) {
-    const remaining = needed - spent;
-    const slot = selected.length + 1;
-    const classRoll = await promptedD100({
-      title: "UPB Power Class " + slot,
-      body: "Roll 1d100 on the Ultimate Powers Book Power Class table for slot " + slot + " of " + needed + ".",
-      flavor: (actor?.name || "Hero") + " - UPB power class " + slot,
-      actor
-    });
-    if (classRoll == null) return null;
-    const cls = lookupBand(UPB_POWER_CLASSES, classRoll);
-    const specRoll = await promptedD100({
-      title: "UPB " + cls.label + " Power",
-      body: "Roll 1d100 on the " + cls.label + " list (class roll " + classRoll + "). Asterisk powers count as two slots.",
-      flavor: (actor?.name || "Hero") + " - UPB " + cls.label,
-      actor
-    });
-    if (specRoll == null) return null;
-    const rolled = lookupUpbPower(cls.id, specRoll);
-    const list = (UPB_POWERS[cls.id] ?? []).map((row) => row.countsAsTwo ? row.name + " (counts as two)" : row.name);
-    const rolledName = rolled.countsAsTwo ? rolled.name + " (counts as two)" : rolled.name;
-    const choice = await dialog("UPB Power " + slot + " of " + needed,
-      "<p>Class <strong>" + esc(cls.label) + "</strong> (" + classRoll + ") then <strong>" + esc(rolledName) + "</strong> (" + specRoll + ").</p>" +
-      "<p>Keep the rolled Power or pick another in this class. Rank uses column " + result.origin.column + ".</p>" +
-      "<div class='form-group'><label>Power</label><select name='power'>" + options(list, rolledName) + "</select></div>" +
-      "<div class='form-group'><label>Custom name</label><input name='custom' type='text' /></div>", [
-      { action: "add", label: "Add Power", icon: "fa-solid fa-plus", default: true, callback: (_e, b) => ({ action: "add", ...collect(b) }) },
-      { action: "reroll", label: "Reroll Class", icon: "fa-solid fa-rotate" },
-      { action: "skip", label: "Skip Remaining" },
-      { action: "cancel", label: "Stop" }
-    ]);
-    if (!choice || choice === "cancel") return null;
-    if (choice === "skip") break;
-    if (choice === "reroll") continue;
-    const name = (choice.custom || "").trim() || choice.power;
-    if (!name) continue;
-    const two = countsAsTwo(name) || rolled.countsAsTwo;
-    const cost = two && remaining >= 2 ? 2 : 1;
-    if (two && remaining < 2) {
-      ui.notifications.warn(name + " costs two Power slots.");
-      continue;
-    }
-    const rankRoll = await promptedD100({
-      title: "Power rank - " + name,
-      body: "Roll 1d100 on Random Ranks column " + result.origin.column + " for <strong>" + esc(name) + "</strong>.",
-      flavor: (actor?.name || "Hero") + " - " + name + " rank",
-      actor
-    });
-    if (rankRoll == null) return null;
-    const rank = rollOnColumn(result.origin.column, rankRoll);
-    selected.push({
-      name: name.replace(/ \(counts as two\)$/i, ""),
-      category: cls.label,
-      rank,
-      rankRoll,
-      cost,
-      bodyArmor: /body armor|armor skin|body resistance/i.test(name),
-      forceField: /force field/i.test(name)
-    });
-    spent += cost;
-    ui.notifications.info(name + ": " + rankLabel(rank) + " (d100 " + rankRoll + ")");
   }
   return selected;
 }
