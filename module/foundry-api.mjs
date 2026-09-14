@@ -23,6 +23,16 @@ export function getItemSheetV1() {
   return foundry?.appv1?.sheets?.ItemSheet ?? globalThis.ItemSheet ?? null;
 }
 
+export function getActorSheetClass() {
+  const cls = getActorSheetV1() ?? getActorSheetV2();
+  return typeof cls === "function" ? cls : class FaseripStubActorSheet {};
+}
+
+export function getItemSheetClass() {
+  const cls = getItemSheetV1() ?? getItemSheetV2();
+  return typeof cls === "function" ? cls : class FaseripStubItemSheet {};
+}
+
 export function getActorsCollection() {
   return foundry?.documents?.collections?.Actors ?? globalThis.Actors ?? null;
 }
@@ -61,7 +71,7 @@ export async function promptForm({ title, content, okLabel = "OK", width } = {})
     classes: ["faserip-dialog"],
     window: { title, icon: "fa-solid fa-table-list", resizable: true },
     position: width ? { width } : {},
-    content: `<div class="faserip-dialog-scroll">${content}</div>`,
+    content: `<div class=\"faserip-dialog-scroll\">${content}</div>`,
     buttons: [
       {
         action: "ok",
@@ -84,13 +94,13 @@ export async function confirmDialog({ title, content } = {}) {
   return DialogV2.confirm({
     classes: ["faserip-dialog"],
     window: { title, resizable: true },
-    content: `<div class="faserip-dialog-scroll">${content}</div>`,
+    content: `<div class=\"faserip-dialog-scroll\">${content}</div>`,
     rejectClose: false
   });
 }
 
 export function formValue(form, name) {
-  const el = form?.querySelector?.(`[name="${name}"]`);
+  const el = form?.querySelector?.(`[name=\"${name}\"]`);
   if (!el) return "";
   if (el.type === "checkbox") return !!el.checked;
   return el.value ?? "";
