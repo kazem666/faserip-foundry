@@ -1,6 +1,7 @@
 /**
  * Foundry VTT v14 API accessors.
- * AppV1 sheets still work on v14 (removed in v16). Dialogs and editors use V2.
+ * Character and item sheets use AppV1 (still supported on v14, removed in v16).
+ * Dialogs and editors use V2.
  */
 
 export function getActorSheetClass() {
@@ -14,29 +15,30 @@ export function getItemSheetClass() {
 }
 
 export function getActorsCollection() {
-  return foundry.documents.collections.Actors;
+  return foundry.documents?.collections?.Actors
+    ?? globalThis.Actors;
 }
 
 export function getItemsCollection() {
-  return foundry.documents.collections.Items;
+  return foundry.documents?.collections?.Items
+    ?? globalThis.Items;
 }
 
 export function getTextEditor() {
-  return foundry.applications.ux.TextEditor.implementation;
+  return foundry.applications?.ux?.TextEditor?.implementation
+    ?? foundry.applications?.ux?.TextEditor
+    ?? globalThis.TextEditor;
 }
 
 export async function renderSystemTemplate(path, data) {
-  return foundry.applications.handlebars.renderTemplate(path, data);
+  const fn = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
+  return fn(path, data);
 }
 
 export function deepClone(value) {
   return foundry.utils.deepClone(value);
 }
 
-/**
- * Modal form dialog. Returns the callback result, or null if cancelled.
- * `collect(form)` receives the <form> element from the pressed default button.
- */
 export async function promptForm({ title, content, okLabel = "OK", width } = {}) {
   const DialogV2 = foundry.applications.api.DialogV2;
   const result = await DialogV2.wait({

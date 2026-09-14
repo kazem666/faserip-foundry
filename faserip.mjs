@@ -8,6 +8,7 @@ import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { generateHero, promptGeneration } from "./module/chargen.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
+import { getActorSheetClass, getItemSheetClass, getActorsCollection, getItemsCollection } from "./module/foundry-api.mjs";
 
 function injectScrollableWindowStyles() {
   if (document.getElementById("faserip-scroll-css")) return;
@@ -32,9 +33,77 @@ function injectScrollableWindowStyles() {
   document.head.appendChild(style);
 }
 
+function registerSheets() {
+  const ActorSheetBase = getActorSheetClass();
+  const ItemSheetBase = getItemSheetClass();
+  const ActorsCol = getActorsCollection();
+  const ItemsCol = getItemsCollection();
+  try { ActorsCol.unregisterSheet("core", ActorSheetBase); } catch (err) {
+    console.warn("FASERIP | could not unregister core actor sheet", err);
+  }
+  ActorsCol.registerSheet("faserip", FaseripActorSheet, {
+    types: ["hero", "npc"],
+    makeDefault: true,
+    label: "FASERIP Character Sheet"
+  });
+  try { ItemsCol.unregisterSheet("core", ItemSheetBase); } catch (err) {
+    console.warn("FASERIP | could not unregister core item sheet", err);
+  }
+  ItemsCol.registerSheet("faserip", FaseripItemSheet, {
+    makeDefault: true,
+    label: "FASERIP Item Sheet"
+  });
+  try {
+    const DocumentSheetConfig = foundry.applications?.apps?.DocumentSheetConfig;
+    DocumentSheetConfig?.registerSheet?.(foundry.documents?.Actor ?? Actor, "faserip", FaseripActorSheet, {
+      types: ["hero", "npc"],
+      makeDefault: true,
+      label: "FASERIP Character Sheet"
+    });
+    DocumentSheetConfig?.registerSheet?.(foundry.documents?.Item ?? Item, "faserip", FaseripItemSheet, {
+      makeDefault: true,
+      label: "FASERIP Item Sheet"
+    });
+  } catch (err) {
+    console.warn("FASERIP | DocumentSheetConfig register skipped", err);
+  }
+}
+
+function attachGenerateButton(root) {
+  const el = root instanceof HTMLElement ? root : root?.[0];
+  if (!el || el.querySelector?.(".faserip-generate")) return;
+  const header = el.querySelector(".header-actions")
+    || el.querySelector(".directory-header")
+    || el.querySelector("[data-application-part='header']")
+    || el.querySelector("header")
+    || el;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "faserip-generate";
+  btn.innerHTML = '<i class="fa-solid fa-dice"></i> Generate Hero';
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    createActorWizard().catch((err) => {
+      console.error(err);
+      ui.notifications.error(err.message);
+    });
+  });
+  header.prepend(btn);
+}
+
+async function pinDefaultSheets() {
+  for (const actor of game.actors) {
+    if (actor.type !== "hero" && actor.type !== "npc") continue;
+    const current = actor.getFlag("core", "sheetClass");
+    if (current && current !== "faserip.FaseripActorSheet") {
+      try { await actor.setFlag("core", "sheetClass", "faserip.FaseripActorSheet"); } catch {}
+    }
+  }
+}
+
 Hooks.once("init", () => {
   try {
-    console.log("FASERIP | Initializing system (Foundry v14 ActorSheetV2)");
+    console.log("FASERIP | Initializing system 1.11.0");
     injectScrollableWindowStyles();
     CONFIG.Actor.documentClass = FaseripActor;
     CONFIG.Item.documentClass = FaseripItem;
@@ -48,18 +117,10 @@ Hooks.once("init", () => {
     };
     CONFIG.Combat.initiative = { formula: "1d10 + @initMod", decimals: 0 };
 
-    const DocumentSheetConfig = foundry.applications.apps.DocumentSheetConfig;
-    DocumentSheetConfig.registerSheet(Actor, "faserip", FaseripActorSheet, {
-      types: ["hero", "npc"],
-      makeDefault: true,
-      label: "FASERIP Character Sheet"
-    });
-    DocumentSheetConfig.registerSheet(Item, "faserip", FaseripItemSheet, {
-      makeDefault: true,
-      label: "FASERIP Item Sheet"
-    });
+    registerSheets();
 
     Handlebars.registerHelper("eq", (a, b) => a === b);
+    Handlebars.registerHelper("gt", (a, b) => Number(a) > Number(b));
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls. The sheet also shows the UPB power catalog.",
@@ -82,28 +143,18 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   console.log("FASERIP | Ready", game.version, "sheet", FaseripActorSheet.name);
-  ui.notifications.info("FASERIP loaded. Use Actors → Generate Hero, or Create Actor.");
+  injectScrollableWindowStyles();
+  attachGenerateButton(ui.actors?.element);
+  pinDefaultSheets().catch(() => {});
+  ui.notifications.info("FASERIP loaded. Actors directory → Generate Hero, or Create Actor.");
 });
 
 Hooks.on("renderActorDirectory", (_app, html) => {
-  const root = html instanceof HTMLElement ? html : html?.[0];
-  if (!root || root.querySelector(".faserip-generate")) return;
-  const header = root.querySelector(".header-actions")
-    || root.querySelector(".directory-header")
-    || root.querySelector("header")
-    || root;
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "faserip-generate";
-  btn.innerHTML = '<i class="fa-solid fa-dice"></i> Generate Hero';
-  btn.addEventListener("click", (event) => {
-    event.preventDefault();
-    createActorWizard().catch((err) => {
-      console.error(err);
-      ui.notifications.error(err.message);
-    });
-  });
-  header.prepend(btn);
+  attachGenerateButton(html ?? _app?.element);
+});
+
+Hooks.on("renderSidebarTab", (app, html) => {
+  if (app?.tabName === "actors" || app?.id === "actors") attachGenerateButton(html ?? app?.element);
 });
 
 Hooks.on("createActor", async (actor, _options, userId) => {
@@ -111,7 +162,7 @@ Hooks.on("createActor", async (actor, _options, userId) => {
   if (actor.type !== "hero" && actor.type !== "npc") return;
   if (actor.getFlag("faserip", "generating")) return;
   try {
-    actor.sheet?.render({ force: true });
+    actor.sheet?.render(true);
   } catch (err) {
     console.error("FASERIP | could not open sheet", err);
   }
