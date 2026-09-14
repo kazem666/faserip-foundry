@@ -1,8 +1,8 @@
 {
   "id": "faserip",
   "title": "FASERIP",
-  "description": "Unofficial Foundry VTT system for FASERIP-style play. Advanced Set generation including Powers, Talents, and Contacts.",
-  "version": "1.5.0",
+  "description": "Unofficial Foundry VTT system for FASERIP-style play. Advanced Set generation with visible dice and sheet catalogs.",
+  "version": "1.6.0",
   "compatibility": { "minimum": "14", "verified": "14" },
   "authors": [{ "name": "Community FASERIP System", "flags": {} }],
   "esmodules": ["faserip.mjs"],
