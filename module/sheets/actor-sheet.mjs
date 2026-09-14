@@ -9,6 +9,17 @@ import { confirmDialog, promptForm, formValue, getTextEditor } from "../foundry-
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
+const POWER_LABELS = {
+  resistances: "Resistances", senses: "Senses", movement: "Movement",
+  matter: "Matter Control", energy: "Energy Control", bodyControl: "Body Control",
+  distance: "Distance Attacks", mental: "Mental Powers",
+  offensive: "Body Alterations / Offensive", defensive: "Body Alterations / Defensive"
+};
+const TALENT_LABELS = {
+  weapon: "Weapon Skills", fighting: "Fighting Skills", professional: "Professional Skills",
+  scientific: "Scientific Skills", mystic: "Mystic and Mental Skills", other: "Other Skills"
+};
+
 export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["faserip", "actor"],
@@ -32,7 +43,8 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
       rollResources: FaseripActorSheet.onRollResources,
       combatFeat: FaseripActorSheet.onCombatFeat,
       editImage: FaseripActorSheet.onEditImage,
-      tab: FaseripActorSheet.onTab
+      sheetTab: FaseripActorSheet.onSheetTab,
+      catalogAdd: FaseripActorSheet.onCatalogAdd
     }
   };
 
@@ -61,8 +73,8 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
       const rank = data.rank ?? "typical";
       return {
         key,
-        label: game.i18n.localize(`FASERIP.Ability.${key}`),
-        abbr: game.i18n.localize(`FASERIP.AbilityAbbr.${key}`),
+        label: game.i18n.localize("FASERIP.Ability." + key),
+        abbr: game.i18n.localize("FASERIP.AbilityAbbr." + key),
         rank,
         number: abilityNumber(data),
         rankLabel: rankLabel(rank)
@@ -76,6 +88,9 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
     context.talents = decorate(items.filter((i) => i.type === "talent"));
     context.contacts = decorate(items.filter((i) => i.type === "contact"));
     context.gear = decorate(items.filter((i) => i.type === "equipment" || i.type === "weapon"));
+    context.powerCatalog = Object.entries(POWER_CATALOG).map(([id, items]) => ({ id, label: POWER_LABELS[id] || id, items }));
+    context.talentCatalog = Object.entries(TALENT_CATALOG).map(([id, items]) => ({ id, label: TALENT_LABELS[id] || id, items }));
+    context.contactCatalog = CONTACT_TYPES;
     context.enrichedBiography = actor.system.biography ?? "";
     context.enrichedNotes = actor.system.notes ?? "";
     try {
@@ -98,14 +113,36 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
   showTab(tab) {
     this._activeTab = tab;
     this.element.querySelectorAll(".sheet-tabs [data-tab]").forEach((el) => el.classList.toggle("active", el.dataset.tab === tab));
-    this.element.querySelectorAll(".sheet-body .tab").forEach((el) => { el.style.display = el.dataset.tab === tab ? "block" : "none"; });
+    this.element.querySelectorAll(".sheet-body .tab").forEach((el) => {
+      const on = el.dataset.tab === tab;
+      el.classList.toggle("active", on);
+      el.style.display = on ? "block" : "none";
+    });
   }
 
-  static onTab(event, target) { event.preventDefault(); this.showTab(target.dataset.tab); }
+  static onSheetTab(event, target) {
+    event.preventDefault();
+    this.showTab(target.dataset.tab);
+  }
+
+  static async onCatalogAdd(event, target) {
+    event.preventDefault();
+    const type = target.dataset.type;
+    const name = target.dataset.name;
+    const category = target.dataset.category || "";
+    if (!type || !name) return;
+    const extra = { name, type, system: { category } };
+    if (type === "power") extra.system.rank = "typical";
+    if (type === "power" && /body armor/i.test(name)) extra.system.bodyArmor = true;
+    if (type === "power" && /force field/i.test(name)) extra.system.forceField = true;
+    await this.actor.createEmbeddedDocuments("Item", [extra]);
+    ui.notifications.info("Added " + name);
+  }
+
   static async onGenerate(event) { event.preventDefault(); return promptGeneration(this.actor); }
   static async onRollAbility(event, target) {
     event.preventDefault();
-    return promptFeatRoll({ actor: this.actor, rankId: this.actor.getAbilityRank(target.dataset.ability), label: game.i18n.localize(`FASERIP.Ability.${target.dataset.ability}`) });
+    return promptFeatRoll({ actor: this.actor, rankId: this.actor.getAbilityRank(target.dataset.ability), label: game.i18n.localize("FASERIP.Ability." + target.dataset.ability) });
   }
   static async onRollItem(event, target) {
     event.preventDefault();
@@ -117,50 +154,29 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
     event.preventDefault();
     const item = this.actor.items.get(target.closest(".item")?.dataset.itemId);
     if (!item) return;
-    if (await confirmDialog({ title: "Delete Item", content: `<p>Delete <strong>${item.name}</strong>?</p>` })) await item.delete();
+    if (await confirmDialog({ title: "Delete Item", content: "<p>Delete <strong>" + item.name + "</strong>?</p>" })) await item.delete();
   }
   static async onItemCreate(event, target) {
     event.preventDefault();
     const type = target.dataset.type;
-    if (type === "power") return this.addFromCatalog("power", POWER_CATALOG);
-    if (type === "talent") return this.addFromCatalog("talent", TALENT_CATALOG);
-    if (type === "contact") return this.addContact();
-    await this.actor.createEmbeddedDocuments("Item", [{ name: type === "weapon" ? "New Weapon" : "New Equipment", type }]);
-  }
-  async addFromCatalog(type, catalog) {
-    const esc = (n) => String(n).replaceAll('"', '"');
-    const groups = Object.entries(catalog).map(([cat, list]) => `<optgroup label="${cat}">${list.map((n) => `<option value="${esc(n)}">${n}</option>`).join("")}</optgroup>`).join("");
-    const form = await promptForm({ title: `Add ${type}`, content: `<div class="form-group"><select name="pick"><option value="">custom</option>${groups}</select></div><div class="form-group"><input type="text" name="custom" /></div>`, okLabel: "Create" });
-    if (!form) return;
-    const name = formValue(form, "pick") || formValue(form, "custom") || `New ${type}`;
-    const extra = { name, type };
-    if (type === "power" && /body armor/i.test(name)) extra.system = { bodyArmor: true };
-    if (type === "power" && /force field/i.test(name)) extra.system = { forceField: true };
-    await this.actor.createEmbeddedDocuments("Item", [extra]);
-  }
-  async addContact() {
-    const opts = CONTACT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("");
-    const form = await promptForm({ title: "Add Contact", content: `<select name="type">${opts}</select><input type="text" name="name" />`, okLabel: "Create" });
-    if (!form) return;
-    const type = formValue(form, "type");
-    await this.actor.createEmbeddedDocuments("Item", [{ name: formValue(form, "name") || type, type: "contact", system: { category: type } }]);
+    await this.actor.createEmbeddedDocuments("Item", [{ name: "New " + type, type }]);
   }
   static async onApplyDamage(event) {
     event.preventDefault();
-    const amount = Number(this.element.querySelector('[name="damageAmount"]')?.value || 0);
+    const amount = Number(this.element.querySelector("[name=damageAmount]")?.value || 0);
     if (!amount) return;
-    const taken = await this.actor.applyDamage(amount, { energy: this.element.querySelector('[name="energyAttack"]')?.checked, useForceField: this.element.querySelector('[name="useForceField"]')?.checked });
-    ui.notifications.info(`${this.actor.name} takes ${taken} after armor/fields.`);
+    const taken = await this.actor.applyDamage(amount, { energy: this.element.querySelector("[name=energyAttack]")?.checked, useForceField: this.element.querySelector("[name=useForceField]")?.checked });
+    ui.notifications.info(this.actor.name + " takes " + taken + " after armor/fields.");
   }
-  static async onHeal(event) { event.preventDefault(); const amount = Number(this.element.querySelector('[name="damageAmount"]')?.value || 0); if (amount) await this.actor.heal(amount); }
+  static async onHeal(event) { event.preventDefault(); const amount = Number(this.element.querySelector("[name=damageAmount]")?.value || 0); if (amount) await this.actor.heal(amount); }
   static async onRecover(event) { event.preventDefault(); await this.actor.recover(); }
   static async onNaturalHeal(event) { event.preventDefault(); await this.actor.naturalHeal({ rest: event.shiftKey }); }
   static async onResetHealth(event) { event.preventDefault(); await this.actor.update({ "system.health.value": this.actor.system.health.max, "system.condition.unconscious": false }); }
   static async onResetKarma(event) { event.preventDefault(); await this.actor.update({ "system.karma.value": this.actor.system.karma.max }); }
-  static async onUniversal(event) { event.preventDefault(); return promptFeatRoll({ actor: this.actor, rankId: this.element.querySelector('[name="universalRank"]')?.value || "typical", label: "Universal Table" }); }
+  static async onUniversal(event) { event.preventDefault(); return promptFeatRoll({ actor: this.actor, rankId: this.element.querySelector("[name=universalRank]")?.value || "typical", label: "Universal Table" }); }
   static async onCombatFeat(event) {
     event.preventDefault();
-    const column = this.element.querySelector('[name="combatColumn"]')?.value;
+    const column = this.element.querySelector("[name=combatColumn]")?.value;
     const def = BATTLE_EFFECTS[column];
     if (def) return promptFeatRoll({ actor: this.actor, rankId: this.actor.getAbilityRank(def.ability), label: def.label, defaultColumn: column });
   }
