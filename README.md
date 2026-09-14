@@ -4,7 +4,9 @@ Unofficial Foundry Virtual Tabletop **system** for FASERIP-style superhero games
 
 This package contains **no Marvel characters, art, or copyrighted rules text**. You still need a rulebook you are allowed to use (original books you own, or an OGL retro-clone).
 
-Version **1.11.0**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
+Version **1.13.4**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
+
+1.13.4 removes the unused Power / Talent / Contact catalog lists from the character sheet (pickers stay on the **+ Custom** buttons). Contacts tab only shows actual Contact items. Hero name field is smaller so it stays inside the header.
 
 ## What you get
 
@@ -28,14 +30,14 @@ Version **1.11.0**. Built for Foundry VTT **v14** (`compatibility.minimum` / `ve
 
 ## Foundry v14
 
-1.11.0 restores the **Generate Hero** builder and the tabbed character / item sheets after the v14 ActorSheetV2 rewrite left some worlds on the blank core sheet. Sheets are AppV1 again (`foundry.appv1.sheets.ActorSheet`), which is valid on v14. Create Actor still opens the sequential 1d100 wizard. The Actors directory has a **Generate Hero** button.
+1.13.4 keeps AppV1 sheets. Catalog lists no longer render on Powers / Talents / Contacts tabs. Generate Hero remains on Create Actor, the Actors sidebar, Game Settings, and the sheet header.
 
 Tabbed record: **Record**, **Identity**, **Powers**, **Stunts**, **Talents**, **Contacts**, **Gear**, **Karma Bank**, **Notes**. Two-slot powers spend 2. Normal Human form caps at 5 starting power slots. Dialogs remain scrollable.
 
 - `system.json` `compatibility.minimum` / `verified` set to `"14"` (v12–v13 will not load it)
 - Dialogs use `DialogV2`
 - Sheet registration uses `Actors.registerSheet` plus `DocumentSheetConfig`
-- Character sheets use AppV1 (`foundry.appv1.sheets.ActorSheet`) — valid on v14, removed in v16
+- Character sheets use AppV1 (`foundry.appv1.sheets.ActorSheet`) — valid on v14
 - HTML fields declared in `documentTypes` for server-side sanitization
 - `foundry.utils.duplicate` replaced with `deepClone`
 
