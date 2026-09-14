@@ -7,19 +7,15 @@ import { FaseripItemSheet } from "./module/sheets/item-sheet.mjs";
 import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded, initiativeModifier } from "./module/config.mjs";
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { generateHero, promptGeneration } from "./module/chargen.mjs";
-import { createActorWizard } from "./module/wizard.mjs";
+import { createActorWizard, attachDirectoryButton } from "./module/wizard.mjs";
 import { getActorsCollection, getItemsCollection, getActorSheetClass, getItemSheetClass } from "./module/foundry-api.mjs";
 
 Hooks.once("init", () => {
-  console.log("FASERIP | Initializing system 1.3.0 (Foundry v14)");
+  console.log("FASERIP | Initializing system 1.3.1 (Foundry v14)");
 
   CONFIG.Actor.documentClass = FaseripActor;
   CONFIG.Item.documentClass = FaseripItem;
-
-  CONFIG.Actor.dataModels = {
-    hero: HeroData,
-    npc: NpcData
-  };
+  CONFIG.Actor.dataModels = { hero: HeroData, npc: NpcData };
   CONFIG.Item.dataModels = {
     power: PowerData,
     talent: TalentData,
@@ -27,21 +23,10 @@ Hooks.once("init", () => {
     equipment: EquipmentData,
     weapon: WeaponData
   };
-
-  CONFIG.Combat.initiative = {
-    formula: "1d10 + @initMod",
-    decimals: 0
-  };
-
+  CONFIG.Combat.initiative = { formula: "1d10 + @initMod", decimals: 0 };
   CONFIG.Actor.trackableAttributes = {
-    hero: {
-      bar: ["health", "karma"],
-      value: ["popularity.value"]
-    },
-    npc: {
-      bar: ["health", "karma"],
-      value: ["popularity.value"]
-    }
+    hero: { bar: ["health", "karma"], value: ["popularity.value"] },
+    npc: { bar: ["health", "karma"], value: ["popularity.value"] }
   };
 
   const Actors = getActorsCollection();
@@ -55,7 +40,6 @@ Hooks.once("init", () => {
     makeDefault: true,
     label: "FASERIP Character Sheet"
   });
-
   Items.unregisterSheet("core", ItemSheetBase);
   Items.registerSheet("faserip", FaseripItemSheet, {
     makeDefault: true,
@@ -66,18 +50,9 @@ Hooks.once("init", () => {
   Handlebars.registerHelper("gt", (a, b) => Number(a) > Number(b));
 
   game.faserip = {
-    rollFeat,
-    promptFeatRoll,
-    generateHero,
-    promptGeneration,
-    createActorWizard,
-    ranks: RANKS,
-    abilities: ABILITIES,
-    battleEffects: BATTLE_EFFECTS,
-    rankLabel,
-    shiftRank,
-    intensityNeeded,
-    initiativeModifier
+    rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard,
+    ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS,
+    rankLabel, shiftRank, intensityNeeded, initiativeModifier
   };
 });
 
@@ -93,4 +68,9 @@ Hooks.on("createActor", async (actor) => {
       "system.karma.value": actor.system.karma.max
     });
   }
+});
+
+Hooks.on("renderActorDirectory", (app, html) => {
+  try { attachDirectoryButton(app, html); }
+  catch (err) { console.error("FASERIP | directory button", err); }
 });
