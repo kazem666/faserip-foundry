@@ -1,9 +1,9 @@
-<div class="faserip-sheet">
-  <header class="sheet-header">
+<div class="faserip-sheet record-sheet">
+  <header class="sheet-header compact">
     <img class="profile" src="{{actor.img}}" data-action="editImage" title="{{actor.name}}" alt="{{actor.name}}" />
     <div class="header-fields">
       <h1 class="hero-name"><input name="name" type="text" value="{{actor.name}}" placeholder="Hero Name" /></h1>
-      <div class="identity-row">
+      <div class="identity-row four">
         <label>Public / Hero ID
           <input name="system.identity.public" type="text" value="{{system.identity.public}}" />
         </label>
@@ -14,144 +14,210 @@
           <span>Secret ID?</span>
           <input type="checkbox" name="system.identity.secretId" {{#if system.identity.secretId}}checked{{/if}} />
         </label>
+        <button type="button" class="generate" data-action="generate">Generate Hero</button>
       </div>
-      <div class="identity-row three">
+      <div class="identity-row four">
         <label>Origin
           <input name="system.identity.origin" type="text" value="{{system.identity.origin}}" list="faserip-origins" />
           <datalist id="faserip-origins">{{#each origins as |o|}}<option value="{{o}}"></option>{{/each}}</datalist>
         </label>
-        <label>Form
+        <label>Physical Form
           <input name="system.identity.form" type="text" value="{{system.identity.form}}" />
         </label>
         <label>Origin of Power
           <input name="system.identity.originOfPower" type="text" value="{{system.identity.originOfPower}}" />
         </label>
-      </div>
-      <div class="identity-row">
-        <label>Group
+        <label>Group Affiliation
           <input name="system.identity.group" type="text" value="{{system.identity.group}}" />
         </label>
-        <button type="button" data-action="generate">Generate Hero</button>
       </div>
     </div>
   </header>
 
-  <section class="resource-row">
-    <div class="stat-box health">
-      <header>Health</header>
-      <div class="stat-values">
-        <input type="number" name="system.health.value" value="{{system.health.value}}" />
-        <span>/</span>
-        <span class="max">{{system.health.max}}</span>
-      </div>
-      <div class="bar"><span style="width: {{healthPct}}%"></span></div>
-      <label class="mini">Regen <input type="number" name="system.health.regen" value="{{system.health.regen}}" min="0" /></label>
-      <button type="button" data-action="resetHealth">Reset</button>
-    </div>
-    <div class="stat-box karma">
-      <header>Karma</header>
-      <div class="stat-values">
-        <input type="number" name="system.karma.value" value="{{system.karma.value}}" />
-        <span>/</span>
-        <span class="max">{{system.karma.max}}</span>
-      </div>
-      <div class="bar"><span style="width: {{karmaPct}}%"></span></div>
-      <label class="mini">Pool <input type="number" name="system.karmaBank.pool" value="{{system.karmaBank.pool}}" min="0" /></label>
-      <button type="button" data-action="resetKarma">Reset</button>
-    </div>
-    <div class="stat-box resources">
-      <header>Resources</header>
-      <select name="system.resources.rank">
-        {{#each ranks as |r|}}
-        <option value="{{r.id}}" {{#if (eq ../system.resources.rank r.id)}}selected{{/if}}>{{r.label}} ({{r.value}})</option>
-        {{/each}}
-      </select>
-      <div class="mini-grid">
-        <label>Used<input name="system.resources.usedThisWeek" type="text" value="{{system.resources.usedThisWeek}}" /></label>
-        <label>Loan<input name="system.resources.loan" type="text" value="{{system.resources.loan}}" /></label>
-        <label>Pay<input name="system.resources.payment" type="text" value="{{system.resources.payment}}" /></label>
-      </div>
-      <button type="button" data-action="rollResources">FEAT</button>
-    </div>
-    <div class="stat-box popularity">
-      <header>Popularity</header>
-      <div class="stat-values twin">
-        <label>Hero <input type="number" name="system.popularity.value" value="{{system.popularity.value}}" /></label>
-        <label>Secret <input type="number" name="system.popularity.secret" value="{{system.popularity.secret}}" /></label>
-      </div>
-    </div>
-  </section>
-
-  <section class="derived-row">
-    <div>Init +{{initMod}}</div>
-    <div>Move {{movement}} areas</div>
-    <div>Throw {{throwRange}} areas</div>
-    <div>Heal {{healRate}} / hour</div>
-    <div>Armor {{bodyArmor}}</div>
-    <div>Field {{forceField}}</div>
-    <div>Power slots {{powerSlotsUsed}}{{#if generation}} / {{generation.powerNeed}}{{/if}}</div>
-  </section>
-
-  <section class="abilities">
-    <h2>FASERIP</h2>
-    <div class="ability-grid">
-      {{#each abilities as |ab|}}
-      <div class="ability-card">
-        <button type="button" class="ability-roll" data-action="rollAbility" data-ability="{{ab.key}}" title="Roll {{ab.label}} FEAT">
-          <span class="abbr">{{ab.abbr}}</span>
-          <span class="name">{{ab.label}}</span>
-        </button>
-        <select name="system.abilities.{{ab.key}}.rank">
-          {{#each ../ranks as |r|}}
-          <option value="{{r.id}}" {{#if (eq ab.rank r.id)}}selected{{/if}}>{{r.abbr}} {{r.min}}–{{r.max}}</option>
-          {{/each}}
-        </select>
-        <input type="number" name="system.abilities.{{ab.key}}.number" value="{{ab.number}}" min="0" title="Rank number (0 = use standard)" />
-      </div>
-      {{/each}}
-    </div>
-  </section>
-
-  <section class="toolbox">
-    <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>
-    <label class="check"><input type="checkbox" name="energyAttack" /> Energy (−20 armor)</label>
-    <label class="check"><input type="checkbox" name="useForceField" /> Use Force Field</label>
-    <button type="button" data-action="applyDamage">Apply Damage</button>
-    <button type="button" data-action="heal">Heal</button>
-    <button type="button" data-action="recover">Recovery</button>
-    <button type="button" data-action="naturalHeal">Hour Heal</button>
-    <label>Universal
-      <select name="universalRank">
-        {{#each ranks as |r|}}<option value="{{r.id}}">{{r.label}}</option>{{/each}}
-      </select>
-    </label>
-    <button type="button" data-action="universal">Roll FEAT</button>
-    <label>Battle Effects
-      <select name="combatColumn">
-        {{#each combatColumns as |c|}}<option value="{{c.id}}">{{c.label}}</option>{{/each}}
-      </select>
-    </label>
-    <button type="button" data-action="combatFeat">Combat FEAT</button>
-  </section>
-
   <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-action="sheetTab" data-tab="record">Record</a>
+    <a class="item" data-action="sheetTab" data-tab="identity">Identity</a>
     <a class="item" data-action="sheetTab" data-tab="powers">Powers</a>
     <a class="item" data-action="sheetTab" data-tab="stunts">Stunts</a>
     <a class="item" data-action="sheetTab" data-tab="talents">Talents</a>
     <a class="item" data-action="sheetTab" data-tab="contacts">Contacts</a>
     <a class="item" data-action="sheetTab" data-tab="gear">Gear</a>
-    <a class="item" data-action="sheetTab" data-tab="identity">Identity</a>
     <a class="item" data-action="sheetTab" data-tab="karma">Karma Bank</a>
     <a class="item" data-action="sheetTab" data-tab="bio">Notes</a>
   </nav>
 
   <section class="sheet-body">
+    <div class="tab" data-tab="record">
+      <div class="panel-grid two">
+        <section class="panel characteristics">
+          <h2>Characteristics</h2>
+          <div class="ability-grid">
+            {{#each abilities as |ab|}}
+            <div class="ability-card">
+              <button type="button" class="ability-roll" data-action="rollAbility" data-ability="{{ab.key}}" title="Roll {{ab.label}} FEAT">
+                <span class="abbr">{{ab.abbr}}</span>
+                <span class="name">{{ab.label}}</span>
+              </button>
+              <select name="system.abilities.{{ab.key}}.rank">
+                {{#each ../ranks as |r|}}
+                <option value="{{r.id}}" {{#if (eq ab.rank r.id)}}selected{{/if}}>{{r.abbr}} {{r.min}}–{{r.max}}</option>
+                {{/each}}
+              </select>
+              <input type="number" name="system.abilities.{{ab.key}}.number" value="{{ab.number}}" min="0" title="Rank number (0 = use standard)" />
+            </div>
+            {{/each}}
+          </div>
+        </section>
+
+        <section class="panel vitals">
+          <h2>Health / Karma / Standing</h2>
+          <div class="resource-row">
+            <div class="stat-box health">
+              <header>Health (F+A+S+E)</header>
+              <div class="stat-values">
+                <input type="number" name="system.health.value" value="{{system.health.value}}" />
+                <span>/</span>
+                <span class="max">{{system.health.max}}</span>
+              </div>
+              <div class="bar"><span style="width: {{healthPct}}%"></span></div>
+              <label class="mini">Regen <input type="number" name="system.health.regen" value="{{system.health.regen}}" min="0" /></label>
+              <button type="button" data-action="resetHealth">Reset</button>
+            </div>
+            <div class="stat-box karma">
+              <header>Karma (R+I+P)</header>
+              <div class="stat-values">
+                <input type="number" name="system.karma.value" value="{{system.karma.value}}" />
+                <span>/</span>
+                <span class="max">{{system.karma.max}}</span>
+              </div>
+              <div class="bar"><span style="width: {{karmaPct}}%"></span></div>
+              <label class="mini">Pool <input type="number" name="system.karmaBank.pool" value="{{system.karmaBank.pool}}" min="0" /></label>
+              <button type="button" data-action="resetKarma">Reset</button>
+            </div>
+            <div class="stat-box resources">
+              <header>Resources</header>
+              <select name="system.resources.rank">
+                {{#each ranks as |r|}}
+                <option value="{{r.id}}" {{#if (eq ../system.resources.rank r.id)}}selected{{/if}}>{{r.label}} ({{r.value}})</option>
+                {{/each}}
+              </select>
+              <div class="mini-grid">
+                <label>Used<input name="system.resources.usedThisWeek" type="text" value="{{system.resources.usedThisWeek}}" /></label>
+                <label>Loan<input name="system.resources.loan" type="text" value="{{system.resources.loan}}" /></label>
+                <label>Pay<input name="system.resources.payment" type="text" value="{{system.resources.payment}}" /></label>
+              </div>
+              <button type="button" data-action="rollResources">FEAT</button>
+            </div>
+            <div class="stat-box popularity">
+              <header>Popularity</header>
+              <div class="stat-values twin">
+                <label>Hero <input type="number" name="system.popularity.value" value="{{system.popularity.value}}" /></label>
+                <label>Secret <input type="number" name="system.popularity.secret" value="{{system.popularity.secret}}" /></label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="derived-row">
+        <div>Init +{{initMod}}</div>
+        <div>Move {{movement}} areas</div>
+        <div>Throw {{throwRange}} areas</div>
+        <div>Heal {{healRate}} / hour</div>
+        <div>Armor {{bodyArmor}}</div>
+        <div>Field {{forceField}}</div>
+        <div>Power slots {{powerSlotsUsed}}{{#if generation}} / {{generation.powerNeed}}{{/if}}</div>
+      </section>
+
+      <section class="toolbox">
+        <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>
+        <label class="check"><input type="checkbox" name="energyAttack" /> Energy (−20 armor)</label>
+        <label class="check"><input type="checkbox" name="useForceField" /> Use Force Field</label>
+        <button type="button" data-action="applyDamage">Apply Damage</button>
+        <button type="button" data-action="heal">Heal</button>
+        <button type="button" data-action="recover">Recovery</button>
+        <button type="button" data-action="naturalHeal">Hour Heal</button>
+        <label>Universal
+          <select name="universalRank">
+            {{#each ranks as |r|}}<option value="{{r.id}}">{{r.label}}</option>{{/each}}
+          </select>
+        </label>
+        <button type="button" data-action="universal">Roll FEAT</button>
+        <label>Battle Effects
+          <select name="combatColumn">
+            {{#each combatColumns as |c|}}<option value="{{c.id}}">{{c.label}}</option>{{/each}}
+          </select>
+        </label>
+        <button type="button" data-action="combatFeat">Combat FEAT</button>
+      </section>
+    </div>
+
+    <div class="tab" data-tab="identity">
+      <div class="panel-grid two">
+        <section class="panel description">
+          <h2>Description</h2>
+          <div class="id-grid three">
+            <label>Player <input name="system.identity.player" type="text" value="{{system.identity.player}}" /></label>
+            <label>Era <input name="system.identity.era" type="text" value="{{system.identity.era}}" /></label>
+            <label>Campaign <input name="system.identity.campaign" type="text" value="{{system.identity.campaign}}" /></label>
+            <label>Age <input name="system.identity.age" type="text" value="{{system.identity.age}}" /></label>
+            <label>Sex <input name="system.identity.sex" type="text" value="{{system.identity.sex}}" /></label>
+            <label>Handed <input name="system.identity.handed" type="text" value="{{system.identity.handed}}" /></label>
+            <label>Height <input name="system.identity.height" type="text" value="{{system.identity.height}}" /></label>
+            <label>Weight <input name="system.identity.weight" type="text" value="{{system.identity.weight}}" /></label>
+            <label>Ethnicity <input name="system.identity.ethnicity" type="text" value="{{system.identity.ethnicity}}" /></label>
+            <label>Hair <input name="system.identity.hair" type="text" value="{{system.identity.hair}}" /></label>
+            <label>Eyes <input name="system.identity.eyes" type="text" value="{{system.identity.eyes}}" /></label>
+            <label>Ears <input name="system.identity.ears" type="text" value="{{system.identity.ears}}" /></label>
+            <label>Skin <input name="system.identity.skin" type="text" value="{{system.identity.skin}}" /></label>
+            <label>Place of Birth <input name="system.identity.placeOfBirth" type="text" value="{{system.identity.placeOfBirth}}" /></label>
+            <label>Hometown <input name="system.identity.hometown" type="text" value="{{system.identity.hometown}}" /></label>
+          </div>
+        </section>
+        <section class="panel biography-fields">
+          <h2>Background</h2>
+          <div class="id-grid">
+            <label>Occupation <input name="system.identity.occupation" type="text" value="{{system.identity.occupation}}" /></label>
+            <label>Legal Status <input name="system.identity.legalStatus" type="text" value="{{system.identity.legalStatus}}" /></label>
+            <label>Marital Status <input name="system.identity.maritalStatus" type="text" value="{{system.identity.maritalStatus}}" /></label>
+            <label>Birth Order <input name="system.identity.birthOrder" type="text" value="{{system.identity.birthOrder}}" /></label>
+            <label>Base of Operations <input name="system.identity.baseOfOperations" type="text" value="{{system.identity.baseOfOperations}}" /></label>
+            <label>Aliases / Nicks <input name="system.identity.aliases" type="text" value="{{system.identity.aliases}}" /></label>
+            <label>Father <input name="system.identity.father" type="text" value="{{system.identity.father}}" /></label>
+            <label>Mother <input name="system.identity.mother" type="text" value="{{system.identity.mother}}" /></label>
+            <label>Siblings <input name="system.identity.siblings" type="text" value="{{system.identity.siblings}}" /></label>
+            <label>Languages <input name="system.identity.languages" type="text" value="{{system.identity.languages}}" /></label>
+          </div>
+        </section>
+      </div>
+      <label>Known Relatives
+        <textarea name="system.identity.knownRelatives" rows="2">{{system.identity.knownRelatives}}</textarea>
+      </label>
+      <label>Past Group Affiliation(s)
+        <textarea name="system.identity.pastGroups" rows="2">{{system.identity.pastGroups}}</textarea>
+      </label>
+      <div class="panel-grid two">
+        <label>Physical Features
+          <textarea name="system.identity.physicalFeatures" rows="3">{{system.identity.physicalFeatures}}</textarea>
+        </label>
+        <label>Clothing
+          <textarea name="system.identity.clothing" rows="3">{{system.identity.clothing}}</textarea>
+        </label>
+        <label>Personality
+          <textarea name="system.identity.personality" rows="3">{{system.identity.personality}}</textarea>
+        </label>
+        <label>Family
+          <textarea name="system.story.family" rows="3">{{system.story.family}}</textarea>
+        </label>
+      </div>
+    </div>
+
     <div class="tab" data-tab="powers">
       {{#if generation}}
       <p class="hint">Generation granted {{generation.powerNeed}} power slot(s) (max {{generation.powerMax}}). Two-slot powers spend 2. Slots used now: {{powerSlotsUsed}}.</p>
       {{/if}}
       {{#each powers as |item|}}
-      <article class="record-card power-card" data-item-id="{{item.id}}">
+      <article class="record-card power-card item" data-item-id="{{item.id}}">
         <header>
           <img src="{{item.img}}" alt="" />
           <strong>{{item.name}}</strong>
@@ -161,12 +227,12 @@
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
           <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </header>
-        <div class="record-grid">
+        <div class="record-grid five">
           <label>Type <span>{{item.category}}</span></label>
           <label>Range <span>{{item.range}}</span></label>
           <label>Area <span>{{item.area}}</span></label>
-          <label>Emanates <span>{{item.emanatesFrom}}</span></label>
-          <label>Areas/Rd <span>{{item.areasPerRound}}</span></label>
+          <label>Emanates From <span>{{item.emanatesFrom}}</span></label>
+          <label>Areas / Rd <span>{{item.areasPerRound}}</span></label>
         </div>
         {{#if item.definition}}<p class="definition">{{item.definition}}</p>{{/if}}
       </article>
@@ -199,7 +265,7 @@
     <div class="tab" data-tab="stunts">
       <p class="hint">Power stunts: 100 Karma per attempt. After 10 successful attempts the stunt is mastered and no longer costs Karma.</p>
       {{#each powers as |item|}}
-      <article class="record-card" data-item-id="{{item.id}}">
+      <article class="record-card item" data-item-id="{{item.id}}">
         <header><strong>{{item.name}}</strong> <button type="button" data-action="addStunt" data-item-id="{{item.id}}">+ Stunt</button></header>
         {{#each item.stunts as |stunt|}}
         <div class="stunt-row">
@@ -226,7 +292,7 @@
     <div class="tab" data-tab="talents">
       {{#if generation}}<p class="hint">Rolled {{generation.talentNeed}} talent(s).</p>{{/if}}
       {{#each talents as |item|}}
-      <article class="record-card" data-item-id="{{item.id}}">
+      <article class="record-card item" data-item-id="{{item.id}}">
         <header>
           <strong>{{item.name}}</strong>
           <span>{{item.category}}</span>
@@ -236,7 +302,7 @@
         <div class="record-grid">
           <label>Bonus <span>{{item.bonus}}</span></label>
           <label>Attribute <span>{{item.attribute}}</span></label>
-          <label>Slots <span>{{item.slotsTaken}}</span></label>
+          <label>Slots Taken <span>{{item.slotsTaken}}</span></label>
         </div>
         {{#if item.definition}}<p class="definition">{{item.definition}}</p>{{/if}}
       </article>
@@ -258,7 +324,7 @@
     <div class="tab" data-tab="contacts">
       {{#if generation}}<p class="hint">Rolled {{generation.contactNeed}} contact(s) (max {{generation.contactMax}}).</p>{{/if}}
       {{#each contacts as |item|}}
-      <article class="record-card" data-item-id="{{item.id}}">
+      <article class="record-card item" data-item-id="{{item.id}}">
         <header>
           <strong>{{item.name}}</strong>
           <span>{{item.category}}</span>
@@ -268,8 +334,8 @@
         </header>
         <div class="record-grid">
           <label>Occupation <span>{{item.occupation}}</span></label>
-          <label>Base <span>{{item.base}}</span></label>
-          <label>Tie <span>{{item.tie}}</span></label>
+          <label>Base of Operations <span>{{item.base}}</span></label>
+          <label>Tie to Hero <span>{{item.tie}}</span></label>
           <label>Practicality <span>{{item.practicality}}</span></label>
         </div>
         <div class="attempt-pips">
@@ -308,50 +374,8 @@
       <button type="button" class="create" data-action="itemCreate" data-type="equipment">+ Equipment</button>
     </div>
 
-    <div class="tab" data-tab="identity">
-      <div class="id-grid">
-        <label>Occupation <input name="system.identity.occupation" type="text" value="{{system.identity.occupation}}" /></label>
-        <label>Legal Status <input name="system.identity.legalStatus" type="text" value="{{system.identity.legalStatus}}" /></label>
-        <label>Age <input name="system.identity.age" type="text" value="{{system.identity.age}}" /></label>
-        <label>Sex <input name="system.identity.sex" type="text" value="{{system.identity.sex}}" /></label>
-        <label>Handed <input name="system.identity.handed" type="text" value="{{system.identity.handed}}" /></label>
-        <label>Height <input name="system.identity.height" type="text" value="{{system.identity.height}}" /></label>
-        <label>Weight <input name="system.identity.weight" type="text" value="{{system.identity.weight}}" /></label>
-        <label>Hair <input name="system.identity.hair" type="text" value="{{system.identity.hair}}" /></label>
-        <label>Eyes <input name="system.identity.eyes" type="text" value="{{system.identity.eyes}}" /></label>
-        <label>Ears <input name="system.identity.ears" type="text" value="{{system.identity.ears}}" /></label>
-        <label>Skin <input name="system.identity.skin" type="text" value="{{system.identity.skin}}" /></label>
-        <label>Ethnicity <input name="system.identity.ethnicity" type="text" value="{{system.identity.ethnicity}}" /></label>
-        <label>Place of Birth <input name="system.identity.placeOfBirth" type="text" value="{{system.identity.placeOfBirth}}" /></label>
-        <label>Hometown <input name="system.identity.hometown" type="text" value="{{system.identity.hometown}}" /></label>
-        <label>Birth Order <input name="system.identity.birthOrder" type="text" value="{{system.identity.birthOrder}}" /></label>
-        <label>Marital Status <input name="system.identity.maritalStatus" type="text" value="{{system.identity.maritalStatus}}" /></label>
-        <label>Base of Operations <input name="system.identity.baseOfOperations" type="text" value="{{system.identity.baseOfOperations}}" /></label>
-        <label>Aliases / Nicks <input name="system.identity.aliases" type="text" value="{{system.identity.aliases}}" /></label>
-        <label>Father <input name="system.identity.father" type="text" value="{{system.identity.father}}" /></label>
-        <label>Mother <input name="system.identity.mother" type="text" value="{{system.identity.mother}}" /></label>
-        <label>Siblings <input name="system.identity.siblings" type="text" value="{{system.identity.siblings}}" /></label>
-        <label>Languages <input name="system.identity.languages" type="text" value="{{system.identity.languages}}" /></label>
-      </div>
-      <label>Known Relatives
-        <textarea name="system.identity.knownRelatives" rows="2">{{system.identity.knownRelatives}}</textarea>
-      </label>
-      <label>Past Group Affiliation(s)
-        <textarea name="system.identity.pastGroups" rows="2">{{system.identity.pastGroups}}</textarea>
-      </label>
-      <label>Physical Features
-        <textarea name="system.identity.physicalFeatures" rows="2">{{system.identity.physicalFeatures}}</textarea>
-      </label>
-      <label>Clothing
-        <textarea name="system.identity.clothing" rows="2">{{system.identity.clothing}}</textarea>
-      </label>
-      <label>Personality
-        <textarea name="system.identity.personality" rows="2">{{system.identity.personality}}</textarea>
-      </label>
-    </div>
-
     <div class="tab" data-tab="karma">
-      <p class="hint">Track Karma spent on advancement. Popular awards go into the current Karma box on the front of the sheet.</p>
+      <p class="hint">Track Karma spent on advancement. Popular awards go into current Karma on the Record tab. Pool is shared / banked Karma.</p>
       <div class="id-grid">
         <label>FASE <input type="number" name="system.karmaBank.fase" value="{{system.karmaBank.fase}}" min="0" /></label>
         <label>RIP <input type="number" name="system.karmaBank.rip" value="{{system.karmaBank.rip}}" min="0" /></label>
@@ -360,6 +384,7 @@
         <label>Contacts <input type="number" name="system.karmaBank.contacts" value="{{system.karmaBank.contacts}}" min="0" /></label>
         <label>Resources <input type="number" name="system.karmaBank.resources" value="{{system.karmaBank.resources}}" min="0" /></label>
         <label>Popularity <input type="number" name="system.karmaBank.popularity" value="{{system.karmaBank.popularity}}" min="0" /></label>
+        <label>Advancement Fund / Pool <input type="number" name="system.karmaBank.pool" value="{{system.karmaBank.pool}}" min="0" /></label>
         <label>Total spent <input type="number" name="system.karmaBank.totalSpent" value="{{system.karmaBank.totalSpent}}" min="0" /></label>
       </div>
     </div>
@@ -371,15 +396,14 @@
       <label>Role Playing Notes
         <textarea name="system.story.roleplaying" rows="3">{{system.story.roleplaying}}</textarea>
       </label>
-      <label>Weaknesses
-        <textarea name="system.story.weaknesses" rows="3">{{system.story.weaknesses}}</textarea>
-      </label>
-      <label>Strengths
-        <textarea name="system.story.strengths" rows="2">{{system.story.strengths}}</textarea>
-      </label>
-      <label>Family
-        <textarea name="system.story.family" rows="2">{{system.story.family}}</textarea>
-      </label>
+      <div class="panel-grid two">
+        <label>Weaknesses / Limitations
+          <textarea name="system.story.weaknesses" rows="3">{{system.story.weaknesses}}</textarea>
+        </label>
+        <label>Strengths
+          <textarea name="system.story.strengths" rows="3">{{system.story.strengths}}</textarea>
+        </label>
+      </div>
       <label>Relationships
         <textarea name="system.story.relationships" rows="2">{{system.story.relationships}}</textarea>
       </label>
