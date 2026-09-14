@@ -1,4 +1,4 @@
-<div class="faserip-sheet record-sheet">
+<div class="faserip-sheet record-sheet {{cssClass}}">
   <header class="sheet-header compact">
     <img class="profile" src="{{actor.img}}" data-action="editImage" title="{{actor.name}}" alt="{{actor.name}}" />
     <div class="header-fields">
@@ -47,7 +47,7 @@
   </nav>
 
   <section class="sheet-body">
-    <div class="tab" data-tab="record">
+    <div class="tab active" data-group="primary" data-tab="record">
       <div class="panel-grid two">
         <section class="panel characteristics">
           <h2>Characteristics</h2>
@@ -152,7 +152,7 @@
       </section>
     </div>
 
-    <div class="tab" data-tab="identity">
+    <div class="tab" data-group="primary" data-tab="identity">
       <div class="panel-grid two">
         <section class="panel description">
           <h2>Description</h2>
@@ -212,7 +212,7 @@
       </div>
     </div>
 
-    <div class="tab" data-tab="powers">
+    <div class="tab" data-group="primary" data-tab="powers">
       {{#if generation}}
       <p class="hint">Generation granted {{generation.powerNeed}} power slot(s) (max {{generation.powerMax}}). Two-slot powers spend 2. Slots used now: {{powerSlotsUsed}}.</p>
       {{/if}}
@@ -238,31 +238,9 @@
       </article>
       {{/each}}
       <button type="button" class="create" data-action="itemCreate" data-type="power">+ Custom Power</button>
-      <section class="catalog">
-        <h3>Power Catalog</h3>
-        {{#each powerCatalog as |group|}}
-        <details>
-          <summary>{{group.label}}</summary>
-          {{#each group.items as |name|}}
-          <button type="button" class="catalog-add" data-action="catalogAdd" data-type="power" data-name="{{name}}" data-category="{{group.label}}">{{name}}</button>
-          {{/each}}
-        </details>
-        {{/each}}
-        {{#if upbEnabled}}
-        <h3>Ultimate Powers Book</h3>
-        {{#each upbCatalog as |group|}}
-        <details>
-          <summary>{{group.label}}</summary>
-          {{#each group.items as |name|}}
-          <button type="button" class="catalog-add" data-action="catalogAdd" data-type="power" data-name="{{name}}" data-category="{{group.label}}">{{name}}</button>
-          {{/each}}
-        </details>
-        {{/each}}
-        {{/if}}
-      </section>
     </div>
 
-    <div class="tab" data-tab="stunts">
+    <div class="tab" data-group="primary" data-tab="stunts">
       <p class="hint">Power stunts: 100 Karma per attempt. After 10 successful attempts the stunt is mastered and no longer costs Karma.</p>
       {{#each powers as |item|}}
       <article class="record-card item" data-item-id="{{item.id}}">
@@ -289,7 +267,7 @@
       </label>
     </div>
 
-    <div class="tab" data-tab="talents">
+    <div class="tab" data-group="primary" data-tab="talents">
       {{#if generation}}<p class="hint">Rolled {{generation.talentNeed}} talent(s).</p>{{/if}}
       {{#each talents as |item|}}
       <article class="record-card item" data-item-id="{{item.id}}">
@@ -308,20 +286,9 @@
       </article>
       {{/each}}
       <button type="button" class="create" data-action="itemCreate" data-type="talent">+ Custom Talent</button>
-      <section class="catalog">
-        <h3>Talent Catalog</h3>
-        {{#each talentCatalog as |group|}}
-        <details>
-          <summary>{{group.label}}</summary>
-          {{#each group.items as |name|}}
-          <button type="button" class="catalog-add" data-action="catalogAdd" data-type="talent" data-name="{{name}}" data-category="{{group.label}}">{{name}}</button>
-          {{/each}}
-        </details>
-        {{/each}}
-      </section>
     </div>
 
-    <div class="tab" data-tab="contacts">
+    <div class="tab" data-group="primary" data-tab="contacts">
       {{#if generation}}<p class="hint">Rolled {{generation.contactNeed}} contact(s) (max {{generation.contactMax}}).</p>{{/if}}
       {{#each contacts as |item|}}
       <article class="record-card item" data-item-id="{{item.id}}">
@@ -349,15 +316,9 @@
       </article>
       {{/each}}
       <button type="button" class="create" data-action="itemCreate" data-type="contact">+ Custom Contact</button>
-      <section class="catalog">
-        <h3>Contact Types</h3>
-        {{#each contactCatalog as |name|}}
-        <button type="button" class="catalog-add" data-action="catalogAdd" data-type="contact" data-name="{{name}}" data-category="{{name}}">{{name}}</button>
-        {{/each}}
-      </section>
     </div>
 
-    <div class="tab" data-tab="gear">
+    <div class="tab" data-group="primary" data-tab="gear">
       <ol class="item-list">
         {{#each gear as |item|}}
         <li class="item" data-item-id="{{item.id}}">
@@ -374,7 +335,7 @@
       <button type="button" class="create" data-action="itemCreate" data-type="equipment">+ Equipment</button>
     </div>
 
-    <div class="tab" data-tab="karma">
+    <div class="tab" data-group="primary" data-tab="karma">
       <p class="hint">Track Karma spent on advancement. Popular awards go into current Karma on the Record tab. Pool is shared / banked Karma.</p>
       <div class="id-grid">
         <label>FASE <input type="number" name="system.karmaBank.fase" value="{{system.karmaBank.fase}}" min="0" /></label>
@@ -411,9 +372,9 @@
         <textarea name="system.story.miscellaneous" rows="3">{{system.story.miscellaneous}}</textarea>
       </label>
       <h3>Biography</h3>
-      {{editor enrichedBiography target="system.biography" button=true editable=editable engine="prosemirror"}}
+      <textarea name="system.biography" rows="6">{{system.biography}}</textarea>
       <h3>Judge Notes</h3>
-      {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
+      <textarea name="system.notes" rows="4">{{system.notes}}</textarea>
       <div class="form-group">
         <label>Manual Body Armor
           <input type="number" name="system.defense.bodyArmor" value="{{system.defense.bodyArmor}}" min="0" />
