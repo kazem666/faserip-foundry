@@ -4,9 +4,11 @@ Unofficial Foundry Virtual Tabletop **system** for FASERIP-style superhero games
 
 This package contains **no Marvel characters, art, or copyrighted rules text**. You still need a rulebook you are allowed to use (original books you own, or an OGL retro-clone).
 
-Version **1.13.5**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
+Version **1.14.0**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
 
-1.13.5 fixes cramped header/rank fields: the name input is a single box (no nested Foundry frame), ability ranks show `Ty 5-7` at a readable size, and Resources shows `Good 10` without clipping.
+1.14.0 adds original mechanical descriptions to Powers and Talents (on the Record, Powers, and Talents tabs and on item sheets). Existing heroes are backfilled on world load. The GM also gets world Item compendia **FASERIP Powers** and **FASERIP Talents** so catalog entries can be dragged onto a sheet. Rebuild from Game Settings → FASERIP → Seed Catalog Packs, or `game.faserip.ensureCatalogPacks({ notify: true })`.
+
+1.13.5 fixed cramped header/rank fields: the name input is a single box (no nested Foundry frame), ability ranks show `Ty 5-7` at a readable size, and Resources shows `Good 10` without clipping.
 
 ## What you get
 
@@ -16,6 +18,8 @@ Version **1.13.5**. Built for Foundry VTT **v14** (`compatibility.minimum` / `ve
 - Resources rank and split Popularity (hero / secret ID)
 - Item types: Power, Talent, Contact, Equipment, Weapon
 - Catalog pickers for generic Powers, Talents, and Contact types
+- Original (non-copyrighted) Power and Talent descriptions on the sheet
+- World compendia of every catalog Power and Talent, seeded on first GM load
 - One-click **FEAT rolls** on the Universal Table (White / Green / Yellow / Red)
 - **Intensity** helper (Green / Yellow / Red needed)
 - **Battle Effects Table** columns (Slugfest, Shooting, Wrestling, Charging, Slam/Stun/Kill checks, etc.)
@@ -30,7 +34,7 @@ Version **1.13.5**. Built for Foundry VTT **v14** (`compatibility.minimum` / `ve
 
 ## Foundry v14
 
-1.13.5 keeps AppV1 sheets. Catalog lists stay off the Powers / Talents / Contacts tabs. Generate Hero remains on Create Actor, the Actors sidebar, Game Settings, and the sheet header.
+1.14.0 keeps AppV1 sheets. Catalog lists stay off the Powers / Talents / Contacts tabs; use **+ Custom Power / Talent** or drag from the world compendia. Generate Hero remains on Create Actor, the Actors sidebar, Game Settings, and the sheet header.
 
 Tabbed record: **Record**, **Identity**, **Powers**, **Stunts**, **Talents**, **Contacts**, **Gear**, **Karma Bank**, **Notes**. Two-slot powers spend 2. Normal Human form caps at 5 starting power slots. Dialogs remain scrollable.
 
@@ -156,9 +160,10 @@ faserip/
   system.json
   faserip.mjs
   module/config.mjs          ranks, Universal Table, Battle Effects, catalogs
+  module/compendium.mjs      world Power / Talent pack seed
   module/foundry-api.mjs     Foundry v14 API wrappers
   module/chargen.mjs         generated-hero dialog
-  module/data/               TypeDataModels
+  module/data/               TypeDataModels + descriptions.mjs
   module/documents/          Actor / Item classes
   module/sheets/             character + item sheets
   module/dice/               FEAT roller
