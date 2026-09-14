@@ -66,7 +66,8 @@ export async function applyGeneration(actor, result, {
     "system.resources.number": rankMin(result.resources),
     "system.popularity.value": popularity,
     "system.popularity.secret": popularity,
-    "system.notes": weakness ? `<p><strong>Weakness:</strong> ${weakness}</p>${actor.system.notes ?? ""}` : (actor.system.notes ?? "")
+    "system.notes": weakness ? `<p><strong>Weakness:</strong> ${weakness}</p>${actor.system.notes ?? ""}` : (actor.system.notes ?? ""),
+    "system.story.weaknesses": weakness || actor.system.story?.weaknesses || ""
   };
   for (const key of ABILITIES) {
     update[`system.abilities.${key}.rank`] = abilities[key];
@@ -76,18 +77,26 @@ export async function applyGeneration(actor, result, {
   const phys = ["fighting", "agility", "strength", "endurance"].reduce((s, k) => s + numbers[k], 0);
   const ment = ["reason", "intuition", "psyche"].reduce((s, k) => s + numbers[k], 0);
   await actor.update({ "system.health.value": result.doubleHealth ? phys * 2 : phys, "system.karma.value": ment });
+  const { buildCatalogItemData } = await import("./data/descriptions.mjs");
   const items = [];
   for (const power of powers) {
-    items.push({
-      name: power.name, type: "power",
-      system: {
-        rank: power.rank ?? "typical", number: rankMin(power.rank ?? "typical"),
-        category: power.category ?? "", bodyArmor: !!power.bodyArmor, forceField: !!power.forceField,
-        notes: power.rankRoll ? `Generation roll ${power.rankRoll}` : ""
-      }
-    });
+    items.push(buildCatalogItemData("power", power.name, {
+      rank: power.rank ?? "typical",
+      number: rankMin(power.rank ?? "typical"),
+      category: power.category ?? "",
+      bodyArmor: !!power.bodyArmor,
+      forceField: !!power.forceField,
+      slotsTaken: Number(power.slotsTaken ?? power.cost ?? 1) || 1,
+      notes: power.rankRoll ? `Generation roll ${power.rankRoll}` : ""
+    }));
   }
-  for (const talent of talents) items.push({ name: talent.name, type: "talent", system: { category: talent.category ?? "", rank: "typical", number: 0 } });
+  for (const talent of talents) {
+    items.push(buildCatalogItemData("talent", talent.name, {
+      category: talent.category ?? "",
+      rank: "typical",
+      number: 0
+    }));
+  }
   for (const contact of contacts) items.push({ name: contact.name, type: "contact", system: { category: contact.type ?? contact.category ?? "", rank: "typical", number: 0 } });
   if (items.length) await actor.createEmbeddedDocuments("Item", items);
 }
@@ -180,7 +189,9 @@ export async function rollHeroDice(actor, {
   if (!useUpb && origin.id === "mutant") resources = shiftRank(resources, -1);
   const powerRoll = await promptedD100({
     title: "Number of Powers",
-    body: useUpb ? "UPB count table." : "Advanced Set Powers / Talents / Contacts table.",
+    body: useUpb
+      ? "UPB count table (01–12 = 1 power, … 95–97 = 10, 00 = 14). A two-slot power later spends two of these."
+      : "Advanced Set table: 01–20 = 2 powers, 21–60 = 3, 61–90 = 4, 91–00 = 5.",
     flavor: actor.name + " - Number of Powers",
     actor
   });
