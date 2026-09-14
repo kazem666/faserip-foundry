@@ -4,7 +4,7 @@ Unofficial Foundry Virtual Tabletop **system** for FASERIP-style superhero games
 
 This package contains **no Marvel characters, art, or copyrighted rules text**. You still need a rulebook you are allowed to use (original books you own, or an OGL retro-clone).
 
-Version **1.8.2**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
+Version **1.10.0**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
 
 ## What you get
 
@@ -28,14 +28,14 @@ Version **1.8.2**. Built for Foundry VTT **v14** (`compatibility.minimum` / `ver
 
 ## Foundry v14
 
-1.8.2 keeps v14 compatibility and makes generation / FEAT dialogs scrollable:
+1.10.0 rebuilds the hero sheet as a tabbed record: **Record** (FASERIP + Health/Karma/Resources), **Identity** (description and family fields from the sample record sheets), **Powers**, **Stunts** (10-pip attempts), **Talents**, **Contacts** (occupation / base / tie / practicality + acquirement pips), **Gear**, **Karma Bank**, and **Notes**. No Marvel trademarks. Generation still spends two slots for two-slot powers and caps a Normal Human form at 5 starting power slots. Dialogs remain scrollable.
 
 - `system.json` `compatibility.minimum` / `verified` set to `"14"` (v12–v13 will not load it)
 - Dialogs use `DialogV2`
 - Rich text uses `foundry.applications.ux.TextEditor`
 - Templates use `foundry.applications.handlebars.renderTemplate`
 - Sheet registration uses `foundry.documents.collections.Actors` / `Items`
-- Character sheets still use AppV1 (`foundry.appv1.sheets.ActorSheet`) — that path is valid on v14 and scheduled for removal in v16
+- Character sheets use ActorSheetV2 + HandlebarsApplicationMixin
 - HTML fields declared in `documentTypes` for server-side sanitization
 - `foundry.utils.duplicate` replaced with `deepClone`
 
@@ -60,19 +60,22 @@ Repo: https://github.com/kazem666/faserip-foundry
 
 1. Download the repo zip or copy this folder into `{User Data}/Data/systems/faserip/`.
 2. The folder name **must** be `faserip` and `system.json` must be inside it.
+3. Because this is **1.10.0**, Foundry Setup → Game Systems → Check for Update will download the new sheet. Then fully close and reopen any open actor sheets (or reload the world).
 
 ## How to play on the sheet
 
+The sheet is tabbed. **Record** holds FASERIP, Health, Karma, Resources, Popularity, and combat tools. **Identity** holds description and family fields. Powers, Stunts, Talents, Contacts, Gear, Karma Bank, and Notes each have their own tab.
+
 1. Create an Actor of type **Hero** or **NPC**.
 2. Either set ranks by hand or click **Generate Hero** (Advanced Set random generation). Generated heroes use the **minimum** rank number for each rank.
-3. Optionally type a **rank number** under each ability. `0` means “use the standard number for that rank.” Health and Karma maxima use the numbers.
+3. Optionally type a **rank number** under each ability. `0` means use the standard number for that rank. Health and Karma maxima use the numbers.
 4. Click an ability letter to roll a FEAT. In the dialog:
    - **Column Shift** moves the Universal Table column.
    - **Spend Karma** adds to the d100 (minimum 10) and subtracts from current Karma.
    - **Intensity** tells you whether you need Green, Yellow, or Red.
    - **Battle Effects column** prints Slam / Stun / Kill / Hold / etc. on the chat card.
 5. Use **Combat FEAT** for a preset attack/defense column using the matching ability.
-6. Flag a Power as **Body Armor** or **Force Field**, or enter a manual value on the Biography tab. **Apply Damage** subtracts that protection first. Check **Energy** to apply the −20 armor penalty.
+6. Flag a Power as **Body Armor** or **Force Field**, or enter a manual value on the Notes tab. **Apply Damage** subtracts that protection first. Check **Energy** to apply the −20 armor penalty.
 
 ### Intensity
 
