@@ -9,7 +9,7 @@ export const UPB_COUNT_TABLE = [
   { lo: 27, hi: 41, powers: [3, 5], talents: [1, 6], contacts: [1, 4] },
   { lo: 42, hi: 55, powers: [4, 6], talents: [2, 4], contacts: [2, 4] },
   { lo: 56, hi: 66, powers: [5, 7], talents: [2, 6], contacts: [2, 6] },
-  { lo: 67, hi: 75, powers: [2, 8], talents: [2, 8], contacts: [3, 3] },
+  { lo: 67, hi: 75, powers: [6, 8], talents: [2, 8], contacts: [3, 3] },
   { lo: 76, hi: 83, powers: [7, 9], talents: [3, 4], contacts: [3, 4] },
   { lo: 84, hi: 89, powers: [8, 10], talents: [3, 6], contacts: [3, 6] },
   { lo: 90, hi: 94, powers: [9, 12], talents: [4, 8], contacts: [4, 4] },
@@ -123,6 +123,10 @@ export function applyUpbForm(result, form, { shiftRank, rankMin } = {}) {
   if (result.counts) {
     if (form.extraPower) result.counts.powers[0] += form.extraPower;
     if (form.lessPower) result.counts.powers[0] = Math.max(0, result.counts.powers[0] - form.lessPower);
+    if (form.id === "normalHuman") {
+      result.counts.powers[0] = Math.min(result.counts.powers[0], 5);
+      result.counts.powers[1] = Math.min(result.counts.powers[1] ?? 5, 5);
+    }
     if (form.minContacts) {
       result.counts.contacts[0] = Math.max(result.counts.contacts[0], form.minContacts);
       result.counts.contacts[1] = Math.max(result.counts.contacts[1], form.minContacts);
