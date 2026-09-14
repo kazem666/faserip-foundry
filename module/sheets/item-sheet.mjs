@@ -24,6 +24,11 @@ export class FaseripItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.system = this.document.system;
     context.ranks = RANKS;
     context.columns = Object.entries(BATTLE_EFFECTS).map(([id, col]) => ({ id, label: col.label }));
+    context.isPower = this.document.type === "power";
+    context.isTalent = this.document.type === "talent";
+    context.isContact = this.document.type === "contact";
+    context.isWeapon = this.document.type === "weapon";
+    context.isEquipment = this.document.type === "equipment" || this.document.type === "weapon";
     return context;
   }
 }
