@@ -113,14 +113,15 @@ export async function promptFeatRoll({
   defaultIntensity = ""
 } = {}) {
   const ranks = (game.faserip?.ranks ?? []).map((r) => [r.id, r.label]);
-  const columns = [["", "\u2014 none (plain FEAT) \u2014"], ...Object.entries(BATTLE_EFFECTS).map(([id, col]) => [id, col.label])];
-  const intensityOpts = [["", "\u2014 no Intensity \u2014"], ...ranks];
+  const columns = [["", "— none (plain FEAT) —"], ...Object.entries(BATTLE_EFFECTS).map(([id, col]) => [id, col.label])];
+  const intensityOpts = [["", "— no Intensity —"], ...ranks];
 
   const content = `
+    <div class="faserip-dialog-scroll">
     <form class="faserip-feat-dialog">
-      <p><strong>${label}</strong> \u2014 ${rankLabel(rankId)}</p>
+      <p><strong>${label}</strong> — ${rankLabel(rankId)}</p>
       <div class="form-group">
-        <label>Column Shift (+ right / easier, \u2212 left / harder)</label>
+        <label>Column Shift (+ right / easier, − left / harder)</label>
         <input type="number" name="cs" value="0" step="1" />
       </div>
       <div class="form-group">
@@ -130,18 +131,20 @@ export async function promptFeatRoll({
       <div class="form-group">
         <label>Intensity (non-combat FEATs)</label>
         <select name="intensity">${optionList(intensityOpts, defaultIntensity)}</select>
-        <p class="hint">Ability > Intensity \u2192 Green. Equal \u2192 Yellow. Intensity higher \u2192 Red. 3+ ranks easier may be Automatic.</p>
+        <p class="hint">Ability &gt; Intensity → Green. Equal → Yellow. Intensity higher → Red. 3+ ranks easier may be Automatic.</p>
       </div>
       <div class="form-group">
         <label>Battle Effects column</label>
         <select name="column">${optionList(columns, defaultColumn)}</select>
       </div>
     </form>
+    </div>
   `;
 
   const DialogV2 = foundry.applications.api.DialogV2;
   const form = await DialogV2.wait({
-    window: { title: `${label} FEAT`, icon: "fa-solid fa-dice" },
+    classes: ["faserip-dialog"],
+    window: { title: `${label} FEAT`, icon: "fa-solid fa-dice", resizable: true },
     content,
     buttons: [
       {
