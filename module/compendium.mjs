@@ -1,6 +1,6 @@
 import { POWER_CATALOG, TALENT_CATALOG } from "./config-catalogs.mjs";
 import { upbCatalogGroups } from "./data/upb.mjs";
-import { buildCatalogItemData, catalogKey, describeCatalogItem, POWER_DEFINITIONS, upbHint } from "./data/descriptions.mjs";
+import { buildCatalogItemData, catalogKey, describeCatalogItem, isGenericDefinition, POWER_DEFINITIONS, upbHint } from "./data/descriptions.mjs";
 
 const POWER_PACK = "faserip-powers";
 const TALENT_PACK = "faserip-talents";
@@ -93,13 +93,31 @@ async function locateOrCreatePack(name, label) {
 
 async function syncPack(pack, documents) {
   if (!pack) return 0;
-  const index = await pack.getIndex({ fields: ["name", "type"] });
-  const have = new Set(index.map((e) => `${e.type}:${e.name}`));
-  const missing = documents.filter((doc) => !have.has(`${doc.type}:${doc.name}`));
-  if (!missing.length) return 0;
+  const index = await pack.getIndex({ fields: ["name", "type", "system"] });
+  const have = new Map(index.map((e) => [`${e.type}:${e.name}`, e]));
+  const missing = [];
+  const updates = [];
+  for (const doc of documents) {
+    const existing = have.get(`${doc.type}:${doc.name}`);
+    if (!existing) {
+      missing.push(doc);
+      continue;
+    }
+    const oldDef = existing.system?.definition ?? "";
+    const nextDef = doc.system?.definition ?? "";
+    if (nextDef && (isGenericDefinition(oldDef) || oldDef !== nextDef)) {
+      const patch = { _id: existing._id, "system.definition": nextDef };
+      if (doc.system?.category && !existing.system?.category) patch["system.category"] = doc.system.category;
+      if (doc.system?.bonus && !existing.system?.bonus) patch["system.bonus"] = doc.system.bonus;
+      if (doc.system?.attribute && !existing.system?.attribute) patch["system.attribute"] = doc.system.attribute;
+      if (doc.system?.powerType && !existing.system?.powerType) patch["system.powerType"] = doc.system.powerType;
+      updates.push(patch);
+    }
+  }
   const ItemDoc = CONFIG.Item.documentClass ?? foundry.documents?.Item ?? globalThis.Item;
-  await ItemDoc.createDocuments(missing, { pack: pack.collection, keepId: false });
-  return missing.length;
+  if (missing.length) await ItemDoc.createDocuments(missing, { pack: pack.collection, keepId: false });
+  if (updates.length) await ItemDoc.updateDocuments(updates, { pack: pack.collection });
+  return missing.length + updates.length;
 }
 
 export async function ensureCatalogPacks({ notify = false } = {}) {
@@ -126,7 +144,7 @@ export async function fillActorDefinitions(actor) {
     });
     const patch = { _id: item.id };
     let dirty = false;
-    if (!item.system.definition && info.definition) {
+    if (info.definition && (isGenericDefinition(item.system.definition) || !item.system.definition)) {
       patch["system.definition"] = info.definition;
       dirty = true;
     }
