@@ -12,7 +12,7 @@ function abilityRows(result) {
 export async function createActorWizard() {
   const originOpts = ORIGINS.map((o) => "<option value='" + o.id + "'>" + o.label + "</option>").join("");
   const choice = await dialog("Create FASERIP Hero — Identity",
-    "<p>After this screen, percentile dice are rolled in chat so Dice So Nice can show them.</p>" +
+    "<p>Next you will be prompted to roll each FASERIP ability one at a time. Dice So Nice will show each 1d100.</p>" +
     "<div class='form-group'><label>Hero name</label><input name='heroName' type='text' value='New Hero' autofocus /></div>" +
     "<div class='form-group'><label>Public identity</label><input name='publicId' type='text' /></div>" +
     "<div class='form-group'><label>Secret identity</label><input name='secretName' type='text' /></div>" +
@@ -47,8 +47,9 @@ export async function createActorWizard() {
 }
 
 export async function runFullGeneration(actor, extras) {
-  ui.notifications.info("Rolling percentile dice in chat. Dice So Nice will animate each 1d100.");
+  ui.notifications.info("Roll each FASERIP ability when prompted.");
   let result = await rollHeroDice(actor, { originId: extras.originId, rollOrigin: extras.rollOrigin });
+  if (!result) return false;
   const abilitiesOk = await reviewAbilities(actor, result, extras);
   if (!abilitiesOk) return false;
   result = abilitiesOk.result;
@@ -100,7 +101,11 @@ async function reviewAbilities(actor, result, extras) {
     { action: "cancel", label: "Stop" }
   ]);
   if (!choice || choice === "cancel") return null;
-  if (choice === "reroll") return reviewAbilities(actor, await rollHeroDice(actor, { originId: result.origin.id, rollOrigin: false }), extras);
+  if (choice === "reroll") {
+    const again = await rollHeroDice(actor, { originId: result.origin.id, rollOrigin: false });
+    if (!again) return null;
+    return reviewAbilities(actor, again, extras);
+  }
   return { result, raise: choice.raise || null };
 }
 
