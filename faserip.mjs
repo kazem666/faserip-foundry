@@ -7,10 +7,11 @@ import { FaseripItemSheet } from "./module/sheets/item-sheet.mjs";
 import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded, initiativeModifier } from "./module/config.mjs";
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { generateHero, promptGeneration } from "./module/chargen.mjs";
+import { createActorWizard } from "./module/wizard.mjs";
 import { getActorsCollection, getItemsCollection, getActorSheetClass, getItemSheetClass } from "./module/foundry-api.mjs";
 
 Hooks.once("init", () => {
-  console.log("FASERIP | Initializing system 1.2.0 (Foundry v14)");
+  console.log("FASERIP | Initializing system 1.3.0 (Foundry v14)");
 
   CONFIG.Actor.documentClass = FaseripActor;
   CONFIG.Item.documentClass = FaseripItem;
@@ -69,6 +70,7 @@ Hooks.once("init", () => {
     promptFeatRoll,
     generateHero,
     promptGeneration,
+    createActorWizard,
     ranks: RANKS,
     abilities: ABILITIES,
     battleEffects: BATTLE_EFFECTS,
