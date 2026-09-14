@@ -8,25 +8,29 @@ import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { generateHero, promptGeneration } from "./module/chargen.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
-import { getActorsCollection, getItemsCollection, getActorSheetClass, getItemSheetClass } from "./module/foundry-api.mjs";
 
 Hooks.once("init", () => {
-  console.log("FASERIP | Initializing system 1.3.1 (Foundry v14)");
-  CONFIG.Actor.documentClass = FaseripActor;
-  CONFIG.Item.documentClass = FaseripItem;
-  CONFIG.Actor.dataModels = { hero: HeroData, npc: NpcData };
-  CONFIG.Item.dataModels = { power: PowerData, talent: TalentData, contact: ContactData, equipment: EquipmentData, weapon: WeaponData };
-  CONFIG.Combat.initiative = { formula: "1d10 + @initMod", decimals: 0 };
+  try {
+    console.log("FASERIP | Initializing system 1.4.0 (Foundry v14 ActorSheetV2)");
+    CONFIG.Actor.documentClass = FaseripActor;
+    CONFIG.Item.documentClass = FaseripItem;
+    CONFIG.Actor.dataModels = { hero: HeroData, npc: NpcData };
+    CONFIG.Item.dataModels = { power: PowerData, talent: TalentData, contact: ContactData, equipment: EquipmentData, weapon: WeaponData };
+    CONFIG.Combat.initiative = { formula: "1d10 + @initMod", decimals: 0 };
+    const DocumentSheetConfig = foundry.applications.apps.DocumentSheetConfig;
+    DocumentSheetConfig.registerSheet(Actor, "faserip", FaseripActorSheet, { types: ["hero", "npc"], makeDefault: true, label: "FASERIP Character Sheet" });
+    DocumentSheetConfig.registerSheet(Item, "faserip", FaseripItemSheet, { makeDefault: true, label: "FASERIP Item Sheet" });
+    Handlebars.registerHelper("eq", (a, b) => a === b);
+    game.faserip = { rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded, initiativeModifier };
+  } catch (err) {
+    console.error("FASERIP | init failed", err);
+    Hooks.once("ready", () => ui.notifications.error(`FASERIP failed to initialize: ${err.message}`));
+  }
+});
 
-  const Actors = getActorsCollection();
-  const Items = getItemsCollection();
-  Actors.unregisterSheet("core", getActorSheetClass());
-  Actors.registerSheet("faserip", FaseripActorSheet, { types: ["hero", "npc"], makeDefault: true, label: "FASERIP Character Sheet" });
-  Items.unregisterSheet("core", getItemSheetClass());
-  Items.registerSheet("faserip", FaseripItemSheet, { makeDefault: true, label: "FASERIP Item Sheet" });
-
-  Handlebars.registerHelper("eq", (a, b) => a === b);
-  game.faserip = { rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded, initiativeModifier };
+Hooks.once("ready", () => {
+  console.log("FASERIP | Ready", game.version);
+  ui.notifications.info("FASERIP 1.4.0 loaded. Use Actors → Generate Hero, or Create Actor.");
 });
 
 Hooks.on("renderActorDirectory", (_app, html) => {
@@ -39,10 +43,14 @@ Hooks.on("renderActorDirectory", (_app, html) => {
   btn.innerHTML = '<i class="fa-solid fa-dice"></i> Generate Hero';
   btn.addEventListener("click", (event) => {
     event.preventDefault();
-    createActorWizard().catch((err) => {
-      console.error(err);
-      ui.notifications.error(err.message);
-    });
+    createActorWizard().catch((err) => { console.error(err); ui.notifications.error(err.message); });
   });
-  header.appendChild(btn);
+  header.prepend(btn);
+});
+
+Hooks.on("createActor", async (actor, _options, userId) => {
+  if (game.user.id !== userId) return;
+  if (actor.type !== "hero" && actor.type !== "npc") return;
+  try { actor.sheet?.render({ force: true }); }
+  catch (err) { console.error("FASERIP | could not open sheet", err); }
 });
