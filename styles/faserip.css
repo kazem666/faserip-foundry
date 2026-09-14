@@ -39,6 +39,9 @@
   min-height: min-content;
   gap: 14px;
   padding-bottom: 24px;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .faserip-sheet .sheet-header {
@@ -47,11 +50,16 @@
   border: 3px solid var(--rule);
   background: var(--panel);
   padding: 8px;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .faserip-sheet .profile {
-  width: 96px;
-  height: 96px;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
   border: 3px solid var(--rule);
   object-fit: cover;
   background: #ddd;
@@ -60,28 +68,49 @@
 .faserip-sheet .header-fields {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+}
+
+.faserip-sheet .hero-name {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
 }
 
 .faserip-sheet .hero-name input {
   font-family: "Bangers", Impact, sans-serif;
-  font-size: 32px;
-  letter-spacing: 1px;
-  border: none;
-  background: transparent;
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  border: 2px solid var(--rule);
+  background: #fff;
   width: 100%;
-  height: 40px;
+  max-width: 100%;
+  height: 34px;
+  line-height: 1.1;
+  padding: 0 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .faserip-sheet .identity-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
   margin-top: 6px;
+  min-width: 0;
 }
 
 .faserip-sheet .identity-row.four {
-  grid-template-columns: 1.4fr 1.4fr auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
   align-items: end;
+}
+
+.faserip-sheet .identity-row label { min-width: 0; }
+.faserip-sheet .identity-row input[type="text"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .faserip-sheet button.generate {
@@ -92,531 +121,5 @@
   color: var(--ink);
   height: 28px;
   cursor: pointer;
+  white-space: nowrap;
 }
-
-.faserip-sheet .panel-grid {
-  display: grid;
-  gap: 10px;
-}
-
-.faserip-sheet .panel-grid.two {
-  grid-template-columns: 1fr 1fr;
-}
-
-.faserip-sheet .panel {
-  border: 3px solid var(--rule);
-  background: #fff;
-  padding: 8px;
-}
-
-.faserip-sheet .panel h2 {
-  font-family: "Bangers", Impact, sans-serif;
-  font-size: 20px;
-  letter-spacing: 1px;
-  margin: 0 0 8px;
-  border-bottom: 2px solid var(--rule);
-}
-
-.faserip-sheet .panel.characteristics { border-color: #1e3a8a; }
-.faserip-sheet .panel.vitals { border-color: #b91c1c; }
-.faserip-sheet .panel.description { border-color: #b91c1c; }
-.faserip-sheet .panel.biography-fields { border-color: #15803d; }
-
-.faserip-sheet .id-grid.three {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-
-.faserip-sheet .record-grid.five {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.faserip-sheet label {
-  display: flex;
-  flex-direction: column;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.faserip-sheet input[type="text"],
-.faserip-sheet input[type="number"],
-.faserip-sheet select {
-  font-family: "Oswald", sans-serif;
-  border: 2px solid var(--rule);
-  background: white;
-  height: 26px;
-  padding: 0 6px;
-}
-
-.faserip-sheet .resource-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.faserip-sheet .stat-box {
-  border: 3px solid var(--rule);
-  background: var(--panel);
-  padding: 6px;
-  text-align: center;
-}
-
-.faserip-sheet .stat-box header {
-  font-family: "Bangers", Impact, sans-serif;
-  font-size: 18px;
-  letter-spacing: 1px;
-}
-
-.faserip-sheet .stat-box.health header { color: var(--red); }
-.faserip-sheet .stat-box.karma header { color: var(--blue); }
-.faserip-sheet .stat-box.resources header { color: var(--green); }
-.faserip-sheet .stat-box.popularity header { color: #7c3aed; }
-
-.faserip-sheet .stat-values {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-family: "Oswald", sans-serif;
-  font-size: 20px;
-}
-
-.faserip-sheet .stat-values input {
-  width: 64px;
-  text-align: center;
-}
-
-.faserip-sheet .bar {
-  height: 8px;
-  background: #ddd;
-  border: 1px solid var(--rule);
-  margin: 4px 0;
-}
-
-.faserip-sheet .health .bar span { display: block; height: 100%; background: var(--red); }
-.faserip-sheet .karma .bar span { display: block; height: 100%; background: var(--blue); }
-
-.faserip-sheet .abilities h2,
-.faserip-sheet .tab h3 {
-  font-family: "Bangers", Impact, sans-serif;
-  margin: 4px 0;
-  letter-spacing: 1px;
-}
-
-.faserip-sheet .ability-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.faserip-sheet .ability-card {
-  border: 3px solid var(--rule);
-  background: white;
-  display: flex;
-  flex-direction: column;
-}
-
-.faserip-sheet .ability-roll {
-  background: var(--ink);
-  color: white;
-  border: none;
-  border-radius: 0;
-  padding: 6px 2px;
-  line-height: 1.1;
-  cursor: pointer;
-}
-
-.faserip-sheet .ability-roll .abbr {
-  display: block;
-  font-family: "Bangers", Impact, sans-serif;
-  font-size: 22px;
-}
-
-.faserip-sheet .ability-roll .name {
-  display: block;
-  font-size: 11px;
-  text-transform: uppercase;
-  white-space: normal;
-  line-height: 1.2;
-}
-
-.faserip-sheet .ability-roll:hover {
-  background: var(--red);
-}
-
-.faserip-sheet .toolbox {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: end;
-  border: 2px dashed var(--rule);
-  padding: 6px;
-}
-
-.faserip-sheet .toolbox button,
-.faserip-sheet .stat-box button,
-.faserip-sheet button.create,
-.faserip-sheet .item-list button {
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  border: 2px solid var(--rule);
-  background: var(--gold);
-  color: var(--ink);
-  height: 26px;
-  line-height: 22px;
-  cursor: pointer;
-}
-
-.faserip-sheet .toolbox button:hover,
-.faserip-sheet button.create:hover {
-  background: #facc15;
-}
-
-.faserip-sheet .sheet-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  border-bottom: 3px solid var(--rule);
-}
-
-.faserip-sheet .sheet-tabs .item {
-  padding: 6px 12px;
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  background: #ddd;
-  border: 2px solid var(--rule);
-  border-bottom: none;
-  cursor: pointer;
-}
-
-.faserip-sheet .sheet-tabs .item.active {
-  background: var(--gold);
-}
-
-.faserip-sheet .sheet-body {
-  flex: 1;
-  min-height: 180px;
-  overflow: auto;
-  border: 3px solid var(--rule);
-  border-top: none;
-  background: var(--panel);
-  padding: 8px;
-}
-
-.faserip-sheet .item-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.faserip-sheet .item-list .item {
-  display: grid;
-  grid-template-columns: 28px 1fr auto auto 22px 22px;
-  gap: 6px;
-  align-items: center;
-  border-bottom: 1px solid #ccc;
-  padding: 4px 0;
-}
-
-.faserip-sheet .item-list img {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--rule);
-}
-
-.faserip-sheet .item-rank {
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-.faserip-item-sheet .sheet-header {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.faserip-item-sheet img {
-  width: 64px;
-  height: 64px;
-  border: 3px solid var(--rule);
-}
-
-.faserip-item-sheet .form-group {
-  margin-bottom: 8px;
-}
-
-.faserip-chat {
-  font-family: "Source Sans 3", sans-serif;
-  border: 3px solid #111;
-  background: #fffdf6;
-}
-
-.faserip-chat header {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 8px;
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  background: #111;
-  color: white;
-}
-
-.faserip-chat .result-banner {
-  text-align: center;
-  font-family: "Bangers", Impact, sans-serif;
-  font-size: 28px;
-  letter-spacing: 2px;
-  padding: 8px;
-  border-bottom: 3px solid #111;
-}
-
-.faserip-chat .result-banner.white { background: #f4f0e6; color: #111; }
-.faserip-chat .result-banner.green { background: #22c55e; color: #052e16; }
-.faserip-chat .result-banner.yellow { background: #facc15; color: #111; }
-.faserip-chat .result-banner.red { background: #dc2626; color: white; }
-
-.faserip-chat .hint {
-  text-align: center;
-  margin: 6px 0 0;
-  font-style: italic;
-}
-
-.faserip-chat dl {
-  display: grid;
-  grid-template-columns: 70px 1fr;
-  gap: 4px 8px;
-  padding: 8px;
-  margin: 0;
-}
-
-.faserip-chat dt {
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-.faserip-chat .mod {
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
-.faserip-feat-dialog .form-group {
-  margin: 8px 0;
-}
-
-.faserip-sheet .derived-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-.faserip-sheet .derived-row div {
-  border: 2px solid var(--rule);
-  background: white;
-  padding: 2px 8px;
-}
-
-.faserip-sheet .ability-card input[type="number"] {
-  width: 100%;
-  text-align: center;
-  height: 22px;
-  border-top: none;
-}
-
-.faserip-sheet label.check {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  text-transform: none;
-}
-
-.faserip-sheet .stat-values.twin {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  font-size: 12px;
-}
-
-.faserip-sheet .stat-values.twin input {
-  width: 100%;
-}
-
-.faserip-sheet .hint,
-.faserip-item-sheet .hint,
-.faserip-feat-dialog .hint {
-  font-size: 11px;
-  font-style: italic;
-  margin: 4px 0 0;
-}
-
-.faserip-chat .effect-banner {
-  text-align: center;
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  padding: 6px;
-  background: #111;
-  color: #facc15;
-  border-bottom: 3px solid #111;
-}
-
-.faserip-chat .intensity {
-  text-align: center;
-  margin: 4px 8px;
-  padding: 4px;
-  border: 2px solid #111;
-}
-
-.faserip-chat .intensity.pass { background: #dcfce7; }
-.faserip-chat .intensity.fail { background: #fee2e2; }
-
-.chargen-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-}
-
-.chargen-table th,
-.chargen-table td {
-  border: 1px solid #111;
-  padding: 2px 6px;
-  text-align: left;
-}
-
-.faserip-sheet .sheet-body .tab {
-  display: none;
-}
-.faserip-sheet .sheet-body .tab.active {
-  display: block;
-}
-.faserip-sheet .catalog details {
-  margin: 8px 0;
-  border: 2px solid var(--rule);
-  background: #fff;
-  padding: 4px 8px;
-}
-.faserip-sheet .catalog summary {
-  cursor: pointer;
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-}
-.faserip-sheet .catalog button.catalog-add {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin: 2px 0;
-  background: #eee;
-  border: 1px solid var(--rule);
-}
-
-.application.dialog .window-content,
-.application.faserip-dialog .window-content {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden !important;
-  min-height: 0;
-  max-height: calc(92vh - 2.75rem);
-}
-
-.application.dialog form,
-.application.faserip-dialog form,
-.application.dialog .dialog-form,
-.application.faserip-dialog .dialog-form {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  flex: 1 1 auto;
-}
-
-.application.dialog .dialog-content,
-.application.faserip-dialog .dialog-content,
-.faserip-dialog-scroll {
-  flex: 1 1 auto;
-  overflow-y: auto !important;
-  overflow-x: hidden;
-  min-height: 0;
-  max-height: calc(92vh - 9rem);
-  padding-right: 4px;
-}
-
-.application.dialog .form-footer,
-.application.faserip-dialog .form-footer,
-.application.dialog footer,
-.application.faserip-dialog footer {
-  flex: 0 0 auto;
-}
-
-.app.window-app .window-content {
-  overflow-y: auto;
-}
-
-.faserip-sheet .identity-row.three {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-.faserip-sheet .id-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
-}
-.faserip-sheet textarea {
-  width: 100%;
-  min-height: 52px;
-  border: 2px solid var(--rule);
-  font-family: "Source Sans 3", sans-serif;
-  padding: 4px 6px;
-}
-.faserip-sheet .record-card {
-  border: 3px solid var(--rule);
-  background: #fff;
-  padding: 8px;
-  margin: 8px 0;
-}
-.faserip-sheet .record-card header {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  border-bottom: 2px solid var(--rule);
-  margin-bottom: 6px;
-  padding-bottom: 4px;
-}
-.faserip-sheet .record-card header img {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--rule);
-}
-.faserip-sheet .record-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px 8px;
-  font-size: 12px;
-}
-.faserip-sheet .slots {
-  background: var(--gold);
-  border: 2px solid var(--rule);
-  padding: 0 6px;
-  font-size: 12px;
-}
-.faserip-sheet .definition { margin: 6px 0 0; font-size: 13px; }
-.faserip-sheet .attempt-pips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
-.faserip-sheet .pip {
-  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--rule);
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; background: #eee;
-}
-.faserip-sheet .pip.on { background: #22c55e; color: #052e16; }
-.faserip-sheet .mastered {
-  background: var(--red); color: #fff; padding: 1px 6px;
-  font-family: "Oswald", sans-serif; text-transform: uppercase;
-}
-.faserip-sheet .mini, .faserip-sheet .mini-grid label { font-size: 10px; }
-.faserip-sheet .mini-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
-.faserip-sheet .stunt-row { border-top: 1px dashed #bbb; padding-top: 6px; margin-top: 6px; }
-.faserip-item-sheet textarea { width: 100%; border: 2px solid #111; }
