@@ -2,7 +2,7 @@
   "id": "faserip",
   "title": "FASERIP",
   "description": "Unofficial Foundry VTT system for FASERIP-style play. Advanced Set mechanics. Foundry v14.",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "compatibility": { "minimum": "14", "verified": "14" },
   "authors": [{ "name": "Community FASERIP System", "flags": {} }],
   "esmodules": ["faserip.mjs"],
