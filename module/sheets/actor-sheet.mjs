@@ -23,7 +23,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["faserip", "actor"],
-    position: { width: 760, height: 720 },
+    position: { width: 880, height: 780 },
     form: { submitOnChange: true, closeOnSubmit: false },
     window: { resizable: true, icon: "fa-solid fa-mask" },
     actions: {
@@ -44,7 +44,10 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
       combatFeat: FaseripActorSheet.onCombatFeat,
       editImage: FaseripActorSheet.onEditImage,
       sheetTab: FaseripActorSheet.onSheetTab,
-      catalogAdd: FaseripActorSheet.onCatalogAdd
+      catalogAdd: FaseripActorSheet.onCatalogAdd,
+      addStunt: FaseripActorSheet.onAddStunt,
+      stuntAttempt: FaseripActorSheet.onStuntAttempt,
+      contactAssist: FaseripActorSheet.onContactAssist
     }
   };
 
@@ -96,13 +99,33 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
       ? Math.round((actor.system.karma.value / actor.system.karma.max) * 100)
       : 0;
     const items = actor.items.contents;
+    const pips = (n = 0) => Array.from({ length: 10 }, (_, i) => ({ n: i + 1, on: i < Number(n || 0) }));
     const decorate = (collection) => collection.map((item) => ({
       id: item.id,
       name: item.name,
       img: item.img,
       type: item.type,
       rankLabel: rankLabel(item.system.rank ?? "typical"),
-      category: item.system.category ?? ""
+      category: item.system.category ?? "",
+      slotsTaken: item.system.slotsTaken ?? 1,
+      range: item.system.range ?? "",
+      area: item.system.area ?? "",
+      emanatesFrom: item.system.emanatesFrom ?? "",
+      areasPerRound: item.system.areasPerRound ?? "",
+      definition: item.system.definition ?? "",
+      bonus: item.system.bonus ?? "",
+      attribute: item.system.attribute ?? "",
+      occupation: item.system.occupation ?? item.system.category ?? "",
+      base: item.system.base ?? "",
+      tie: item.system.tie ?? "",
+      practicality: item.system.practicality ?? "",
+      acquired: !!item.system.acquired,
+      pips: pips(item.system.assistance),
+      stunts: (item.system.stunts ?? []).map((s, index) => ({
+        ...s,
+        index,
+        pips: pips(s.attempts)
+      }))
     }));
     context.powers = decorate(items.filter((i) => i.type === "power"));
     context.talents = decorate(items.filter((i) => i.type === "talent"));
@@ -143,12 +166,16 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
     context.upbEnabled = isUpbEnabled() || !!gen?.upb;
     context.upbCatalog = context.upbEnabled ? upbCatalogGroups() : [];
     context.upbSettingOn = isUpbEnabled();
+    context.powerSlotsUsed = context.powers.reduce((sum, p) => sum + Math.max(0, Number(p.slotsTaken || 1)), 0);
+    if (context.generation) {
+      context.generation.powerMax = gen.powerCount?.[1] ?? context.generation.powerNeed;
+    }
     return context;
   }
 
   _onRender(context, options) {
     super._onRender(context, options);
-    this.showTab(this._activeTab ?? "powers");
+    this.showTab(this._activeTab ?? "record");
   }
 
   showTab(tab) {
@@ -185,7 +212,7 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
 
   static async onRollItem(event, target) {
     event.preventDefault();
-    const item = this.actor.items.get(target.closest(".item")?.dataset.itemId);
+    const item = this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
     if (!item) return;
     return promptFeatRoll({
       actor: this.actor,
@@ -197,12 +224,12 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
 
   static onItemEdit(event, target) {
     event.preventDefault();
-    this.actor.items.get(target.closest(".item")?.dataset.itemId)?.sheet.render({ force: true });
+    this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId)?.sheet.render({ force: true });
   }
 
   static async onItemDelete(event, target) {
     event.preventDefault();
-    const item = this.actor.items.get(target.closest(".item")?.dataset.itemId);
+    const item = this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
     if (!item) return;
     const ok = await confirmDialog({ title: "Delete Item", content: `<p>Delete <strong>${item.name}</strong>?</p>` });
     if (ok) await item.delete();
@@ -228,7 +255,7 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
 
   async createFromCatalog(type, catalog) {
     const groups = Object.entries(catalog).map(([cat, list]) => {
-      const opts = list.map((n) => `<option value="${n.replace(/"/g, "&quot;")}">${n}</option>`).join("");
+      const opts = list.map((n) => `<option value="${n.replace(/"/g, """)}">${n}</option>`).join("");
       return `<optgroup label="${cat}">${opts}</optgroup>`;
     }).join("");
     const form = await promptForm({
@@ -334,5 +361,94 @@ export class FaseripActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
       callback: (path) => this.actor.update({ img: path })
     });
     return fp.browse();
+  }
+
+  static async onCatalogAdd(event, target) {
+    event.preventDefault();
+    const type = target.dataset.type;
+    const raw = target.dataset.name || "";
+    const category = target.dataset.category || "";
+    const two = /counts as two/i.test(raw);
+    const name = raw.replace(/\s*\(counts as two(?: powers?)?\)\s*$/i, "").trim() || `New ${type}`;
+    const system = { category };
+    if (type === "power") {
+      system.slotsTaken = two ? 2 : 1;
+      if (/body armor/i.test(name)) system.bodyArmor = true;
+      if (/force field/i.test(name)) system.forceField = true;
+    }
+    if (type === "talent") system.slotsTaken = 1;
+    if (type === "contact") system.occupation = category;
+    await this.actor.createEmbeddedDocuments("Item", [{ name, type, system }]);
+  }
+
+  static async onAddStunt(event, target) {
+    event.preventDefault();
+    const item = this.actor.items.get(target.dataset.itemId);
+    if (!item) return;
+    const form = await promptForm({
+      title: `New stunt — ${item.name}`,
+      content: `<div class="form-group"><label>Stunt name</label><input name="name" type="text" /></div>
+        <div class="form-group"><label>Rank</label><input name="rank" type="text" placeholder="usually −1 CS from the parent Power" /></div>
+        <div class="form-group"><label>Description</label><input name="description" type="text" /></div>`,
+      okLabel: "Add"
+    });
+    if (!form) return;
+    const stunts = foundry.utils.deepClone(item.system.stunts ?? []);
+    stunts.push({
+      name: formValue(form, "name") || "New Stunt",
+      rank: formValue(form, "rank"),
+      description: formValue(form, "description"),
+      attempts: 0,
+      mastered: false
+    });
+    await item.update({ "system.stunts": stunts });
+  }
+
+  static async onStuntAttempt(event, target) {
+    event.preventDefault();
+    const item = this.actor.items.get(target.dataset.itemId);
+    const idx = Number(target.dataset.stunt);
+    if (!item || Number.isNaN(idx)) return;
+    const fee = 100;
+    const available = this.actor.system.karma.value ?? 0;
+    if (available < fee) {
+      ui.notifications.warn(`${this.actor.name} needs ${fee} Karma for this stunt attempt.`);
+      return;
+    }
+    const stunts = foundry.utils.deepClone(item.system.stunts ?? []);
+    const row = stunts[idx];
+    if (!row || row.mastered) return;
+    row.attempts = Math.min(10, Number(row.attempts || 0) + 1);
+    if (row.attempts >= 10) row.mastered = true;
+    await this.actor.update({
+      "system.karma.value": available - fee,
+      "system.karmaBank.powers": (this.actor.system.karmaBank?.powers ?? 0) + fee,
+      "system.karmaBank.totalSpent": (this.actor.system.karmaBank?.totalSpent ?? 0) + fee
+    });
+    await item.update({ "system.stunts": stunts });
+    ui.notifications.info(`${row.name}: attempt ${row.attempts}/10${row.mastered ? " — mastered" : ""}`);
+  }
+
+  static async onContactAssist(event, target) {
+    event.preventDefault();
+    const item = this.actor.items.get(target.dataset.itemId);
+    if (!item) return;
+    const fee = 100;
+    const available = this.actor.system.karma.value ?? 0;
+    if (available < fee) {
+      ui.notifications.warn(`${this.actor.name} needs ${fee} Karma to develop this Contact.`);
+      return;
+    }
+    const next = Math.min(10, Number(item.system.assistance || 0) + 1);
+    await this.actor.update({
+      "system.karma.value": available - fee,
+      "system.karmaBank.contacts": (this.actor.system.karmaBank?.contacts ?? 0) + fee,
+      "system.karmaBank.totalSpent": (this.actor.system.karmaBank?.totalSpent ?? 0) + fee
+    });
+    await item.update({
+      "system.assistance": next,
+      "system.acquired": next >= 10
+    });
+    ui.notifications.info(`${item.name}: assistance ${next}/10${next >= 10 ? " — acquired" : ""}`);
   }
 }
