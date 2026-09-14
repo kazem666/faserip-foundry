@@ -4,9 +4,9 @@ Unofficial Foundry Virtual Tabletop **system** for FASERIP-style superhero games
 
 This package contains **no Marvel characters, art, or copyrighted rules text**. You still need a rulebook you are allowed to use (original books you own, or an OGL retro-clone).
 
-Version **1.13.4**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
+Version **1.13.5**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
 
-1.13.4 removes the unused Power / Talent / Contact catalog lists from the character sheet (pickers stay on the **+ Custom** buttons). Contacts tab only shows actual Contact items. Hero name field is smaller so it stays inside the header.
+1.13.5 fixes cramped header/rank fields: the name input is a single box (no nested Foundry frame), ability ranks show `Ty 5-7` at a readable size, and Resources shows `Good 10` without clipping.
 
 ## What you get
 
@@ -30,7 +30,7 @@ Version **1.13.4**. Built for Foundry VTT **v14** (`compatibility.minimum` / `ve
 
 ## Foundry v14
 
-1.13.4 keeps AppV1 sheets. Catalog lists no longer render on Powers / Talents / Contacts tabs. Generate Hero remains on Create Actor, the Actors sidebar, Game Settings, and the sheet header.
+1.13.5 keeps AppV1 sheets. Catalog lists stay off the Powers / Talents / Contacts tabs. Generate Hero remains on Create Actor, the Actors sidebar, Game Settings, and the sheet header.
 
 Tabbed record: **Record**, **Identity**, **Powers**, **Stunts**, **Talents**, **Contacts**, **Gear**, **Karma Bank**, **Notes**. Two-slot powers spend 2. Normal Human form caps at 5 starting power slots. Dialogs remain scrollable.
 
