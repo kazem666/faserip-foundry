@@ -1,0 +1,150 @@
+<form class="faserip-sheet {{cssClass}}" autocomplete="off">
+  <header class="sheet-header">
+    <img class="profile" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="{{actor.name}}" />
+    <div class="header-fields">
+      <h1 class="hero-name"><input name="name" type="text" value="{{actor.name}}" placeholder="Hero Name" /></h1>
+      <div class="identity-row">
+        <label>Public<input name="system.identity.public" type="text" value="{{system.identity.public}}" placeholder="Public identity" /></label>
+        <label>Secret<input name="system.identity.secret" type="text" value="{{system.identity.secret}}" placeholder="Secret identity" /></label>
+      </div>
+      <div class="identity-row">
+        <label>Origin
+          <select name="system.identity.origin">
+            {{#each origins as |o|}}
+            <option value="{{o}}" {{#if (eq ../system.identity.origin o)}}selected{{/if}}>{{o}}</option>
+            {{/each}}
+          </select>
+        </label>
+        <label>Group<input name="system.identity.group" type="text" value="{{system.identity.group}}" placeholder="Team / affiliation" /></label>
+      </div>
+      <div class="identity-row">
+        <label class="check"><span>Secret ID</span><input type="checkbox" name="system.identity.secretId" {{#if system.identity.secretId}}checked{{/if}} /></label>
+        <button type="button" data-action="generate">Generate Hero</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="resource-row">
+    <div class="stat-box health">
+      <header>Health</header>
+      <div class="stat-values">
+        <input type="number" name="system.health.value" value="{{system.health.value}}" />
+        <span>/</span><span class="max">{{system.health.max}}</span>
+      </div>
+      <div class="bar"><span style="width: {{healthPct}}%"></span></div>
+      <button type="button" data-action="reset-health">Reset</button>
+    </div>
+    <div class="stat-box karma">
+      <header>Karma</header>
+      <div class="stat-values">
+        <input type="number" name="system.karma.value" value="{{system.karma.value}}" />
+        <span>/</span><span class="max">{{system.karma.max}}</span>
+      </div>
+      <div class="bar"><span style="width: {{karmaPct}}%"></span></div>
+      <button type="button" data-action="reset-karma">Reset</button>
+    </div>
+    <div class="stat-box resources">
+      <header>Resources</header>
+      <select name="system.resources.rank">
+        {{#each ranks as |r|}}
+        <option value="{{r.id}}" {{#if (eq ../system.resources.rank r.id)}}selected{{/if}}>{{r.label}} ({{r.value}})</option>
+        {{/each}}
+      </select>
+      <button type="button" data-action="roll-resources">FEAT</button>
+    </div>
+    <div class="stat-box popularity">
+      <header>Popularity</header>
+      <div class="stat-values twin">
+        <label>Hero <input type="number" name="system.popularity.value" value="{{system.popularity.value}}" /></label>
+        <label>Secret <input type="number" name="system.popularity.secret" value="{{system.popularity.secret}}" /></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="derived-row">
+    <div>Init +{{initMod}}</div>
+    <div>Move {{movement}} areas</div>
+    <div>Throw {{throwRange}} areas</div>
+    <div>Heal {{healRate}} / hour</div>
+    <div>Armor {{bodyArmor}}</div>
+    <div>Field {{forceField}}</div>
+  </section>
+
+  <section class="abilities">
+    <h2>FASERIP</h2>
+    <div class="ability-grid">
+      {{#each abilities as |ab|}}
+      <div class="ability-card">
+        <button type="button" class="ability-roll" data-action="roll-ability" data-ability="{{ab.key}}" title="Roll {{ab.label}} FEAT">
+          <span class="abbr">{{ab.abbr}}</span><span class="name">{{ab.label}}</span>
+        </button>
+        <select name="system.abilities.{{ab.key}}.rank">
+          {{#each ../ranks as |r|}}
+          <option value="{{r.id}}" {{#if (eq ab.rank r.id)}}selected{{/if}}>{{r.abbr}} {{r.min}}–{{r.max}}</option>
+          {{/each}}
+        </select>
+        <input type="number" name="system.abilities.{{ab.key}}.number" value="{{ab.number}}" min="0" />
+      </div>
+      {{/each}}
+    </div>
+  </section>
+
+  <section class="toolbox">
+    <label>Damage<input type="number" name="damageAmount" value="0" min="0" /></label>
+    <label class="check"><input type="checkbox" name="energyAttack" /> Energy</label>
+    <label class="check"><input type="checkbox" name="useForceField" /> Force Field</label>
+    <button type="button" data-action="apply-damage">Apply Damage</button>
+    <button type="button" data-action="heal">Heal</button>
+    <button type="button" data-action="recover">Recovery</button>
+    <button type="button" data-action="natural-heal">Hour Heal</button>
+    <label>Universal Table
+      <select name="universalRank">{{#each ranks as |r|}}<option value="{{r.id}}">{{r.label}}</option>{{/each}}</select>
+    </label>
+    <button type="button" data-action="universal">Roll FEAT</button>
+    <label>Battle Effects
+      <select name="combatColumn">{{#each combatColumns as |c|}}<option value="{{c.id}}">{{c.label}}</option>{{/each}}</select>
+    </label>
+    <button type="button" data-action="combat-feat">Combat FEAT</button>
+  </section>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="powers">Powers</a>
+    <a class="item" data-tab="talents">Talents</a>
+    <a class="item" data-tab="contacts">Contacts</a>
+    <a class="item" data-tab="gear">Gear</a>
+    <a class="item" data-tab="bio">Biography</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab" data-tab="powers">
+      {{#if generation}}<p class="hint">Rolled {{generation.powerNeed}} power(s): {{#each generation.powers as |p|}}{{p}}{{#unless @last}}, {{/unless}}{{/each}}</p>{{/if}}
+      <ol class="item-list">{{#each powers as |item|}}<li class="item" data-item-id="{{item.id}}"><img src="{{item.img}}" alt="" /><span class="item-name">{{item.name}}</span><span class="item-rank">{{item.rankLabel}}</span><button type="button" data-action="roll-item">FEAT</button><a data-action="item-edit"><i class="fas fa-edit"></i></a><a data-action="item-delete"><i class="fas fa-trash"></i></a></li>{{/each}}</ol>
+      <button type="button" class="create" data-action="item-create" data-type="power">+ Power</button>
+    </div>
+    <div class="tab" data-tab="talents">
+      {{#if generation}}<p class="hint">Rolled {{generation.talentNeed}} talent(s): {{#each generation.talents as |t|}}{{t}}{{#unless @last}}, {{/unless}}{{/each}}</p>{{/if}}
+      <ol class="item-list">{{#each talents as |item|}}<li class="item" data-item-id="{{item.id}}"><img src="{{item.img}}" alt="" /><span class="item-name">{{item.name}}</span><span class="item-rank">{{item.category}}</span><a data-action="item-edit"><i class="fas fa-edit"></i></a><a data-action="item-delete"><i class="fas fa-trash"></i></a></li>{{/each}}</ol>
+      <button type="button" class="create" data-action="item-create" data-type="talent">+ Talent</button>
+    </div>
+    <div class="tab" data-tab="contacts">
+      {{#if generation}}<p class="hint">Rolled {{generation.contactNeed}} contact(s) (max {{generation.contactMax}}).</p>{{/if}}
+      <ol class="item-list">{{#each contacts as |item|}}<li class="item" data-item-id="{{item.id}}"><img src="{{item.img}}" alt="" /><span class="item-name">{{item.name}}</span><span class="item-rank">{{item.category}}</span><a data-action="item-edit"><i class="fas fa-edit"></i></a><a data-action="item-delete"><i class="fas fa-trash"></i></a></li>{{/each}}</ol>
+      <button type="button" class="create" data-action="item-create" data-type="contact">+ Contact</button>
+    </div>
+    <div class="tab" data-tab="gear">
+      <ol class="item-list">{{#each gear as |item|}}<li class="item" data-item-id="{{item.id}}"><img src="{{item.img}}" alt="" /><span class="item-name">{{item.name}}</span><span class="item-rank">{{item.rankLabel}}</span><button type="button" data-action="roll-item">FEAT</button><a data-action="item-edit"><i class="fas fa-edit"></i></a><a data-action="item-delete"><i class="fas fa-trash"></i></a></li>{{/each}}</ol>
+      <button type="button" class="create" data-action="item-create" data-type="weapon">+ Weapon</button>
+      <button type="button" class="create" data-action="item-create" data-type="equipment">+ Equipment</button>
+    </div>
+    <div class="tab bio" data-tab="bio">
+      <h3>Biography</h3>
+      {{editor enrichedBiography target="system.biography" button=true editable=editable engine="prosemirror"}}
+      <h3>Notes</h3>
+      {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
+      <div class="form-group">
+        <label>Manual Body Armor<input type="number" name="system.defense.bodyArmor" value="{{system.defense.bodyArmor}}" min="0" /></label>
+        <label>Manual Force Field<input type="number" name="system.defense.forceField" value="{{system.defense.forceField}}" min="0" /></label>
+      </div>
+    </div>
+  </section>
+</form>
