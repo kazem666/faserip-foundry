@@ -58,9 +58,9 @@
                 <span class="abbr">{{ab.abbr}}</span>
                 <span class="name">{{ab.label}}</span>
               </button>
-              <select name="system.abilities.{{ab.key}}.rank">
+              <select name="system.abilities.{{ab.key}}.rank" title="{{ab.rankLabel}}">
                 {{#each ../ranks as |r|}}
-                <option value="{{r.id}}" {{#if (eq ab.rank r.id)}}selected{{/if}}>{{r.abbr}} {{r.min}}–{{r.max}}</option>
+                <option value="{{r.id}}" {{#if (eq ab.rank r.id)}}selected{{/if}}>{{r.abbr}} {{r.min}}-{{r.max}}</option>
                 {{/each}}
               </select>
               <input type="number" name="system.abilities.{{ab.key}}.number" value="{{ab.number}}" min="0" title="Rank number (0 = use standard)" />
@@ -96,9 +96,9 @@
             </div>
             <div class="stat-box resources">
               <header>Resources</header>
-              <select name="system.resources.rank">
+              <select name="system.resources.rank" title="Resources rank">
                 {{#each ranks as |r|}}
-                <option value="{{r.id}}" {{#if (eq ../system.resources.rank r.id)}}selected{{/if}}>{{r.label}} ({{r.value}})</option>
+                <option value="{{r.id}}" {{#if (eq ../system.resources.rank r.id)}}selected{{/if}}>{{r.label}} {{r.value}}</option>
                 {{/each}}
               </select>
               <div class="mini-grid">
