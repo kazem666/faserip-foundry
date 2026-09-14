@@ -1,31 +1,13 @@
 {
   "id": "faserip",
   "title": "FASERIP",
-  "description": "Unofficial Foundry VTT system for FASERIP-style play (Advanced Set mechanics: rank ranges, Battle Effects Table, Intensity, Initiative, generation, Healing/Recovery). Contains no Marvel-copyrighted characters or text.",
-  "version": "1.3.1",
-  "compatibility": {
-    "minimum": "14",
-    "verified": "14"
-  },
-  "authors": [
-    {
-      "name": "Community FASERIP System",
-      "flags": {}
-    }
-  ],
-  "esmodules": [
-    "faserip.mjs"
-  ],
-  "styles": [
-    "styles/faserip.css"
-  ],
-  "languages": [
-    {
-      "lang": "en",
-      "name": "English",
-      "path": "lang/en.json"
-    }
-  ],
+  "description": "Unofficial Foundry VTT system for FASERIP-style play. Advanced Set mechanics. Foundry v14 ActorSheetV2.",
+  "version": "1.4.0",
+  "compatibility": { "minimum": "14", "verified": "14" },
+  "authors": [{ "name": "Community FASERIP System", "flags": {} }],
+  "esmodules": ["faserip.mjs"],
+  "styles": ["styles/faserip.css"],
+  "languages": [{ "lang": "en", "name": "English", "path": "lang/en.json" }],
   "documentTypes": {
     "Actor": {
       "hero": { "htmlFields": ["biography", "notes"] },
@@ -40,10 +22,7 @@
     }
   },
   "initiative": "1d10 + @initMod",
-  "grid": {
-    "distance": 1,
-    "units": "area"
-  },
+  "grid": { "distance": 1, "units": "area" },
   "primaryTokenAttribute": "health",
   "secondaryTokenAttribute": "karma",
   "url": "https://github.com/kazem666/faserip-foundry",
