@@ -1,13 +1,13 @@
 import { rankValue, ABILITIES, abilityNumber, initiativeModifier } from "../config.mjs";
 import { rollFeat } from "../dice/universal-table.mjs";
+import { createActorWizard } from "../wizard.mjs";
 
 export class FaseripActor extends Actor {
-  prepareBaseData() {
-    super.prepareBaseData();
-  }
-
-  prepareDerivedData() {
-    super.prepareDerivedData();
+  static async createDialog(data = {}, options = {}) {
+    if (data?.type && data.type !== "hero" && data.type !== "npc") {
+      return super.createDialog(data, options);
+    }
+    return createActorWizard();
   }
 
   getAbilityRank(ability) {
@@ -43,8 +43,7 @@ export class FaseripActor extends Actor {
     if (!ignoreArmor) {
       if (useForceField) {
         const ff = this.getForceField();
-        const protection = energy ? ff : Math.max(0, ff - 10);
-        incoming = Math.max(0, incoming - protection);
+        incoming = Math.max(0, incoming - (energy ? ff : Math.max(0, ff - 10)));
       } else {
         let armor = this.getBodyArmor();
         if (energy) armor = Math.max(0, armor - 20);
@@ -52,11 +51,7 @@ export class FaseripActor extends Actor {
       }
     }
     const value = Math.max(0, (this.system.health.value ?? 0) - incoming);
-    const update = {
-      "system.health.value": value,
-      "system.condition.lastDamageRound": game.combat?.round ?? 0,
-      "system.condition.recoveredToday": false
-    };
+    const update = { "system.health.value": value, "system.condition.lastDamageRound": game.combat?.round ?? 0, "system.condition.recoveredToday": false };
     if (value === 0) update["system.condition.unconscious"] = true;
     await this.update(update);
     return incoming;
@@ -75,54 +70,23 @@ export class FaseripActor extends Actor {
       ui.notifications.warn(`${this.name} already used Recovery today.`);
       return;
     }
-    const amount = this.getAbilityNumber("endurance");
-    await this.heal(amount);
+    await this.heal(this.getAbilityNumber("endurance"));
     return this.update({ "system.condition.recoveredToday": true });
   }
 
   async naturalHeal({ rest = false } = {}) {
-    const amount = this.getAbilityNumber("endurance") * (rest ? 2 : 1);
-    return this.heal(amount);
-  }
-
-  async spendKarma(amount) {
-    const value = Math.max(0, (this.system.karma.value ?? 0) - Number(amount || 0));
-    return this.update({ "system.karma.value": value });
-  }
-
-  async rollAbility(ability, { cs = 0, karma = 0, label, intensityId, effectsColumn } = {}) {
-    const base = this.getAbilityRank(ability);
-    return rollFeat({
-      actor: this,
-      rankId: base,
-      cs,
-      karma,
-      intensityId,
-      effectsColumn,
-      label: label ?? game.i18n.localize(`FASERIP.Ability.${ability}`)
-    });
+    return this.heal(this.getAbilityNumber("endurance") * (rest ? 2 : 1));
   }
 
   getInitiativeMod() {
     return initiativeModifier(this.getAbilityNumber("intuition"));
   }
 
-  async getInitiativeRoll(formula) {
-    const mod = this.getInitiativeMod();
-    const f = formula || `1d10 + ${mod}`;
-    return new Roll(f, this.getRollData());
-  }
-
-  async rollInitiative({ createCombatants = false, rerollInitiative = false } = {}) {
-    return super.rollInitiative({ createCombatants, rerollInitiative });
-  }
-
   getRollData() {
     const data = super.getRollData();
     data.abilities = {};
     for (const key of ABILITIES) {
-      const rank = this.getAbilityRank(key);
-      data.abilities[key] = { rank, value: this.getAbilityNumber(key) };
+      data.abilities[key] = { rank: this.getAbilityRank(key), value: this.getAbilityNumber(key) };
     }
     data.health = this.system.health;
     data.karma = this.system.karma;
