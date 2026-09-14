@@ -28,12 +28,90 @@
 
   {{#if isPower}}
   <div class="form-group">
+    <label>Type</label>
+    <input name="system.powerType" type="text" value="{{system.powerType}}" />
+  </div>
+  <div class="form-group">
+    <label>Slots taken</label>
+    <input type="number" name="system.slotsTaken" value="{{system.slotsTaken}}" min="0" max="2" />
+  </div>
+  <div class="form-group">
+    <label>Range</label>
+    <input name="system.range" type="text" value="{{system.range}}" />
+  </div>
+  <div class="form-group">
+    <label>Area</label>
+    <input name="system.area" type="text" value="{{system.area}}" />
+  </div>
+  <div class="form-group">
+    <label>Acceleration / MPH / MPM / Areas per round</label>
+    <div class="identity-row">
+      <input name="system.acceleration" type="text" value="{{system.acceleration}}" placeholder="Accel" />
+      <input name="system.mph" type="text" value="{{system.mph}}" placeholder="MPH" />
+      <input name="system.mpm" type="text" value="{{system.mpm}}" placeholder="MPM" />
+      <input name="system.areasPerRound" type="text" value="{{system.areasPerRound}}" placeholder="Areas/rd" />
+    </div>
+  </div>
+  <div class="form-group">
+    <label>Power emanates from</label>
+    <input name="system.emanatesFrom" type="text" value="{{system.emanatesFrom}}" />
+  </div>
+  <div class="form-group">
+    <label>Definition</label>
+    <textarea name="system.definition" rows="3">{{system.definition}}</textarea>
+  </div>
+  <div class="form-group">
     <label>Limitation</label>
     <input name="system.limitation" type="text" value="{{system.limitation}}" />
   </div>
   <div class="form-group checks">
     <label class="check"><input type="checkbox" name="system.bodyArmor" {{#if system.bodyArmor}}checked{{/if}} /> Counts as Body Armor</label>
     <label class="check"><input type="checkbox" name="system.forceField" {{#if system.forceField}}checked{{/if}} /> Counts as Force Field</label>
+  </div>
+  {{/if}}
+
+  {{#if isTalent}}
+  <div class="form-group">
+    <label>Talent bonus</label>
+    <input name="system.bonus" type="text" value="{{system.bonus}}" />
+  </div>
+  <div class="form-group">
+    <label>Attribute application</label>
+    <input name="system.attribute" type="text" value="{{system.attribute}}" />
+  </div>
+  <div class="form-group">
+    <label>Slots taken</label>
+    <input type="number" name="system.slotsTaken" value="{{system.slotsTaken}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Definition</label>
+    <textarea name="system.definition" rows="3">{{system.definition}}</textarea>
+  </div>
+  {{/if}}
+
+  {{#if isContact}}
+  <div class="form-group">
+    <label>Occupation</label>
+    <input name="system.occupation" type="text" value="{{system.occupation}}" />
+  </div>
+  <div class="form-group">
+    <label>Base of operations</label>
+    <input name="system.base" type="text" value="{{system.base}}" />
+  </div>
+  <div class="form-group">
+    <label>Tie to character</label>
+    <input name="system.tie" type="text" value="{{system.tie}}" />
+  </div>
+  <div class="form-group">
+    <label>Contact's practicality</label>
+    <input name="system.practicality" type="text" value="{{system.practicality}}" />
+  </div>
+  <div class="form-group">
+    <label>Assistance requested (0–10)</label>
+    <input type="number" name="system.assistance" value="{{system.assistance}}" min="0" max="10" />
+  </div>
+  <div class="form-group">
+    <label class="check"><input type="checkbox" name="system.acquired" {{#if system.acquired}}checked{{/if}} /> Contact acquired</label>
   </div>
   {{/if}}
 
@@ -45,7 +123,6 @@
       <option value="{{r.id}}" {{#if (eq ../system.material r.id)}}selected{{/if}}>{{r.label}} ({{r.value}})</option>
       {{/each}}
     </select>
-    {{#if materialHint}}<p class="hint">{{materialHint}}</p>{{/if}}
   </div>
   {{/if}}
 
@@ -83,6 +160,6 @@
 
   <div class="form-group stacked">
     <label>Notes</label>
-    {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
+    <textarea name="system.notes" rows="4">{{system.notes}}</textarea>
   </div>
 </form>
