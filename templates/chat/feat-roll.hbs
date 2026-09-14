@@ -1,0 +1,23 @@
+<div class="faserip-chat color-{{color}}">
+  <header>
+    <span class="feat-label">{{label}}</span>
+    {{#if actorName}}<span class="who">{{actorName}}</span>{{/if}}
+  </header>
+  <div class="result-banner {{color}}">{{colorLabel}}</div>
+  <p class="hint">{{colorHint}}</p>
+  {{#if effect}}
+  <div class="effect-banner">{{effectLabel}}: <strong>{{effect}}</strong></div>
+  {{/if}}
+  {{#if intensityId}}
+  <p class="intensity {{#if intensityPass}}pass{{else}}fail{{/if}}">
+    Intensity {{intensityLabel}} — {{intensityNeed}}
+    {{#if intensityPass}} · SUCCESS{{else}} · FAIL{{/if}}
+  </p>
+  {{/if}}
+  <dl>
+    <dt>d100</dt>
+    <dd>{{raw}}{{#if karma}} <span class="mod">+{{karma}} Karma = {{adjusted}}</span>{{/if}}</dd>
+    <dt>Rank</dt>
+    <dd>{{baseRank}}{{#if cs}} <span class="mod">{{#if (gt cs 0)}}+{{/if}}{{cs}} CS → {{effectiveRank}}</span>{{/if}}</dd>
+  </dl>
+</div>
