@@ -1,26 +1,11 @@
 import {
   ABILITIES, ORIGIN_TABLE, SPECIAL_COUNT_TABLE, ABILITY_MODIFIER_TABLE,
-  POWER_CATEGORIES, TALENT_CATEGORIES, rankMin, shiftRank, lookupTable, rollOnColumn, originById
+  rankMin, shiftRank, lookupTable, rollOnColumn, originById
 } from "./config.mjs";
 import { deepClone } from "./foundry-api.mjs";
-import { rollD100 } from "./dice/percentile.mjs";
+import { rollD100, promptedD100, promptNextRoll } from "./dice/percentile.mjs";
 
 function d100() { return Math.floor(Math.random() * 100) + 1; }
-
-async function promptNextRoll(title, body) {
-  const DialogV2 = foundry.applications.api.DialogV2;
-  const choice = await DialogV2.wait({
-    window: { title, icon: "fa-solid fa-dice" },
-    position: { width: 440 },
-    content: "<p>" + body + "</p>",
-    buttons: [
-      { action: "roll", label: "Roll 1d100", icon: "fa-solid fa-dice", default: true },
-      { action: "cancel", label: "Stop" }
-    ],
-    rejectClose: false
-  });
-  return choice === "roll";
-}
 
 export function generateHero({ originId = null, rollOrigin = false } = {}) {
   const originRoll = d100();
@@ -53,18 +38,8 @@ export function generateHero({ originId = null, rollOrigin = false } = {}) {
     counts.contacts[0] = Math.min(1, counts.contacts[0]);
     counts.contacts[1] = 1;
   }
-  const powerCats = [];
-  for (let i = 0; i < counts.powers[0]; i++) {
-    const r = d100();
-    powerCats.push({ roll: r, ...lookupTable(POWER_CATEGORIES, r) });
-  }
-  const talentCats = [];
-  for (let i = 0; i < counts.talents[0]; i++) {
-    const r = d100();
-    talentCats.push({ roll: r, ...lookupTable(TALENT_CATEGORIES, r) });
-  }
   const popularity = origin.id === "mutant" || origin.id === "robot" ? 0 : 10;
-  return { origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod, counts, powerCats, talentCats, popularity };
+  return { origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod, counts, powerCats: [], talentCats: [], popularity };
 }
 
 export async function rollHeroDice(actor, { originId = "altered", rollOrigin = false } = {}) {
@@ -97,14 +72,38 @@ export async function rollHeroDice(actor, { originId = "altered", rollOrigin = f
   if (origin.id === "hitech") abilities.reason = shiftRank(abilities.reason, 2);
   const numbers = {};
   for (const key of ABILITIES) numbers[key] = rankMin(abilities[key]);
-  const resourceModRoll = await rollD100({ flavor: actor.name + " - Resource modifier", actor });
+  const resourceModRoll = await promptedD100({
+    title: "Resources",
+    body: "Roll 1d100 on the Ability Modifier table. Starting Resources are Typical (Good for Hi-Tech, Poor for Alien), then apply the column shift.",
+    flavor: actor.name + " - Resource modifier",
+    actor
+  });
+  if (resourceModRoll == null) return null;
   const resourceMod = lookupTable(ABILITY_MODIFIER_TABLE, resourceModRoll);
   let resources = origin.id === "hitech" ? "good" : origin.id === "alien" ? "poor" : "typical";
   resources = shiftRank(resources, resourceMod.cs);
   if (origin.id === "mutant") resources = shiftRank(resources, -1);
-  const powerRoll = await rollD100({ flavor: actor.name + " - Number of Powers", actor });
-  const talentRoll = await rollD100({ flavor: actor.name + " - Number of Talents", actor });
-  const contactRoll = await rollD100({ flavor: actor.name + " - Number of Contacts", actor });
+  const powerRoll = await promptedD100({
+    title: "Number of Powers",
+    body: "Roll 1d100 for how many Powers this hero starts with.",
+    flavor: actor.name + " - Number of Powers",
+    actor
+  });
+  if (powerRoll == null) return null;
+  const talentRoll = await promptedD100({
+    title: "Number of Talents",
+    body: "Roll 1d100 for how many Talents this hero starts with.",
+    flavor: actor.name + " - Number of Talents",
+    actor
+  });
+  if (talentRoll == null) return null;
+  const contactRoll = await promptedD100({
+    title: "Number of Contacts",
+    body: "Roll 1d100 for how many Contacts this hero starts with.",
+    flavor: actor.name + " - Number of Contacts",
+    actor
+  });
+  if (contactRoll == null) return null;
   const counts = {
     powers: lookupTable(SPECIAL_COUNT_TABLE, powerRoll).powers,
     talents: lookupTable(SPECIAL_COUNT_TABLE, talentRoll).talents,
@@ -116,18 +115,8 @@ export async function rollHeroDice(actor, { originId = "altered", rollOrigin = f
     counts.contacts[0] = Math.min(1, counts.contacts[0]);
     counts.contacts[1] = 1;
   }
-  const powerCats = [];
-  for (let i = 0; i < counts.powers[0]; i++) {
-    const r = await rollD100({ flavor: actor.name + " - Power category " + (i + 1), actor });
-    powerCats.push({ roll: r, ...lookupTable(POWER_CATEGORIES, r) });
-  }
-  const talentCats = [];
-  for (let i = 0; i < counts.talents[0]; i++) {
-    const r = await rollD100({ flavor: actor.name + " - Talent category " + (i + 1), actor });
-    talentCats.push({ roll: r, ...lookupTable(TALENT_CATEGORIES, r) });
-  }
   const popularity = origin.id === "mutant" || origin.id === "robot" ? 0 : 10;
-  return { origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod, counts, powerCats, talentCats, popularity };
+  return { origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod, counts, powerCats: [], talentCats: [], popularity };
 }
 
 export async function applyGeneration(actor, result, {
