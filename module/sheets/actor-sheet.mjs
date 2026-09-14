@@ -24,6 +24,10 @@ function itemIdFrom(event) {
   return el?.closest?.("[data-item-id]")?.dataset?.itemId || el?.dataset?.itemId || "";
 }
 
+function optionList(list) {
+  return list.map((n) => "<option value='" + String(n) + "'>" + n + "</option>").join("");
+}
+
 export class FaseripActorSheet extends ActorSheetBase {
   static get defaultOptions() {
     const base = foundry.utils.mergeObject(super.defaultOptions, {
@@ -256,16 +260,15 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   async createFromCatalog(type, catalog) {
     const groups = Object.entries(catalog).map(([cat, list]) => {
-      const opts = list.map((n) => `<option value="${String(n).replaceAll('"', """)}">${n}</option>`).join("");
-      return `<optgroup label="${cat}">${opts}</optgroup>`;
+      return "<optgroup label='" + cat + "'>" + optionList(list) + "</optgroup>";
     }).join("");
     const form = await promptForm({
-      title: `Add ${type}`,
-      content: `<div class="form-group"><label>Catalog</label><select name="pick"><option value="">custom</option>${groups}</select></div><div class="form-group"><label>Custom name</label><input type="text" name="custom" /></div>`,
+      title: "Add " + type,
+      content: "<div class='form-group'><label>Catalog</label><select name='pick'><option value=''>custom</option>" + groups + "</select></div><div class='form-group'><label>Custom name</label><input type='text' name='custom' /></div>",
       okLabel: "Create"
     });
     if (!form) return;
-    const name = formValue(form, "pick") || formValue(form, "custom") || `New ${type}`;
+    const name = formValue(form, "pick") || formValue(form, "custom") || ("New " + type);
     const extra = { name, type, system: {} };
     if (type === "power" && /body armor/i.test(name)) extra.system.bodyArmor = true;
     if (type === "power" && /force field/i.test(name)) extra.system.forceField = true;
@@ -273,10 +276,10 @@ export class FaseripActorSheet extends ActorSheetBase {
   }
 
   async createContact() {
-    const opts = CONTACT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("");
+    const opts = optionList(CONTACT_TYPES);
     const form = await promptForm({
       title: "Add Contact",
-      content: `<div class="form-group"><label>Type</label><select name="type">${opts}</select></div><div class="form-group"><label>Name</label><input type="text" name="name" /></div>`,
+      content: "<div class='form-group'><label>Type</label><select name='type'>" + opts + "</select></div><div class='form-group'><label>Name</label><input type='text' name='name' /></div>",
       okLabel: "Create"
     });
     if (!form) return;
@@ -287,7 +290,7 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   _formEl(name) {
     const root = this.element?.[0] ?? this.element;
-    return root?.querySelector?.(`[name="${name}"]`);
+    return root?.querySelector?.("[name=\"" + name + "\"]");
   }
 
   async _onApplyDamage(event) {
@@ -297,7 +300,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     const useForceField = this._formEl("useForceField")?.checked;
     if (amount) {
       const taken = await this.actor.applyDamage(amount, { energy, useForceField });
-      ui.notifications.info(`${this.actor.name} takes ${taken} after armor/fields.`);
+      ui.notifications.info(this.actor.name + " takes " + taken + " after armor/fields.");
     }
   }
 
@@ -376,7 +379,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     const raw = target.dataset.name || "";
     const category = target.dataset.category || "";
     const two = /counts as two/i.test(raw);
-    const name = raw.replace(/\s*\(counts as two(?: powers?)?\)\s*$/i, "").trim() || `New ${type}`;
+    const name = raw.replace(/\s*\(counts as two(?: powers?)?\)\s*$/i, "").trim() || ("New " + type);
     const system = { category };
     if (type === "power") {
       system.slotsTaken = two ? 2 : 1;
@@ -393,8 +396,8 @@ export class FaseripActorSheet extends ActorSheetBase {
     const item = this.actor.items.get(event.currentTarget.dataset.itemId);
     if (!item) return;
     const form = await promptForm({
-      title: `New stunt — ${item.name}`,
-      content: `<div class="form-group"><label>Stunt name</label><input name="name" type="text" /></div>\n        <div class="form-group"><label>Rank</label><input name="rank" type="text" placeholder="usually -1 CS from the parent Power" /></div>\n        <div class="form-group"><label>Description</label><input name="description" type="text" /></div>`,
+      title: "New stunt - " + item.name,
+      content: "<div class='form-group'><label>Stunt name</label><input name='name' type='text' /></div><div class='form-group'><label>Rank</label><input name='rank' type='text' /></div><div class='form-group'><label>Description</label><input name='description' type='text' /></div>",
       okLabel: "Add"
     });
     if (!form) return;
@@ -417,7 +420,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     const fee = 100;
     const available = this.actor.system.karma.value ?? 0;
     if (available < fee) {
-      ui.notifications.warn(`${this.actor.name} needs ${fee} Karma for this stunt attempt.`);
+      ui.notifications.warn(this.actor.name + " needs " + fee + " Karma for this stunt attempt.");
       return;
     }
     const stunts = foundry.utils.deepClone(item.system.stunts ?? []);
@@ -431,7 +434,7 @@ export class FaseripActorSheet extends ActorSheetBase {
       "system.karmaBank.totalSpent": (this.actor.system.karmaBank?.totalSpent ?? 0) + fee
     });
     await item.update({ "system.stunts": stunts });
-    ui.notifications.info(`${row.name}: attempt ${row.attempts}/10${row.mastered ? " — mastered" : ""}`);
+    ui.notifications.info(row.name + ": attempt " + row.attempts + "/10");
   }
 
   async _onContactAssist(event) {
@@ -441,7 +444,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     const fee = 100;
     const available = this.actor.system.karma.value ?? 0;
     if (available < fee) {
-      ui.notifications.warn(`${this.actor.name} needs ${fee} Karma to develop this Contact.`);
+      ui.notifications.warn(this.actor.name + " needs " + fee + " Karma to develop this Contact.");
       return;
     }
     const next = Math.min(10, Number(item.system.assistance || 0) + 1);
@@ -454,7 +457,7 @@ export class FaseripActorSheet extends ActorSheetBase {
       "system.assistance": next,
       "system.acquired": next >= 10
     });
-    ui.notifications.info(`${item.name}: assistance ${next}/10${next >= 10 ? " — acquired" : ""}`);
+    ui.notifications.info(item.name + ": assistance " + next + "/10");
   }
 }
 
