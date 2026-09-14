@@ -1,70 +1,38 @@
 /**
  * Foundry VTT v14 API accessors.
- * Never return undefined from the sheet-class helpers — `class X extends undefined` crashes
- * the whole system module before init hooks run.
+ * Sheet classes are resolved at init-time, never at module parse time.
  */
 
-function stubSheet(kind) {
-  return class FaseripStubSheet {
-    static get defaultOptions() {
-      return {
-        classes: ["faserip", "sheet", kind],
-        template: kind === "actor"
-          ? "systems/faserip/templates/actor/character-sheet.hbs"
-          : "systems/faserip/templates/item/item-sheet.hbs",
-        width: kind === "actor" ? 900 : 520,
-        height: kind === "actor" ? 820 : 560,
-        resizable: true,
-        tabs: kind === "actor"
-          ? [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "record" }]
-          : [],
-        submitOnChange: true
-      };
-    }
-    constructor(...args) {
-      this.document = args[0]?.document ?? args[0];
-      this.object = this.document;
-      this.actor = this.document;
-      this.item = this.document;
-      this.element = null;
-      this.isEditable = true;
-    }
-    async getData() {
-      return { actor: this.document, item: this.document, system: this.document?.system ?? {} };
-    }
-    activateListeners() {}
-    render() {
-      ui.notifications?.error("FASERIP could not find Foundry's Actor/Item sheet class.");
-      return this;
-    }
-    close() { return Promise.resolve(); }
-  };
+export function getActorSheetV2() {
+  return foundry?.applications?.sheets?.ActorSheetV2 ?? null;
 }
 
-export function getActorSheetClass() {
-  const cls = foundry?.appv1?.sheets?.ActorSheet
-    ?? globalThis.ActorSheet
-    ?? foundry?.appv1?.api?.ActorSheet;
-  return typeof cls === "function" ? cls : stubSheet("actor");
+export function getItemSheetV2() {
+  return foundry?.applications?.sheets?.ItemSheetV2 ?? null;
 }
 
-export function getItemSheetClass() {
-  const cls = foundry?.appv1?.sheets?.ItemSheet
-    ?? globalThis.ItemSheet
-    ?? foundry?.appv1?.api?.ItemSheet;
-  return typeof cls === "function" ? cls : stubSheet("item");
+export function getHandlebarsMixin() {
+  return foundry?.applications?.api?.HandlebarsApplicationMixin ?? null;
+}
+
+export function getActorSheetV1() {
+  return foundry?.appv1?.sheets?.ActorSheet ?? globalThis.ActorSheet ?? null;
+}
+
+export function getItemSheetV1() {
+  return foundry?.appv1?.sheets?.ItemSheet ?? globalThis.ItemSheet ?? null;
 }
 
 export function getActorsCollection() {
-  return foundry?.documents?.collections?.Actors
-    ?? globalThis.Actors
-    ?? null;
+  return foundry?.documents?.collections?.Actors ?? globalThis.Actors ?? null;
 }
 
 export function getItemsCollection() {
-  return foundry?.documents?.collections?.Items
-    ?? globalThis.Items
-    ?? null;
+  return foundry?.documents?.collections?.Items ?? globalThis.Items ?? null;
+}
+
+export function getDocumentSheetConfig() {
+  return foundry?.applications?.apps?.DocumentSheetConfig ?? globalThis.DocumentSheetConfig ?? null;
 }
 
 export function getTextEditor() {
@@ -126,4 +94,10 @@ export function formValue(form, name) {
   if (!el) return "";
   if (el.type === "checkbox") return !!el.checked;
   return el.value ?? "";
+}
+
+export function itemIdFromTarget(target) {
+  return target?.closest?.("[data-item-id]")?.dataset?.itemId
+    || target?.dataset?.itemId
+    || "";
 }
