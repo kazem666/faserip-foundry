@@ -1,5 +1,5 @@
 import { RANKS, BATTLE_EFFECTS } from "../config.mjs";
-import { getItemSheetV2, getItemSheetV1, getHandlebarsMixin } from "../foundry-api.mjs";
+import { getItemSheetV2, getItemSheetV1, getItemSheetClass, getHandlebarsMixin } from "../foundry-api.mjs";
 
 const TEMPLATE = "systems/faserip/templates/item/item-sheet.hbs";
 
@@ -31,38 +31,46 @@ export function buildItemSheetClass() {
         window: { resizable: true, icon: "fa-solid fa-bolt" },
         form: { submitOnChange: true, closeOnSubmit: false }
       };
-
-      static PARTS = {
-        body: { template: TEMPLATE, scrollable: [""] }
-      };
-
+      static PARTS = { body: { template: TEMPLATE, scrollable: [""] } };
       async _prepareContext(options) {
         const context = await super._prepareContext(options);
         return fillItemContext(this, context);
       }
     };
   }
+  const V1 = getItemSheetV1() ?? getItemSheetClass();
+  return class FaseripItemSheet extends V1 {
+    static get defaultOptions() {
+      return foundry.utils.mergeObject(super.defaultOptions ?? {}, {
+        classes: ["faserip", "sheet", "item"],
+        template: TEMPLATE,
+        width: 520,
+        height: 560,
+        resizable: true,
+        submitOnChange: true
+      });
+    }
+    async getData(options) {
+      const context = await super.getData(options);
+      return fillItemContext(this, context);
+    }
+  };
+}
 
-  const V1 = getItemSheetV1();
-  if (typeof V1 === "function") {
-    return class FaseripItemSheet extends V1 {
-      static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
-          classes: ["faserip", "sheet", "item"],
-          template: TEMPLATE,
-          width: 520,
-          height: 560,
-          resizable: true,
-          submitOnChange: true
-        });
-      }
-
-      async getData(options) {
-        const context = await super.getData(options);
-        return fillItemContext(this, context);
-      }
-    };
+const ItemSheetBase = getItemSheetClass();
+export class FaseripItemSheet extends ItemSheetBase {
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions ?? {}, {
+      classes: ["faserip", "sheet", "item"],
+      template: TEMPLATE,
+      width: 520,
+      height: 560,
+      resizable: true,
+      submitOnChange: true
+    });
   }
-
-  throw new Error("Foundry ItemSheetV2 / ItemSheet is not available");
+  async getData(options) {
+    const context = await super.getData(options);
+    return fillItemContext(this, context);
+  }
 }
