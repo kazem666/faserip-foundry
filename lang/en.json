@@ -1,0 +1,90 @@
+{
+  "TYPES": {
+    "Actor": {
+      "hero": "Hero",
+      "npc": "NPC"
+    },
+    "Item": {
+      "power": "Power",
+      "talent": "Talent",
+      "contact": "Contact",
+      "equipment": "Equipment",
+      "weapon": "Weapon"
+    }
+  },
+  "FASERIP": {
+    "Title": "FASERIP",
+    "Ability": {
+      "fighting": "Fighting",
+      "agility": "Agility",
+      "strength": "Strength",
+      "endurance": "Endurance",
+      "reason": "Reason",
+      "intuition": "Intuition",
+      "psyche": "Psyche"
+    },
+    "AbilityAbbr": {
+      "fighting": "F",
+      "agility": "A",
+      "strength": "S",
+      "endurance": "E",
+      "reason": "R",
+      "intuition": "I",
+      "psyche": "P"
+    },
+    "Sheet": {
+      "Abilities": "FASERIP",
+      "Health": "Health",
+      "Karma": "Karma",
+      "Resources": "Resources",
+      "Popularity": "Popularity",
+      "Identity": "Identity",
+      "Origin": "Origin",
+      "Notes": "Notes",
+      "Powers": "Powers",
+      "Talents": "Talents",
+      "Contacts": "Contacts",
+      "Gear": "Gear",
+      "Biography": "Biography",
+      "ColumnShift": "Column Shift",
+      "KarmaSpend": "Spend Karma",
+      "RollFeat": "FEAT",
+      "Initiative": "Initiative",
+      "Damage": "Damage",
+      "Heal": "Heal",
+      "Max": "Max",
+      "Current": "Current",
+      "SecretId": "Secret ID",
+      "PublicId": "Public ID",
+      "Group": "Group / Affiliation"
+    },
+    "Color": {
+      "white": "White",
+      "green": "Green",
+      "yellow": "Yellow",
+      "red": "Red"
+    },
+    "ColorHint": {
+      "white": "Failure / Miss / no color result",
+      "green": "Green result — success when Ability exceeds Intensity",
+      "yellow": "Yellow result — success when Ability equals Intensity",
+      "red": "Red result — success even when Intensity is higher"
+    },
+    "Item": {
+      "Rank": "Rank",
+      "Notes": "Notes",
+      "Range": "Range",
+      "Material": "Material Strength",
+      "Damage": "Damage",
+      "Type": "Type"
+    },
+    "Chat": {
+      "FeatRoll": "FEAT Roll",
+      "Rolled": "Rolled",
+      "EffectiveRank": "Effective Rank",
+      "ColumnShift": "CS",
+      "Karma": "Karma",
+      "Need": "Needed"
+    }
+  }
+}

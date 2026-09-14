@@ -1,0 +1,88 @@
+<form class="faserip-item-sheet {{cssClass}}" autocomplete="off">
+  <header class="sheet-header">
+    <img src="{{item.img}}" data-edit="img" title="{{item.name}}" alt="{{item.name}}" />
+    <div class="header-fields">
+      <h1><input name="name" type="text" value="{{item.name}}" placeholder="Name" /></h1>
+      <div class="item-type">{{item.type}}</div>
+    </div>
+  </header>
+
+  <div class="form-group">
+    <label>Rank</label>
+    <select name="system.rank">
+      {{#each ranks as |r|}}
+      <option value="{{r.id}}" {{#if (eq ../system.rank r.id)}}selected{{/if}}>{{r.label}} ({{r.min}}–{{r.max}}, std {{r.value}})</option>
+      {{/each}}
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Rank Number (0 = standard)</label>
+    <input type="number" name="system.number" value="{{system.number}}" min="0" />
+  </div>
+
+  <div class="form-group">
+    <label>Category</label>
+    <input name="system.category" type="text" value="{{system.category}}" />
+  </div>
+
+  {{#if isPower}}
+  <div class="form-group">
+    <label>Limitation</label>
+    <input name="system.limitation" type="text" value="{{system.limitation}}" />
+  </div>
+  <div class="form-group checks">
+    <label class="check"><input type="checkbox" name="system.bodyArmor" {{#if system.bodyArmor}}checked{{/if}} /> Counts as Body Armor</label>
+    <label class="check"><input type="checkbox" name="system.forceField" {{#if system.forceField}}checked{{/if}} /> Counts as Force Field</label>
+  </div>
+  {{/if}}
+
+  {{#if isEquipment}}
+  <div class="form-group">
+    <label>Material Strength</label>
+    <select name="system.material">
+      {{#each ranks as |r|}}
+      <option value="{{r.id}}" {{#if (eq ../system.material r.id)}}selected{{/if}}>{{r.label}} ({{r.value}})</option>
+      {{/each}}
+    </select>
+    {{#if materialHint}}<p class="hint">{{materialHint}}</p>{{/if}}
+  </div>
+  {{/if}}
+
+  {{#if isEquipment}}
+  {{#unless isWeapon}}
+  <div class="form-group">
+    <label class="check"><input type="checkbox" name="system.bodyArmor" {{#if system.bodyArmor}}checked{{/if}} /> Counts as Body Armor</label>
+  </div>
+  {{/unless}}
+  {{/if}}
+
+  {{#if isWeapon}}
+  <div class="form-group">
+    <label>Type</label>
+    <input name="system.weaponType" type="text" value="{{system.weaponType}}" placeholder="Blunt, Edged, Shooting…" />
+  </div>
+  <div class="form-group">
+    <label>Battle Effects column</label>
+    <select name="system.effectsColumn">
+      <option value="">— none —</option>
+      {{#each columns as |c|}}
+      <option value="{{c.id}}" {{#if (eq ../system.effectsColumn c.id)}}selected{{/if}}>{{c.label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Range</label>
+    <input name="system.range" type="text" value="{{system.range}}" />
+  </div>
+  <div class="form-group">
+    <label>Damage</label>
+    <input name="system.damage" type="text" value="{{system.damage}}" placeholder="Usually a rank number" />
+  </div>
+  {{/if}}
+
+  <div class="form-group stacked">
+    <label>Notes</label>
+    {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
+  </div>
+</form>
