@@ -27,6 +27,7 @@ export async function pickUpbPrelude(actor) {
   if (!formChoice || formChoice === "cancel") return null;
   form = UPB_PHYSICAL_FORMS.find((f) => f.label === formChoice.form) || form;
 
+  let aspects = [];
   if (form.rollAspects) {
     const nRoll = await promptedD100({
       title: form.label + " aspects",
@@ -36,7 +37,6 @@ export async function pickUpbPrelude(actor) {
     });
     if (nRoll == null) return null;
     const band = lookupBand(UPB_COMPOUND_COUNT, nRoll);
-    const aspects = [];
     for (let i = 0; i < band.n; i++) {
       const aRoll = await promptedD100({
         title: "Aspect " + (i + 1) + " of " + band.n,
@@ -45,27 +45,31 @@ export async function pickUpbPrelude(actor) {
         actor
       });
       if (aRoll == null) return null;
-      aspects.push(lookupBand(UPB_PHYSICAL_FORMS, aRoll).label + " (" + aRoll + ")");
+      const aspect = lookupBand(UPB_PHYSICAL_FORMS, aRoll);
+      aspects.push(aspect.label + " (" + aRoll + ")");
     }
     form = { ...form, notes: form.notes + " Aspects (" + band.keep + " traits kept): " + aspects.join("; ") };
   }
 
   if (form.pickAngelDemon) {
     const side = await dialog("Angel or Demon",
-      "<p>Angels gain +2 CS Popularity and a magical sword. Demons lose -2 CS Popularity and gain Good Fire Generation plus heat invulnerability.</p>" +
+      "<p>Angels gain +2 CS Popularity and a magical sword. Demons lose −2 CS Popularity and gain Good Fire Generation plus heat invulnerability.</p>" +
       "<div class='form-group'><label>Type</label><select name='side'><option value='angel'>Angel</option><option value='demon'>Demon</option></select></div>", [
         { action: "ok", label: "Continue", default: true, callback: (_e, b) => ({ action: "ok", ...collect(b) }) },
         { action: "cancel", label: "Stop" }
       ]);
     if (!side || side === "cancel") return null;
-    if (side.side === "demon") form = { ...form, label: "Demon", popularityCs: -2, bonusPowers: ["Fire Generation", "Resistance to Fire and Heat"] };
-    else form = { ...form, label: "Angel", popularityCs: 2, bonusPowers: ["Artifact Creation (magical sword)"] };
+    if (side.side === "demon") {
+      form = { ...form, label: "Demon", popularityCs: -2, bonusPowers: ["Fire Generation", "Resistance to Fire and Heat"] };
+    } else {
+      form = { ...form, label: "Angel", popularityCs: 2, bonusPowers: ["Artifact Creation (magical sword)"] };
+    }
   }
 
   const originList = UPB_ORIGINS_OF_POWER.map((o) => o.label);
   const originRoll = await promptedD100({
     title: "UPB Origin of Power",
-    body: "Roll 1d100 on the Origin of Power table.",
+    body: "Roll 1d100 on the Origin of Power table (Natal, Maturity, Self-Achievement, Endowment, Mishap, Procedure, Creation, Biological / Chemical / Energy Exposure, Rebirth).",
     flavor: (actor?.name || "Hero") + " - Origin of Power",
     actor
   });
@@ -80,7 +84,7 @@ export async function pickUpbPrelude(actor) {
     ]);
   if (!originChoice || originChoice === "cancel") return null;
   originOfPower = UPB_ORIGINS_OF_POWER.find((o) => o.label === originChoice.origin) || originOfPower;
-  return { form, originOfPower, formRoll, originRoll };
+  return { form, originOfPower, formRoll, originRoll, aspects };
 }
 
 export function finalizeUpbResult(result, prelude) {
@@ -104,7 +108,18 @@ export async function pickUpbPowers(result, actor) {
   const needed = result.counts.powers[0];
   const selected = [];
   for (const bonus of result.bonusPowers || []) {
-    selected.push({ name: bonus, category: "Form", rank: "good", rankRoll: 0, cost: 0 });
+    selected.push({
+      name: bonus,
+      category: "Form bonus",
+      rank: "good",
+      rankRoll: 0,
+      cost: 0,
+      bodyArmor: /armor/i.test(bonus),
+      forceField: /force field/i.test(bonus)
+    });
+  }
+  if (result.requireTravel) {
+    ui.notifications.info("Deity form: at least one Power should be a Travel Power.");
   }
   let spent = 0;
   while (spent < needed) {
@@ -120,7 +135,7 @@ export async function pickUpbPowers(result, actor) {
     const cls = lookupBand(UPB_POWER_CLASSES, classRoll);
     const specRoll = await promptedD100({
       title: "UPB " + cls.label + " Power",
-      body: "Roll 1d100 on the " + cls.label + " list. Counts-as-two powers spend two slots.",
+      body: "Roll 1d100 on the " + cls.label + " list. Powers marked counts-as-two spend two slots.",
       flavor: (actor?.name || "Hero") + " - UPB " + cls.label,
       actor
     });
@@ -142,11 +157,11 @@ export async function pickUpbPowers(result, actor) {
     if (choice === "reroll") continue;
     const name = (choice.custom || "").trim() || choice.power;
     if (!name) continue;
+    const cost = two(name, rolled) && remaining >= 2 ? 2 : (two(name, rolled) ? 0 : 1);
     if (two(name, rolled) && remaining < 2) {
       ui.notifications.warn(name + " costs two Power slots.");
       continue;
     }
-    const cost = two(name, rolled) ? 2 : 1;
     const rankRoll = await promptedD100({
       title: "Power rank - " + name,
       body: "Roll 1d100 on Random Ranks column " + result.origin.column + " for <strong>" + esc(name) + "</strong>.",
@@ -160,11 +175,11 @@ export async function pickUpbPowers(result, actor) {
       category: cls.label,
       rank,
       rankRoll,
-      cost,
+      cost: cost || 1,
       bodyArmor: /body armor|armor skin|body resistance/i.test(name),
       forceField: /force field/i.test(name)
     });
-    spent += cost;
+    spent += selected[selected.length - 1].cost;
     ui.notifications.info(name + ": " + rankLabel(rank));
   }
   return selected;
