@@ -3,15 +3,26 @@ import {
   rankLabel, rollOnColumn, lookupTable, POWER_CATEGORIES, TALENT_CATEGORIES
 } from "./config.mjs";
 import { promptedD100 } from "./dice/percentile.mjs";
+import { UPB_POWER_CLASSES, UPB_POWERS, lookupBand, lookupUpbPower, UPB_WEAKNESS_STIMULUS, UPB_WEAKNESS_EFFECT, UPB_WEAKNESS_DURATION } from "./data/upb.mjs";
 
 const WEAKNESSES = [
-  "None", "Allergy / Dependence", "Attracts Unexpected", "Fatiguing Power",
-  "Involuntary Change", "Mute / Communication Limit", "Physical Handicap",
-  "Psychological Limitation", "Susceptibility", "Trigger / Powerless", "Uncontrolled Power"
+  "None",
+  "Allergy / Dependence",
+  "Attracts Unexpected",
+  "Fatiguing Power",
+  "Involuntary Change",
+  "Mute / Communication Limit",
+  "Physical Handicap",
+  "Psychological Limitation",
+  "Susceptibility",
+  "Trigger / Powerless",
+  "Uncontrolled Power"
 ];
 
+function d100() { return Math.floor(Math.random() * 100) + 1; }
+
 export function esc(s) {
-  return String(s ?? "").replace(/[<>&]/g, "");
+  return String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
 }
 
 export function options(list, selected = "") {
@@ -19,23 +30,31 @@ export function options(list, selected = "") {
     const val = typeof v === "string" ? v : v.id;
     const lab = typeof v === "string" ? v : v.label;
     const sel = val === selected ? " selected" : "";
-    return "<option value='" + esc(val) + "'" + sel + ">" + lab + "</option>";
+    return `<option value="${esc(val)}"${sel}>${lab}</option>`;
   }).join("");
+}
+
+export function wrapDialogContent(html) {
+  return `<div class="faserip-dialog-scroll">${html}</div>`;
 }
 
 export async function dialog(title, content, buttons, width = 560) {
   const DialogV2 = foundry.applications.api.DialogV2;
   return DialogV2.wait({
-    window: { title, icon: "fa-solid fa-mask" },
+    classes: ["faserip-dialog"],
+    window: { title, icon: "fa-solid fa-mask", resizable: true },
     position: { width },
-    content,
+    content: wrapDialogContent(content),
     buttons,
     rejectClose: false
   });
 }
 
-export function collect(button) {
-  const form = button?.form;
+export function collect(button, dialog) {
+  const form = button?.form
+    || button?.closest?.("form")
+    || dialog?.element?.querySelector?.("form")
+    || dialog?.form;
   const out = {};
   if (!form) return out;
   for (const el of form.elements) {
@@ -47,7 +66,11 @@ export function collect(button) {
 
 function countsAsTwo(name) { return /counts as two/i.test(name); }
 
-export async function pickPowers(result, actor = null) {
+export async function pickPowers(result, actor = null, useUpb = false) {
+  if (useUpb || result.useUpb) {
+    const { pickUpbPowers } = await import("./wizard-upb.mjs");
+    return pickUpbPowers(result, actor);
+  }
   const needed = result.counts.powers[0];
   const selected = [];
   let spent = 0;
@@ -56,7 +79,7 @@ export async function pickPowers(result, actor = null) {
     const slot = selected.length + 1;
     const catRoll = await promptedD100({
       title: "Power category " + slot,
-      body: "Roll 1d100 on the Primary Powers table for Power slot " + slot + " of " + needed + ".",
+      body: "Roll 1d100 on the Primary Powers table to determine the category for Power slot " + slot + " of " + needed + ".",
       flavor: (actor?.name || "Hero") + " - Power category " + slot,
       actor
     });
@@ -146,10 +169,10 @@ export async function pickContacts(count, max, originId) {
   const selected = [];
   const target = originId === "alien" ? Math.min(1, count) : count;
   if (target <= 0) {
-    const extra = await dialog("Contacts",
-      "<p>Rolled 0 starting Contacts (max " + max + "). Add one?</p>" +
-      "<div class='form-group'><label>Type</label><select name='type'>" + options(CONTACT_TYPES) + "</select></div>" +
-      "<div class='form-group'><label>Name</label><input name='name' type='text' /></div>", [
+    const extra = await dialog("Contacts", `
+        <p>Rolled 0 starting Contacts (max ${max}). Add one?</p>
+        <div class="form-group"><label>Type</label><select name="type">${options(CONTACT_TYPES)}</select></div>
+        <div class="form-group"><label>Name</label><input name="name" type="text" /></div>`, [
       { action: "add", label: "Add Contact", callback: (_e, b) => ({ action: "add", ...collect(b) }) },
       { action: "skip", label: "No Contacts", default: true },
       { action: "cancel", label: "Stop" }
@@ -161,10 +184,10 @@ export async function pickContacts(count, max, originId) {
   }
   for (let i = 0; i < target; i++) {
     const alienNote = originId === "alien" ? "<p class='hint'>Aliens may have one Contact, usually their people.</p>" : "";
-    const choice = await dialog("Contact " + (i + 1) + " of " + target + " (max " + max + ")",
-      alienNote +
-      "<div class='form-group'><label>Type</label><select name='type'>" + options(CONTACT_TYPES) + "</select></div>" +
-      "<div class='form-group'><label>Name</label><input name='name' type='text' /></div>", [
+    const choice = await dialog(`Contact ${i + 1} of ${target} (max ${max})`, `
+        ${alienNote}
+        <div class="form-group"><label>Type</label><select name="type">${options(CONTACT_TYPES)}</select></div>
+        <div class="form-group"><label>Name</label><input name="name" type="text" /></div>`, [
       { action: "add", label: "Add Contact", icon: "fa-solid fa-plus", default: true, callback: (_e, b) => ({ action: "add", ...collect(b) }) },
       { action: "skip", label: "Skip Remaining" },
       { action: "cancel", label: "Stop" }
@@ -176,15 +199,88 @@ export async function pickContacts(count, max, originId) {
   return selected;
 }
 
-export async function pickWeakness() {
-  const choice = await dialog("Weakness (optional)",
-    "<p>Optional Advanced Set limitation. Written onto the hero notes.</p>" +
-    "<div class='form-group'><label>Weakness</label><select name='weakness'>" + options(WEAKNESSES) + "</select></div>" +
-    "<div class='form-group'><label>Notes</label><input name='notes' type='text' /></div>", [
+async function pickUpbPowers(result, actor) {
+  const needed = result.counts.powers[0];
+  const selected = [];
+  let spent = 0;
+  while (spent < needed) {
+    const remaining = needed - spent;
+    const slot = selected.length + 1;
+    const classRoll = await promptedD100({
+      title: "UPB Power Class " + slot,
+      body: "Roll 1d100 on the Ultimate Powers Book Power Class table for slot " + slot + " of " + needed + ".",
+      flavor: (actor?.name || "Hero") + " - UPB power class " + slot,
+      actor
+    });
+    if (classRoll == null) return null;
+    const cls = lookupBand(UPB_POWER_CLASSES, classRoll);
+    const specRoll = await promptedD100({
+      title: "UPB " + cls.label + " Power",
+      body: "Roll 1d100 on the " + cls.label + " list (class roll " + classRoll + "). Asterisk powers count as two slots.",
+      flavor: (actor?.name || "Hero") + " - UPB " + cls.label,
+      actor
+    });
+    if (specRoll == null) return null;
+    const rolled = lookupUpbPower(cls.id, specRoll);
+    const list = (UPB_POWERS[cls.id] ?? []).map((row) => row.countsAsTwo ? row.name + " (counts as two)" : row.name);
+    const rolledName = rolled.countsAsTwo ? rolled.name + " (counts as two)" : rolled.name;
+    const choice = await dialog("UPB Power " + slot + " of " + needed,
+      "<p>Class <strong>" + esc(cls.label) + "</strong> (" + classRoll + ") then <strong>" + esc(rolledName) + "</strong> (" + specRoll + ").</p>" +
+      "<p>Keep the rolled Power or pick another in this class. Rank uses column " + result.origin.column + ".</p>" +
+      "<div class='form-group'><label>Power</label><select name='power'>" + options(list, rolledName) + "</select></div>" +
+      "<div class='form-group'><label>Custom name</label><input name='custom' type='text' /></div>", [
+      { action: "add", label: "Add Power", icon: "fa-solid fa-plus", default: true, callback: (_e, b) => ({ action: "add", ...collect(b) }) },
+      { action: "reroll", label: "Reroll Class", icon: "fa-solid fa-rotate" },
+      { action: "skip", label: "Skip Remaining" },
+      { action: "cancel", label: "Stop" }
+    ]);
+    if (!choice || choice === "cancel") return null;
+    if (choice === "skip") break;
+    if (choice === "reroll") continue;
+    const name = (choice.custom || "").trim() || choice.power;
+    if (!name) continue;
+    const two = countsAsTwo(name) || rolled.countsAsTwo;
+    const cost = two && remaining >= 2 ? 2 : 1;
+    if (two && remaining < 2) {
+      ui.notifications.warn(name + " costs two Power slots.");
+      continue;
+    }
+    const rankRoll = await promptedD100({
+      title: "Power rank - " + name,
+      body: "Roll 1d100 on Random Ranks column " + result.origin.column + " for <strong>" + esc(name) + "</strong>.",
+      flavor: (actor?.name || "Hero") + " - " + name + " rank",
+      actor
+    });
+    if (rankRoll == null) return null;
+    const rank = rollOnColumn(result.origin.column, rankRoll);
+    selected.push({
+      name: name.replace(/ \(counts as two\)$/i, ""),
+      category: cls.label,
+      rank,
+      rankRoll,
+      cost,
+      bodyArmor: /body armor|armor skin|body resistance/i.test(name),
+      forceField: /force field/i.test(name)
+    });
+    spent += cost;
+    ui.notifications.info(name + ": " + rankLabel(rank) + " (d100 " + rankRoll + ")");
+  }
+  return selected;
+}
+
+export async function pickWeakness(actor = null, useUpb = false) {
+  if (useUpb) {
+    const { pickUpbWeakness } = await import("./wizard-upb.mjs");
+    return pickUpbWeakness(actor);
+  }
+  const choice = await dialog("Weakness (optional)", `
+      <p>Optional Advanced Set limitation. Written onto the hero notes.</p>
+      <div class="form-group"><label>Weakness</label><select name="weakness">${options(WEAKNESSES)}</select></div>
+      <div class="form-group"><label>Notes</label><input name="notes" type="text" /></div>`, [
     { action: "ok", label: "Finish Hero", icon: "fa-solid fa-check", default: true, callback: (_e, b) => ({ action: "ok", ...collect(b) }) },
     { action: "cancel", label: "Stop" }
   ]);
   if (!choice || choice === "cancel") return null;
   if (!choice.weakness || choice.weakness === "None") return "";
-  return choice.notes ? (choice.weakness + ": " + choice.notes) : choice.weakness;
+  return choice.notes ? `${choice.weakness}: ${choice.notes}` : choice.weakness;
 }
