@@ -11,8 +11,10 @@ function abilityRows(result) {
 
 export async function createActorWizard() {
   const originOpts = ORIGINS.map((o) => "<option value='" + o.id + "'>" + o.label + "</option>").join("");
+  let upbOn = false;
+  try { upbOn = game.settings.get("faserip", "useUltimatePowersBook") === true; } catch (e) {}
   const choice = await dialog("Create FASERIP Hero — Identity",
-    "<p>Next you will be prompted to roll each FASERIP ability one at a time. Dice So Nice will show each 1d100.</p>" +
+    "<p>After identity, each generation roll is prompted one at a time.</p>" +
     "<div class='form-group'><label>Hero name</label><input name='heroName' type='text' value='New Hero' autofocus /></div>" +
     "<div class='form-group'><label>Public identity</label><input name='publicId' type='text' /></div>" +
     "<div class='form-group'><label>Secret identity</label><input name='secretName' type='text' /></div>" +
@@ -20,7 +22,8 @@ export async function createActorWizard() {
     "<div class='form-group'><label>Origin</label><select name='origin'>" + originOpts + "</select></div>" +
     "<div class='form-group'><label><input type='checkbox' name='rollOrigin' /> Roll origin with 1d100</label></div>" +
     "<div class='form-group'><label><input type='checkbox' name='secretId' /> Secret identity</label></div>" +
-    "<div class='form-group'><label><input type='checkbox' name='guided' checked /> Run full generation now</label></div>", [
+    "<div class='form-group'><label><input type='checkbox' name='guided' checked /> Run full generation now</label></div>" +
+    "<div class='form-group'><label><input type='checkbox' name='useUpb'" + (upbOn ? " checked" : "") + " /> Use Ultimate Powers Book (MA3) tables</label></div>", [
     { action: "create", label: "Continue", icon: "fa-solid fa-dice", default: true, callback: (_e, b) => ({ action: "create", ...collect(b) }) },
     { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
   ]);
@@ -33,7 +36,8 @@ export async function createActorWizard() {
     originId: choice.origin || "altered",
     rollOrigin: !!choice.rollOrigin,
     secretId: !!choice.secretId,
-    guided: choice.guided !== false && choice.guided !== "false"
+    guided: choice.guided !== false && choice.guided !== "false",
+    useUpb: !!choice.useUpb
   };
   const actor = await CONFIG.Actor.documentClass.create({
     name: extras.name,
@@ -47,14 +51,14 @@ export async function createActorWizard() {
 }
 
 export async function runFullGeneration(actor, extras) {
-  ui.notifications.info("Roll each FASERIP ability when prompted.");
-  let result = await rollHeroDice(actor, { originId: extras.originId, rollOrigin: extras.rollOrigin });
+  ui.notifications.info(extras.useUpb ? "Using Ultimate Powers Book tables." : "Using Advanced Set tables.");
+  let result = await rollHeroDice(actor, { originId: extras.originId, rollOrigin: extras.rollOrigin, useUpb: extras.useUpb });
   if (!result) return false;
   const abilitiesOk = await reviewAbilities(actor, result, extras);
   if (!abilitiesOk) return false;
   result = abilitiesOk.result;
   extras.raise = abilitiesOk.raise;
-  const selectedPowers = await pickPowers(result, actor);
+  const selectedPowers = await pickPowers(result, actor, extras.useUpb);
   if (selectedPowers === null) return false;
   const selectedTalents = await pickTalents(result, actor);
   if (selectedTalents === null) return false;
@@ -62,7 +66,7 @@ export async function runFullGeneration(actor, extras) {
   if (selectedTalents.some((t) => /Journalism/i.test(t.name))) contactSlots += 2;
   const selectedContacts = await pickContacts(contactSlots, result.counts.contacts[1], result.origin.id);
   if (selectedContacts === null) return false;
-  const weakness = await pickWeakness();
+  const weakness = await pickWeakness(actor, extras.useUpb);
   if (weakness === null) return false;
   if (selectedTalents.some((t) => /Heir to Fortune/i.test(t.name))) result.resources = "amazing";
   await applyGeneration(actor, result, {
@@ -90,11 +94,9 @@ async function reviewAbilities(actor, result, extras) {
   const karma = ["reason", "intuition", "psyche"].reduce((s, k) => s + result.numbers[k], 0);
   const choice = await dialog("Abilities — " + result.origin.label,
     "<p><strong>Origin:</strong> " + result.origin.label + " (column " + result.origin.column + ")</p>" +
-    "<p class='hint'>" + result.origin.notes + "</p>" +
     "<table class='chargen-table'><thead><tr><th>Ability</th><th>d100</th><th>Rank</th><th>#</th></tr></thead><tbody>" + abilityRows(result) + "</tbody></table>" +
     "<p><strong>Health</strong> " + health + " &nbsp; <strong>Karma</strong> " + karma + "</p>" +
-    "<p><strong>Resources:</strong> " + rankLabel(result.resources) + " — " + result.resourceMod.label + "</p>" +
-    "<p>Powers " + result.counts.powers[0] + " · Talents " + result.counts.talents[0] + " · Contacts " + result.counts.contacts[0] + "</p>" +
+    "<p>Powers " + result.counts.powers[0] + " / max " + result.counts.powers[1] + " · Talents " + result.counts.talents[0] + " · Contacts " + result.counts.contacts[0] + "</p>" +
     raiseBlock, [
     { action: "next", label: "Choose Powers", icon: "fa-solid fa-bolt", default: true, callback: (_e, b) => ({ action: "next", ...collect(b) }) },
     { action: "reroll", label: "Reroll with Dice", icon: "fa-solid fa-rotate" },
@@ -102,7 +104,7 @@ async function reviewAbilities(actor, result, extras) {
   ]);
   if (!choice || choice === "cancel") return null;
   if (choice === "reroll") {
-    const again = await rollHeroDice(actor, { originId: result.origin.id, rollOrigin: false });
+    const again = await rollHeroDice(actor, { originId: result.origin.id, rollOrigin: false, useUpb: extras.useUpb });
     if (!again) return null;
     return reviewAbilities(actor, again, extras);
   }
