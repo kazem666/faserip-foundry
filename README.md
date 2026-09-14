@@ -1,46 +1,38 @@
-# FASERIP for Foundry VTT
+# FASERIP for Foundry VTT 14
 
-Unofficial Foundry Virtual Tabletop **system** for FASERIP-style superhero games (the rules engine behind the classic 1980s Marvel Super Heroes RPG Advanced Set and later retro-clones such as 4C / FASERIP / FASERIPopedia).
+Unofficial system for FASERIP-style play (Advanced Set rank ranges, Universal Table, Battle Effects, generation). Contains no Marvel-copyrighted characters or text.
 
-This package contains **no Marvel characters, art, or copyrighted rules text**. You still need a rulebook you are allowed to use (original books you own, or an OGL retro-clone).
+## Install through Foundry (GitHub)
 
-Version **1.2.0**. Built for Foundry VTT **v14** (`compatibility.minimum` / `verified`: 14). Not for v12 or v13.
-
-## Install through Foundry
-
-1. Open Foundry VTT **v14** Setup.
-2. **Game Systems** → **Install System**.
-3. Paste this Manifest URL:
+1. Foundry Setup screen → **Game Systems** → **Install System**
+2. Paste this Manifest URL:
 
 ```
 https://raw.githubusercontent.com/kazem666/faserip-foundry/main/system.json
 ```
 
-4. Install, then create a world using **FASERIP**.
-5. First boot: disable extra modules until the sheet and FEAT dialogs load cleanly.
+3. Install, then create or open a world that uses FASERIP.
 
-Repo: https://github.com/kazem666/faserip-foundry
+## Update through Foundry
 
-### Manual install
+1. Close any FASERIP world (back to Setup).
+2. Game Systems → FASERIP → **Check for Update** / **Update**.
+3. Foundry reads the manifest above and downloads:
 
-Copy this repository into `{User Data}/Data/systems/faserip/` so that `system.json` sits in that folder.
+```
+https://github.com/kazem666/faserip-foundry/archive/refs/heads/main.zip
+```
 
-## What you get
+If Update does nothing, the installed version already matches GitHub. Uninstall the system first, then install again from the Manifest URL so Foundry tracks GitHub instead of a manual zip drop.
 
-- Hero and NPC actor types with the seven FASERIP abilities
-- Advanced Set rank ranges plus standard and minimum rank numbers
-- Automatic Health = F+A+S+E and Karma = R+I+P
-- Resources rank and split Popularity
-- Item types: Power, Talent, Contact, Equipment, Weapon
-- Catalog pickers for generic Powers, Talents, and Contact types
-- FEAT rolls on the Universal Table (White / Green / Yellow / Red)
-- Intensity helper and Battle Effects Table columns
-- Column Shift and Karma spend (minimum 10 to modify a roll)
-- Initiative `1d10 + Intuition modifier`
-- Body Armor / Force Field damage reduction
-- Recovery and hourly Healing
-- Generated-hero dialog
+## After it loads
 
-## Legal
+You should see **FASERIP 1.4.1 loaded**.
 
-FASERIP as a nickname for the seven attributes is community usage. Marvel Super Heroes, Marvel characters, and the original TSR text are property of their owners. This system is a fan-made virtual-tabletop helper so you can run games with books you already have.
+- Actors sidebar → **Generate Hero**
+- **Create Actor** opens the guided origin / rank wizard
+- Click the actor to open the FASERIP character sheet
+
+## Repo
+
+https://github.com/kazem666/faserip-foundry
