@@ -98,14 +98,17 @@ export async function promptGeneration(actor) {
   const originOptions = ORIGINS.map((o) => `<option value="${o.id}">${o.label}</option>`).join("");
   const DialogV2 = foundry.applications.api.DialogV2;
   const form = await DialogV2.wait({
-    window: { title: "Generate Hero", icon: "fa-solid fa-dice" },
+    classes: ["faserip-dialog"],
+    window: { title: "Generate Hero", icon: "fa-solid fa-dice", resizable: true },
     content: `
+    <div class="faserip-dialog-scroll">
     <form class="faserip-feat-dialog">
       <div class="form-group"><label><input type="checkbox" name="useUpb" ${upbOn ? "checked" : ""} /> Use Ultimate Powers Book (MA3)</label></div>
       <div class="form-group"><label>Advanced Set origin (ignored if UPB is on)</label><select name="origin">${originOptions}</select></div>
       <div class="form-group"><label><input type="checkbox" name="rollOrigin" ${upbOn ? "" : "checked"} /> Roll Advanced Set origin</label></div>
       <div class="form-group"><label><input type="checkbox" name="secretId" /> Secret identity</label></div>
-    </form>`,
+    </form>
+    </div>`,
     buttons: [
       { action: "generate", label: "Generate", icon: "fa-solid fa-dice", default: true, callback: (_e, b) => b.form },
       { action: "cancel", label: "Cancel" }
