@@ -80,7 +80,10 @@ export class HeroData extends foundry.abstract.TypeDataModel {
         clothing: new StringField({ initial: "" }),
         physicalFeatures: new StringField({ initial: "" }),
         personality: new StringField({ initial: "" }),
-        languages: new StringField({ initial: "" })
+        languages: new StringField({ initial: "" }),
+        player: new StringField({ initial: "" }),
+        era: new StringField({ initial: "" }),
+        campaign: new StringField({ initial: "" })
       }),
       karmaBank: new SchemaField({
         fase: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
