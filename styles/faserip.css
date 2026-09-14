@@ -79,6 +79,57 @@
   margin-top: 6px;
 }
 
+.faserip-sheet .identity-row.four {
+  grid-template-columns: 1.4fr 1.4fr auto auto;
+  align-items: end;
+}
+
+.faserip-sheet button.generate {
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  border: 2px solid var(--rule);
+  background: var(--gold);
+  color: var(--ink);
+  height: 28px;
+  cursor: pointer;
+}
+
+.faserip-sheet .panel-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.faserip-sheet .panel-grid.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.faserip-sheet .panel {
+  border: 3px solid var(--rule);
+  background: #fff;
+  padding: 8px;
+}
+
+.faserip-sheet .panel h2 {
+  font-family: "Bangers", Impact, sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+  margin: 0 0 8px;
+  border-bottom: 2px solid var(--rule);
+}
+
+.faserip-sheet .panel.characteristics { border-color: #1e3a8a; }
+.faserip-sheet .panel.vitals { border-color: #b91c1c; }
+.faserip-sheet .panel.description { border-color: #b91c1c; }
+.faserip-sheet .panel.biography-fields { border-color: #15803d; }
+
+.faserip-sheet .id-grid.three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.faserip-sheet .record-grid.five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .faserip-sheet label {
   display: flex;
   flex-direction: column;
@@ -224,17 +275,19 @@
 
 .faserip-sheet .sheet-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   border-bottom: 3px solid var(--rule);
 }
 
 .faserip-sheet .sheet-tabs .item {
-  padding: 4px 10px;
+  padding: 6px 12px;
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   background: #ddd;
   border: 2px solid var(--rule);
   border-bottom: none;
+  cursor: pointer;
 }
 
 .faserip-sheet .sheet-tabs .item.active {
@@ -434,7 +487,6 @@
   text-align: left;
 }
 
-
 .faserip-sheet .sheet-body .tab {
   display: none;
 }
@@ -461,7 +513,6 @@
   border: 1px solid var(--rule);
 }
 
-/* DialogV2 / ApplicationV2: keep action buttons visible and scroll the body. */
 .application.dialog .window-content,
 .application.faserip-dialog .window-content {
   display: flex;
@@ -500,7 +551,72 @@
   flex: 0 0 auto;
 }
 
-/* AppV1 fallback windows */
 .app.window-app .window-content {
   overflow-y: auto;
 }
+
+.faserip-sheet .identity-row.three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.faserip-sheet .id-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+.faserip-sheet textarea {
+  width: 100%;
+  min-height: 52px;
+  border: 2px solid var(--rule);
+  font-family: "Source Sans 3", sans-serif;
+  padding: 4px 6px;
+}
+.faserip-sheet .record-card {
+  border: 3px solid var(--rule);
+  background: #fff;
+  padding: 8px;
+  margin: 8px 0;
+}
+.faserip-sheet .record-card header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--rule);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+}
+.faserip-sheet .record-card header img {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--rule);
+}
+.faserip-sheet .record-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 8px;
+  font-size: 12px;
+}
+.faserip-sheet .slots {
+  background: var(--gold);
+  border: 2px solid var(--rule);
+  padding: 0 6px;
+  font-size: 12px;
+}
+.faserip-sheet .definition { margin: 6px 0 0; font-size: 13px; }
+.faserip-sheet .attempt-pips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.faserip-sheet .pip {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--rule);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; background: #eee;
+}
+.faserip-sheet .pip.on { background: #22c55e; color: #052e16; }
+.faserip-sheet .mastered {
+  background: var(--red); color: #fff; padding: 1px 6px;
+  font-family: "Oswald", sans-serif; text-transform: uppercase;
+}
+.faserip-sheet .mini, .faserip-sheet .mini-grid label { font-size: 10px; }
+.faserip-sheet .mini-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
+.faserip-sheet .stunt-row { border-top: 1px dashed #bbb; padding-top: 6px; margin-top: 6px; }
+.faserip-item-sheet textarea { width: 100%; border: 2px solid #111; }
