@@ -11,13 +11,8 @@ const WEAKNESSES = [
 
 function d100() { return Math.floor(Math.random() * 100) + 1; }
 
-const QUOTE = String.fromCharCode(34);
 export function esc(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&")
-    .replaceAll("<", "<")
-    .replaceAll(">", ">")
-    .replaceAll(QUOTE, """);
+  return String(s ?? "").replace(/[<>&]/g, "");
 }
 
 export function options(list, selected = "") {
@@ -25,7 +20,7 @@ export function options(list, selected = "") {
     const val = typeof v === "string" ? v : v.id;
     const lab = typeof v === "string" ? v : v.label;
     const sel = val === selected ? " selected" : "";
-    return "<option value=\"" + esc(val) + "\"" + sel + ">" + lab + "</option>";
+    return "<option value='" + esc(val) + "'" + sel + ">" + lab + "</option>";
   }).join("");
 }
 
@@ -68,8 +63,8 @@ export async function pickPowers(result) {
     const remaining = needed - spent;
     const choice = await dialog("Power " + (selected.length + 1) + " of " + needed + " (" + remaining + " slots left)",
       "<p>Category <strong>" + esc(cat.label) + "</strong> (roll " + cat.roll + "). Choose the specific Power. Counts-as-two spends two slots. Rank uses origin column " + result.origin.column + ".</p>" +
-      "<div class=\"form-group\"><label>Power</label><select name=\"power\">" + options(list) + "</select></div>" +
-      "<div class=\"form-group\"><label>Custom name</label><input name=\"custom\" type=\"text\" /></div>", [
+      "<div class='form-group'><label>Power</label><select name='power'>" + options(list) + "</select></div>" +
+      "<div class='form-group'><label>Custom name</label><input name='custom' type='text' /></div>", [
       { action: "add", label: "Add Power", icon: "fa-solid fa-plus", default: true, callback: (_e, b) => ({ action: "add", ...collect(b) }) },
       { action: "reroll", label: "Reroll Category", icon: "fa-solid fa-rotate" },
       { action: "skip", label: "Skip Remaining" },
@@ -122,8 +117,8 @@ export async function pickTalents(result) {
     }
     const choice = await dialog("Talent " + (selected.length + 1) + " of " + needed,
       "<p>Category <strong>" + esc(heading) + "</strong>.</p>" +
-      "<div class=\"form-group\"><label>Talent</label><select name=\"talent\">" + options(list) + "</select></div>" +
-      "<div class=\"form-group\"><label>Custom name</label><input name=\"custom\" type=\"text\" /></div>", [
+      "<div class='form-group'><label>Talent</label><select name='talent'>" + options(list) + "</select></div>" +
+      "<div class='form-group'><label>Custom name</label><input name='custom' type='text' /></div>", [
       { action: "add", label: "Add Talent", icon: "fa-solid fa-plus", default: true, callback: (_e, b) => ({ action: "add", ...collect(b) }) },
       { action: "reroll", label: "Reroll Category", icon: "fa-solid fa-rotate" },
       { action: "skip", label: "Skip Remaining" },
@@ -148,8 +143,8 @@ export async function pickContacts(count, max, originId) {
   if (target <= 0) {
     const extra = await dialog("Contacts",
       "<p>Rolled 0 starting Contacts (max " + max + "). Add one?</p>" +
-      "<div class=\"form-group\"><label>Type</label><select name=\"type\">" + options(CONTACT_TYPES) + "</select></div>" +
-      "<div class=\"form-group\"><label>Name</label><input name=\"name\" type=\"text\" /></div>", [
+      "<div class='form-group'><label>Type</label><select name='type'>" + options(CONTACT_TYPES) + "</select></div>" +
+      "<div class='form-group'><label>Name</label><input name='name' type='text' /></div>", [
       { action: "add", label: "Add Contact", callback: (_e, b) => ({ action: "add", ...collect(b) }) },
       { action: "skip", label: "No Contacts", default: true },
       { action: "cancel", label: "Stop" }
@@ -163,8 +158,8 @@ export async function pickContacts(count, max, originId) {
     const alienNote = originId === "alien" ? "<p class='hint'>Aliens may have one Contact, usually their people.</p>" : "";
     const choice = await dialog("Contact " + (i + 1) + " of " + target + " (max " + max + ")",
       alienNote +
-      "<div class=\"form-group\"><label>Type</label><select name=\"type\">" + options(CONTACT_TYPES) + "</select></div>" +
-      "<div class=\"form-group\"><label>Name</label><input name=\"name\" type=\"text\" /></div>", [
+      "<div class='form-group'><label>Type</label><select name='type'>" + options(CONTACT_TYPES) + "</select></div>" +
+      "<div class='form-group'><label>Name</label><input name='name' type='text' /></div>", [
       { action: "add", label: "Add Contact", icon: "fa-solid fa-plus", default: true, callback: (_e, b) => ({ action: "add", ...collect(b) }) },
       { action: "skip", label: "Skip Remaining" },
       { action: "cancel", label: "Stop" }
@@ -179,8 +174,8 @@ export async function pickContacts(count, max, originId) {
 export async function pickWeakness() {
   const choice = await dialog("Weakness (optional)",
     "<p>Optional Advanced Set limitation. Written onto the hero notes.</p>" +
-    "<div class=\"form-group\"><label>Weakness</label><select name=\"weakness\">" + options(WEAKNESSES) + "</select></div>" +
-    "<div class=\"form-group\"><label>Notes</label><input name=\"notes\" type=\"text\" /></div>", [
+    "<div class='form-group'><label>Weakness</label><select name='weakness'>" + options(WEAKNESSES) + "</select></div>" +
+    "<div class='form-group'><label>Notes</label><input name='notes' type='text' /></div>", [
     { action: "ok", label: "Finish Hero", icon: "fa-solid fa-check", default: true, callback: (_e, b) => ({ action: "ok", ...collect(b) }) },
     { action: "cancel", label: "Stop" }
   ]);
