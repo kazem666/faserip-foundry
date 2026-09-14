@@ -4,11 +4,13 @@
  */
 
 export function getActorSheetClass() {
-  return foundry.appv1.sheets.ActorSheet;
+  return foundry.appv1?.sheets?.ActorSheet
+    ?? globalThis.ActorSheet;
 }
 
 export function getItemSheetClass() {
-  return foundry.appv1.sheets.ItemSheet;
+  return foundry.appv1?.sheets?.ItemSheet
+    ?? globalThis.ItemSheet;
 }
 
 export function getActorsCollection() {
@@ -31,12 +33,17 @@ export function deepClone(value) {
   return foundry.utils.deepClone(value);
 }
 
+/**
+ * Modal form dialog. Returns the callback result, or null if cancelled.
+ * `collect(form)` receives the <form> element from the pressed default button.
+ */
 export async function promptForm({ title, content, okLabel = "OK", width } = {}) {
   const DialogV2 = foundry.applications.api.DialogV2;
   const result = await DialogV2.wait({
-    window: { title, icon: "fa-solid fa-table-list" },
+    classes: ["faserip-dialog"],
+    window: { title, icon: "fa-solid fa-table-list", resizable: true },
     position: width ? { width } : {},
-    content,
+    content: `<div class="faserip-dialog-scroll">${content}</div>`,
     buttons: [
       {
         action: "ok",
@@ -60,8 +67,9 @@ export async function promptForm({ title, content, okLabel = "OK", width } = {})
 export async function confirmDialog({ title, content } = {}) {
   const DialogV2 = foundry.applications.api.DialogV2;
   return DialogV2.confirm({
-    window: { title },
-    content,
+    classes: ["faserip-dialog"],
+    window: { title, resizable: true },
+    content: `<div class="faserip-dialog-scroll">${content}</div>`,
     rejectClose: false
   });
 }

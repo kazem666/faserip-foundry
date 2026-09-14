@@ -1,4 +1,5 @@
 import { RANKS, BATTLE_EFFECTS } from "../config.mjs";
+
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
@@ -9,7 +10,14 @@ export class FaseripItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     form: { submitOnChange: true, closeOnSubmit: false },
     window: { resizable: true }
   };
-  static PARTS = { body: { template: "systems/faserip/templates/item/item-sheet.hbs" } };
+
+  static PARTS = {
+    body: {
+      template: "systems/faserip/templates/item/item-sheet.hbs",
+      scrollable: [".faserip-item-sheet"]
+    }
+  };
+
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     context.item = this.document;

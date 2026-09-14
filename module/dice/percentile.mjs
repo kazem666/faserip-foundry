@@ -8,9 +8,10 @@ export async function rollD100({ flavor = "Percentile", actor = null } = {}) {
 export async function promptNextRoll(title, body) {
   const DialogV2 = foundry.applications.api.DialogV2;
   const choice = await DialogV2.wait({
-    window: { title, icon: "fa-solid fa-dice" },
+    classes: ["faserip-dialog"],
+    window: { title, icon: "fa-solid fa-dice", resizable: true },
     position: { width: 460 },
-    content: "<p>" + body + "</p>",
+    content: `<div class="faserip-dialog-scroll"><p>${body}</p></div>`,
     buttons: [
       { action: "roll", label: "Roll 1d100", icon: "fa-solid fa-dice", default: true },
       { action: "cancel", label: "Stop" }
