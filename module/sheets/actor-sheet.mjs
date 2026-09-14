@@ -164,7 +164,15 @@ export class FaseripActorSheet extends ActorSheetBase {
   activateListeners(html) {
     super.activateListeners(html);
     if (!this.isEditable) return;
-    const on = (action, fn) => html.find(`[data-action='${action}']`).on("click", fn.bind(this));
+    const root = html instanceof HTMLElement ? html : html?.[0] ?? this.element?.[0] ?? this.element;
+    const on = (action, fn) => {
+      const bound = fn.bind(this);
+      if (html?.find) {
+        html.find(`[data-action='${action}']`).on("click", bound);
+        return;
+      }
+      root?.querySelectorAll?.(`[data-action='${action}']`)?.forEach((el) => el.addEventListener("click", bound));
+    };
     on("generate", this._onGenerate);
     on("rollAbility", this._onRollAbility);
     on("rollItem", this._onRollItem);
@@ -248,7 +256,7 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   async createFromCatalog(type, catalog) {
     const groups = Object.entries(catalog).map(([cat, list]) => {
-      const opts = list.map((n) => `<option value="${String(n).replace(/"/g, """)}">${n}</option>`).join("");
+      const opts = list.map((n) => `<option value="${String(n).replaceAll('"', """)}">${n}</option>`).join("");
       return `<optgroup label="${cat}">${opts}</optgroup>`;
     }).join("");
     const form = await promptForm({
@@ -386,9 +394,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     if (!item) return;
     const form = await promptForm({
       title: `New stunt — ${item.name}`,
-      content: `<div class="form-group"><label>Stunt name</label><input name="name" type="text" /></div>
-        <div class="form-group"><label>Rank</label><input name="rank" type="text" placeholder="usually −1 CS from the parent Power" /></div>
-        <div class="form-group"><label>Description</label><input name="description" type="text" /></div>`,
+      content: `<div class="form-group"><label>Stunt name</label><input name="name" type="text" /></div>\n        <div class="form-group"><label>Rank</label><input name="rank" type="text" placeholder="usually -1 CS from the parent Power" /></div>\n        <div class="form-group"><label>Description</label><input name="description" type="text" /></div>`,
       okLabel: "Add"
     });
     if (!form) return;
@@ -450,4 +456,8 @@ export class FaseripActorSheet extends ActorSheetBase {
     });
     ui.notifications.info(`${item.name}: assistance ${next}/10${next >= 10 ? " — acquired" : ""}`);
   }
+}
+
+export function buildActorSheetClass() {
+  return FaseripActorSheet;
 }
