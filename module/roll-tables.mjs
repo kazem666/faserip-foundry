@@ -25,18 +25,35 @@ import {
 const PACK_NAME = "faserip-roll-tables";
 const PACK_LABEL = "FASERIP Roll Tables";
 
-function resultRow(lo, hi, text, i) {
+function resultRow(lo, hi, text) {
+  const a = Number(lo);
+  const b = Number(hi);
+  const low = Number.isFinite(a) && Number.isFinite(b) ? Math.min(a, b) : 1;
+  const high = Number.isFinite(a) && Number.isFinite(b) ? Math.max(a, b) : low;
+  const label = String(text ?? "");
   return {
-    _id: undefined,
-    type: 0,
-    text: String(text),
-    name: String(text),
+    type: "text",
+    name: label,
+    description: label,
+    text: label,
     weight: 1,
-    range: [lo, hi],
+    range: [low, high],
     drawn: false,
-    img: "icons/svg/d20-grey.svg",
-    flags: { faserip: { catalog: true } }
+    img: "icons/svg/d20-grey.svg"
   };
+}
+
+function evenRows(list) {
+  const n = list.length;
+  if (!n) return [];
+  return list.map((name, i) => {
+    const lo = Math.floor((i * 100) / n) + 1;
+    let hi = Math.floor(((i + 1) * 100) / n);
+    if (hi < lo) hi = lo;
+    if (i === 0) return { lo: 1, hi: n === 1 ? 100 : hi, text: name };
+    if (i === n - 1) return { lo, hi: 100, text: name };
+    return { lo, hi, text: name };
+  });
 }
 
 function tableDoc(name, description, rows, formula = "1d100") {
@@ -47,7 +64,7 @@ function tableDoc(name, description, rows, formula = "1d100") {
     formula,
     replacement: true,
     displayRoll: true,
-    results: rows.map((row, i) => resultRow(row.lo, row.hi, row.text, i)),
+    results: rows.map((row) => resultRow(row.lo, row.hi, row.text)),
     flags: { faserip: { catalog: true } }
   };
 }
@@ -102,12 +119,7 @@ export function buildRollTableDocuments() {
   for (const cat of POWER_CATEGORIES) {
     const list = POWER_CATALOG[cat.id] || [];
     if (!list.length) continue;
-    const rows = list.map((name, i) => {
-      const lo = Math.floor((i * 100) / list.length) + 1;
-      const hi = Math.floor(((i + 1) * 100) / list.length) || 100;
-      return { lo: i === 0 ? 1 : lo, hi: i === list.length - 1 ? 100 : hi, text: name };
-    });
-    tables.push(tableDoc(`Advanced — ${cat.label}`, `Powers in the ${cat.label} category.`, rows));
+    tables.push(tableDoc(`Advanced — ${cat.label}`, `Powers in the ${cat.label} category.`, evenRows(list)));
   }
 
   tables.push(tableDoc(
@@ -119,21 +131,11 @@ export function buildRollTableDocuments() {
   for (const cat of TALENT_CATEGORIES) {
     const list = TALENT_CATALOG[cat.id] || [];
     if (!list.length) continue;
-    const rows = list.map((name, i) => {
-      const lo = Math.floor((i * 100) / list.length) + 1;
-      const hi = Math.floor(((i + 1) * 100) / list.length) || 100;
-      return { lo: i === 0 ? 1 : lo, hi: i === list.length - 1 ? 100 : hi, text: name };
-    });
-    tables.push(tableDoc(`Advanced — ${cat.label}`, `Talents in the ${cat.label} category.`, rows));
+    tables.push(tableDoc(`Advanced — ${cat.label}`, `Talents in the ${cat.label} category.`, evenRows(list)));
   }
 
   if (CONTACT_TYPES?.length) {
-    const rows = CONTACT_TYPES.map((name, i) => {
-      const lo = Math.floor((i * 100) / CONTACT_TYPES.length) + 1;
-      const hi = Math.floor(((i + 1) * 100) / CONTACT_TYPES.length) || 100;
-      return { lo: i === 0 ? 1 : lo, hi: i === CONTACT_TYPES.length - 1 ? 100 : hi, text: name };
-    });
-    tables.push(tableDoc("Advanced — Contact Type", "Starting Contact occupations.", rows));
+    tables.push(tableDoc("Advanced — Contact Type", "Starting Contact occupations.", evenRows(CONTACT_TYPES)));
   }
 
   tables.push(tableDoc(
@@ -315,27 +317,47 @@ async function locateOrCreatePack() {
   return game.packs.get(collection) ?? pack;
 }
 
-export async function ensureRollTables({ notify = false } = {}) {
+export async function ensureRollTables({ notify = false, rebuild = false } = {}) {
   if (!game.user?.isGM) return 0;
   const pack = await locateOrCreatePack();
   if (!pack || packIsLocked(pack)) return 0;
-  const docs = buildRollTableDocuments();
+  let docs = [];
+  try {
+    docs = buildRollTableDocuments();
+  } catch (err) {
+    console.warn("FASERIP | roll table build failed", err);
+    return 0;
+  }
   const index = await pack.getIndex({ fields: ["name"] });
-  const have = new Set(index.map((e) => e.name));
+  if (rebuild) {
+    const stale = index.filter((e) => docs.some((d) => d.name === e.name));
+    if (stale.length) {
+      try {
+        await pack.documentClass.deleteDocuments(stale.map((e) => e._id), { pack: pack.collection });
+      } catch (err) {
+        console.warn("FASERIP | roll table rebuild delete", err);
+      }
+    }
+  }
+  const freshIndex = rebuild ? await pack.getIndex({ fields: ["name"] }) : index;
+  const have = new Set(freshIndex.map((e) => e.name));
   const missing = docs.filter((d) => !have.has(d.name));
   if (!missing.length) {
-    if (notify) ui.notifications.info(`FASERIP roll tables ready (${index.size || have.size}).`);
+    if (notify) ui.notifications.info(`FASERIP roll tables ready (${freshIndex.size || have.size}).`);
     return 0;
   }
   const TableDoc = CONFIG.RollTable?.documentClass ?? foundry.documents?.RollTable ?? globalThis.RollTable;
-  try {
-    await TableDoc.createDocuments(missing, { pack: pack.collection, keepId: false });
-  } catch (err) {
-    const msg = String(err?.message || err);
-    if (/locked compendium/i.test(msg)) return 0;
-    console.warn("FASERIP | roll table seed", err);
-    return 0;
+  let created = 0;
+  for (const doc of missing) {
+    try {
+      await TableDoc.create(doc, { pack: pack.collection, keepId: false });
+      created += 1;
+    } catch (err) {
+      const msg = String(err?.message || err);
+      if (/locked compendium/i.test(msg)) return created;
+      console.warn("FASERIP | roll table seed failed:", doc.name, err);
+    }
   }
-  if (notify) ui.notifications.info(`FASERIP roll tables: +${missing.length} tables.`);
-  return missing.length;
+  if (notify) ui.notifications.info(`FASERIP roll tables: +${created} tables.`);
+  return created;
 }
