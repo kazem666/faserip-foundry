@@ -42,15 +42,11 @@ export async function rollHeroDice(actor, {
     try {
       await actor.update({
         [`system.abilities.${key}.rank`]: abilities[key],
-        [`system.abilities.${key}.number`]: rankMin(abilities[key])
-      }, { render: false });
-    } catch {
-      try {
-        await actor.update({
-          [`system.abilities.${key}.rank`]: abilities[key],
-          [`system.abilities.${key}.number`]: rankMin(abilities[key])
-        });
-      } catch {}
+        [`system.abilities.${key}.number`]: rankMin(abilities[key]),
+        "flags.faserip.generating": true
+      }, { render: false, faseripApplyRolls: true });
+    } catch (err) {
+      console.warn("FASERIP | ability write failed", key, err);
     }
     step += 1;
   }
