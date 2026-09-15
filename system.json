@@ -2,7 +2,7 @@
   "id": "faserip",
   "title": "FASERIP",
   "description": "Unofficial Foundry VTT system for FASERIP-style play (Advanced Set mechanics: rank ranges, Battle Effects Table, Intensity, Initiative, generation, Healing/Recovery). Contains no Marvel-copyrighted characters or text.",
-  "version": "1.17.1",
+  "version": "1.17.2",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -99,7 +99,10 @@
       "path": "packs/weapons.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "ammo",
@@ -107,7 +110,10 @@
       "path": "packs/ammo.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "vehicles",
@@ -115,7 +121,10 @@
       "path": "packs/vehicles.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "places",
@@ -123,7 +132,10 @@
       "path": "packs/places.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "equipment",
@@ -131,7 +143,10 @@
       "path": "packs/equipment.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "creatures",
@@ -139,7 +154,10 @@
       "path": "packs/creatures.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "contacts",
@@ -147,7 +165,10 @@
       "path": "packs/contacts.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "rom-spells",
@@ -155,7 +176,10 @@
       "path": "packs/rom-spells.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "rom-talents",
@@ -163,7 +187,10 @@
       "path": "packs/rom-talents.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "rom-items",
@@ -171,7 +198,10 @@
       "path": "packs/rom-items.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "rom-schools",
@@ -179,7 +209,10 @@
       "path": "packs/rom-schools.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "rom-places",
@@ -187,7 +220,10 @@
       "path": "packs/rom-places.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "rom-creatures",
@@ -195,7 +231,10 @@
       "path": "packs/rom-creatures.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     },
     {
       "name": "rom-contacts",
@@ -203,19 +242,38 @@
       "path": "packs/rom-contacts.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
     {
       "name": "FASERIP Gear",
       "sorting": "m",
-      "packs": ["weapons", "ammo", "vehicles", "places", "equipment", "creatures", "contacts"]
+      "packs": [
+        "weapons",
+        "ammo",
+        "vehicles",
+        "places",
+        "equipment",
+        "creatures",
+        "contacts"
+      ]
     },
     {
       "name": "FASERIP Realms of Magic",
       "sorting": "m",
-      "packs": ["rom-spells", "rom-talents", "rom-items", "rom-schools", "rom-places", "rom-creatures", "rom-contacts"]
+      "packs": [
+        "rom-spells",
+        "rom-talents",
+        "rom-items",
+        "rom-schools",
+        "rom-places",
+        "rom-creatures",
+        "rom-contacts"
+      ]
     }
   ]
 }
