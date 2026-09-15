@@ -60,6 +60,11 @@ export async function writeGeneratedItem(actor, type, name, extra = {}) {
   try {
     const { buildCatalogItemData } = await import("./data/descriptions.mjs");
     data = { ...buildCatalogItemData(type, clean, extra), type, name: clean };
+    data.system = { ...(data.system || {}), ...Object.fromEntries(
+      ["range", "area", "emanatesFrom", "areasPerRound", "effectsColumn", "powerType", "definition", "category", "slotsTaken", "rank", "number"]
+        .filter((k) => extra[k] != null && extra[k] !== "")
+        .map((k) => [k, extra[k]])
+    ) };
   } catch (err) {
     console.warn("FASERIP | catalog blurb skipped for", type, clean, err);
   }
@@ -93,6 +98,13 @@ export async function writeGeneratedItem(actor, type, name, extra = {}) {
 
 export async function persistGenerationStats(actor, result = {}, extras = {}) {
   if (!actor || !result) return;
+  try { await actor.setFlag("faserip", "generating", true); } catch {}
+  try { actor.sheet?.close(); } catch {}
+  try {
+    for (const app of Object.values(actor.apps || {})) {
+      if (app?.close) await app.close();
+    }
+  } catch {}
   const abilities = result.abilities || {};
   const numbers = result.numbers || {};
   const update = {};
@@ -218,7 +230,6 @@ export async function applyGeneration(actor, result, {
   }
   const onSheet = actor.items.filter((i) => ["power", "talent", "contact"].includes(i.type)).length;
   ui.notifications.info(`${actor.name}: ${created} new item(s) written. Sheet now has ${onSheet} Power/Talent/Contact item(s).`);
-  try { actor.sheet?.render(true); } catch { actor.sheet?.render?.({ force: true }); }
 }
 
 export { promptGeneration, rollHeroDice } from "./hero-dice.mjs";
