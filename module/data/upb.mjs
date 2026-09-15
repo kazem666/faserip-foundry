@@ -70,11 +70,22 @@ export function lookupUpbPower(classId, roll) {
 }
 
 export function upbCatalogGroups() {
-  return UPB_POWER_CLASSES.map((cls) => ({
+  const groups = UPB_POWER_CLASSES.map((cls) => ({
     id: cls.id,
     label: cls.label + " (" + cls.code + ")",
     items: (UPB_POWERS[cls.id] ?? []).map((row) => row.countsAsTwo ? row.name + " (counts as two)" : row.name)
   }));
+  groups.push({
+    id: "addendaRank",
+    label: "Addenda Rank / Award (R)",
+    items: (UPB_POWERS.addendaRank ?? []).map((row) => row.name)
+  });
+  groups.push({
+    id: "addendaForm",
+    label: "Addenda Form (S32)",
+    items: (UPB_POWERS.addendaForm ?? []).map((row) => row.name)
+  });
+  return groups;
 }
 
 export function isUpbEnabled() {
@@ -91,57 +102,4 @@ export function wantUpb(explicit) {
   if (explicit === true || explicit === "true" || explicit === "on" || explicit === 1) return true;
   if (explicit === false || explicit === "false" || explicit === "off" || explicit === 0) return false;
   return isUpbEnabled();
-}
-
-/** Apply printed form modifiers to a generation result after ranks and counts exist. */
-export function applyUpbForm(result, form, { shiftRank, rankMin } = {}) {
-  if (!result || !form) return result;
-  result.form = form;
-  result.origin = {
-    ...(result.origin || {}),
-    column: form.column ?? result.origin?.column ?? 1,
-    notes: [result.origin?.notes, form.notes].filter(Boolean).join(" ")
-  };
-  const abilities = result.abilities || {};
-  const shifts = { ...(form.abilityCs || {}) };
-  if (form.allPrimaryCs) {
-    for (const key of ["fighting", "agility", "strength", "endurance", "reason", "intuition", "psyche"]) {
-      shifts[key] = (shifts[key] || 0) + form.allPrimaryCs;
-    }
-  }
-  if (shiftRank) {
-    for (const [key, cs] of Object.entries(shifts)) {
-      if (!abilities[key] || !cs) continue;
-      if (cs <= -99) abilities[key] = "shift0";
-      else abilities[key] = shiftRank(abilities[key], cs);
-    }
-    if (form.resourceCs && result.resources) result.resources = shiftRank(result.resources, form.resourceCs);
-  }
-  if (form.resourcesFixed) result.resources = form.resourcesFixed;
-  if (typeof form.popularityFixed === "number") result.popularity = form.popularityFixed;
-  else if (form.popularityCs) result.popularity = Math.max(0, (result.popularity ?? 10) + form.popularityCs * 10);
-  if (result.counts) {
-    if (form.extraPower) result.counts.powers[0] += form.extraPower;
-    if (form.lessPower) result.counts.powers[0] = Math.max(0, result.counts.powers[0] - form.lessPower);
-    if (form.id === "normalHuman") {
-      result.counts.powers[0] = Math.min(result.counts.powers[0], 5);
-      result.counts.powers[1] = Math.min(result.counts.powers[1] ?? 5, 5);
-    }
-    if (form.minContacts) {
-      result.counts.contacts[0] = Math.max(result.counts.contacts[0], form.minContacts);
-      result.counts.contacts[1] = Math.max(result.counts.contacts[1], form.minContacts);
-    }
-    if (form.maxContacts != null) {
-      result.counts.contacts[0] = Math.min(result.counts.contacts[0], form.maxContacts);
-      result.counts.contacts[1] = Math.min(result.counts.contacts[1], form.maxContacts);
-    }
-  }
-  if (rankMin && result.numbers && result.abilities) {
-    for (const key of Object.keys(result.abilities)) result.numbers[key] = rankMin(result.abilities[key]);
-  }
-  result.formRaiseOne = !!form.raiseOne;
-  result.bonusPowers = [...(result.bonusPowers || []), ...(form.bonusPowers || [])];
-  result.doubleHealth = !!form.doubleHealth;
-  result.requireTravel = !!form.requireTravel;
-  return result;
 }
