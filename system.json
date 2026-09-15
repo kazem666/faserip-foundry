@@ -59,9 +59,9 @@
   },
   "packs": [
     {
-      "name": "weapons",
-      "label": "FASERIP Weapons",
-      "path": "packs/weapons.db",
+      "name": "contacts",
+      "label": "FASERIP Contacts",
+      "path": "packs/contacts.db",
       "type": "Item",
       "system": "faserip",
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
@@ -75,17 +75,9 @@
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
-      "name": "vehicles",
-      "label": "FASERIP Vehicles",
-      "path": "packs/vehicles.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    },
-    {
-      "name": "places",
-      "label": "FASERIP Places",
-      "path": "packs/places.db",
+      "name": "creatures",
+      "label": "FASERIP Creatures",
+      "path": "packs/creatures.db",
       "type": "Item",
       "system": "faserip",
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
@@ -99,27 +91,28 @@
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
-      "name": "creatures",
-      "label": "FASERIP Creatures",
-      "path": "packs/creatures.db",
+      "name": "places",
+      "label": "FASERIP Places",
+      "path": "packs/places.db",
       "type": "Item",
       "system": "faserip",
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
-      "name": "contacts",
-      "label": "FASERIP Contacts",
-      "path": "packs/contacts.db",
+      "name": "vehicles",
+      "label": "FASERIP Vehicles",
+      "path": "packs/vehicles.db",
       "type": "Item",
       "system": "faserip",
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    }
-  ],
-  "packFolders": [
+    },
     {
-      "name": "FASERIP Gear",
-      "sorting": "m",
-      "packs": ["weapons", "ammo", "vehicles", "places", "equipment", "creatures", "contacts"]
+      "name": "weapons",
+      "label": "FASERIP Weapons",
+      "path": "packs/weapons.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     }
   ]
 }
