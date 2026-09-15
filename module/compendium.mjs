@@ -1,6 +1,10 @@
 import { POWER_CATALOG, TALENT_CATALOG } from "./config-catalogs.mjs";
 import { upbCatalogGroups } from "./data/upb.mjs";
 import { buildCatalogItemData, catalogKey, describeCatalogItem, isGenericDefinition, POWER_DEFINITIONS, upbHint } from "./data/descriptions.mjs";
+import {
+  WEAPON_CATALOG, AMMO_CATALOG, VEHICLE_CATALOG, PLACE_CATALOG,
+  EQUIPMENT_CATALOG, CREATURE_CATALOG, CONTACT_CATALOG, GEAR_PACKS, flattenCatalog
+} from "./data/gear-catalogs.mjs";
 
 const POWER_PACK = "faserip-powers";
 const TALENT_PACK = "faserip-talents";
@@ -21,7 +25,34 @@ const CAT_LABEL = {
   professional: "Professional Skills",
   scientific: "Scientific Skills",
   mystic: "Mystic and Mental Skills",
-  other: "Other Skills"
+  other: "Other Skills",
+  melee: "Melee Weapons",
+  shooting: "Shooting Weapons",
+  bow: "Bows",
+  thrown: "Thrown Weapons",
+  ammo: "Ammunition",
+  road: "Road Vehicles",
+  offRoad: "Off-Road Vehicles",
+  railed: "Railed Vehicles",
+  gev: "Ground-Effect Vehicles",
+  air: "Air Vehicles",
+  space: "Space Vehicles",
+  water: "Water Vehicles",
+  sub: "Submersibles",
+  buildings: "Buildings",
+  rooms: "Room Packages",
+  work: "Work Packages",
+  defense: "Defense Packages",
+  support: "Support Packages",
+  tools: "Tools",
+  armor: "Armor",
+  packs: "Reloads",
+  hardware: "Hardware",
+  domestic: "Domestic Creatures",
+  wild: "Wild Creatures",
+  unusual: "Unusual Creatures",
+  types: "Contact Types",
+  creature: "Creatures"
 };
 
 export function listPowerCatalogEntries() {
@@ -72,104 +103,27 @@ export function buildTalentDocuments() {
   );
 }
 
-async function locateOrCreatePack(name, label) {
-  const collection = `world.${name}`;
-  let pack = game.packs.get(collection);
-  if (pack) return pack;
-  const meta = { name, label, type: "Item", system: "faserip" };
-  try {
-    const Ctor = foundry.documents?.collections?.CompendiumCollection;
-    if (Ctor?.createCompendium) pack = await Ctor.createCompendium(meta);
-  } catch (err) {
-    console.warn("FASERIP | CompendiumCollection.createCompendium", err);
-  }
-  if (!pack && game.packs?.createCompendium) {
-    try { pack = await game.packs.createCompendium(meta); } catch (err) {
-      console.warn("FASERIP | game.packs.createCompendium", err);
-    }
-  }
-  return game.packs.get(collection) ?? pack;
+function labeled(catalog, fallback = "") {
+  return flattenCatalog(catalog).map((row) => ({
+    raw: row.raw,
+    category: CAT_LABEL[row.category] || row.category || fallback
+  }));
 }
 
-async function syncPack(pack, documents) {
-  if (!pack) return 0;
-  const index = await pack.getIndex({ fields: ["name", "type", "system"] });
-  const have = new Map(index.map((e) => [`${e.type}:${e.name}`, e]));
-  const missing = [];
-  const updates = [];
-  for (const doc of documents) {
-    const existing = have.get(`${doc.type}:${doc.name}`);
-    if (!existing) {
-      missing.push(doc);
-      continue;
-    }
-    const oldDef = existing.system?.definition ?? "";
-    const nextDef = doc.system?.definition ?? "";
-    if (nextDef && (isGenericDefinition(oldDef) || oldDef !== nextDef)) {
-      const patch = { _id: existing._id, "system.definition": nextDef };
-      if (doc.system?.category && !existing.system?.category) patch["system.category"] = doc.system.category;
-      if (doc.system?.bonus && !existing.system?.bonus) patch["system.bonus"] = doc.system.bonus;
-      if (doc.system?.attribute && !existing.system?.attribute) patch["system.attribute"] = doc.system.attribute;
-      if (doc.system?.powerType && !existing.system?.powerType) patch["system.powerType"] = doc.system.powerType;
-      updates.push(patch);
-    }
-  }
-  const ItemDoc = CONFIG.Item.documentClass ?? foundry.documents?.Item ?? globalThis.Item;
-  if (missing.length) await ItemDoc.createDocuments(missing, { pack: pack.collection, keepId: false });
-  if (updates.length) await ItemDoc.updateDocuments(updates, { pack: pack.collection });
-  return missing.length + updates.length;
+export function buildWeaponDocuments() {
+  return labeled(WEAPON_CATALOG, "Weapons").map((row) =>
+    buildCatalogItemData("weapon", row.raw, { category: row.category })
+  );
 }
 
-export async function ensureCatalogPacks({ notify = false } = {}) {
-  if (!game.user?.isGM) return;
-  const powerPack = await locateOrCreatePack(POWER_PACK, "FASERIP Powers");
-  const talentPack = await locateOrCreatePack(TALENT_PACK, "FASERIP Talents");
-  const addedPowers = await syncPack(powerPack, buildPowerDocuments());
-  const addedTalents = await syncPack(talentPack, buildTalentDocuments());
-  if (notify) {
-    ui.notifications.info(`FASERIP compendia ready. Powers +${addedPowers}, Talents +${addedTalents}.`);
-  } else if (addedPowers || addedTalents) {
-    ui.notifications.info(`FASERIP loaded Powers and Talents into Compendium packs.`);
-  }
+export function buildAmmoDocuments() {
+  return AMMO_CATALOG.map((raw) =>
+    buildCatalogItemData("equipment", raw, { category: "Ammunition" })
+  );
 }
 
-export async function fillActorDefinitions(actor) {
-  if (!actor?.items) return 0;
-  const updates = [];
-  for (const item of actor.items) {
-    if (item.type !== "power" && item.type !== "talent") continue;
-    const info = describeCatalogItem(item.type, item.name, {
-      category: item.system.category,
-      definition: item.system.definition
-    });
-    const patch = { _id: item.id };
-    let dirty = false;
-    if (info.definition && (isGenericDefinition(item.system.definition) || !item.system.definition)) {
-      patch["system.definition"] = info.definition;
-      dirty = true;
-    }
-    if (item.type === "talent") {
-      if (!item.system.bonus && info.bonus) {
-        patch["system.bonus"] = info.bonus;
-        dirty = true;
-      }
-      if (!item.system.attribute && info.attribute) {
-        patch["system.attribute"] = info.attribute;
-        dirty = true;
-      }
-    }
-    if (dirty) updates.push(patch);
-  }
-  if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
-  return updates.length;
-}
-
-export async function fillWorldDefinitions() {
-  let n = 0;
-  for (const actor of game.actors ?? []) {
-    try { n += await fillActorDefinitions(actor); } catch (err) {
-      console.warn("FASERIP | fill definitions", actor.name, err);
-    }
-  }
-  return n;
+export function buildVehicleDocuments() {
+  return labeled(VEHICLE_CATALOG, "Vehicles").map((row) =>
+    buildCatalogItemData("equipment", raw.raw ? raw.raw : raw, { category: raw.category || row.category })
+  );
 }
