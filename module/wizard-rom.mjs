@@ -108,11 +108,17 @@ export async function pickRomSpells(prelude, actor = null) {
       });
     }
     if (actor) {
-      await writeGeneratedItem(actor, "power", name, {
+      let extra = {
         rank, number: rankMin(rank), category: "RoM " + listId,
-        definition: name + " is a Realms of Magic working on the " + listId + " list.",
         powerType: "Realms of Magic"
-      });
+      };
+      try {
+        const { describeRomSpell } = await import("./data/rom-descriptions.mjs");
+        extra = { ...extra, ...describeRomSpell(name, { energy: listId, rank }) };
+      } catch {
+        extra.definition = name + " is a magical working on the " + listId + " list.";
+      }
+      await writeGeneratedItem(actor, "power", name, extra);
     }
     selected.push({ name, rank, energy: listId });
   }
@@ -128,7 +134,17 @@ export async function pickRomTalents(prelude, actor = null) {
   for (let i = 0; i < needed; i++) {
     const name = ROM_TALENT_NAMES[i % ROM_TALENT_NAMES.length];
     selected.push({ name });
-    if (actor) await writeGeneratedItem(actor, "talent", name, { category: "Realms of Magic", definition: name + " is a Realms of Magic talent." });
+    if (actor) {
+      let extra = { category: "Realms of Magic" };
+      try {
+        const { ROM_TALENT_DEFINITIONS } = await import("./data/rom-descriptions.mjs");
+        const stock = ROM_TALENT_DEFINITIONS[name.toLowerCase()];
+        if (stock) extra = { ...extra, ...stock };
+      } catch {
+        extra.definition = name + " is a magical talent.";
+      }
+      await writeGeneratedItem(actor, "talent", name, extra);
+    }
   }
   return selected;
 }
