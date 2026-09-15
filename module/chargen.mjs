@@ -220,3 +220,5 @@ export async function applyGeneration(actor, result, {
   ui.notifications.info(`${actor.name}: ${created} new item(s) written. Sheet now has ${onSheet} Power/Talent/Contact item(s).`);
   try { actor.sheet?.render(true); } catch { actor.sheet?.render?.({ force: true }); }
 }
+
+export { promptGeneration, rollHeroDice } from "./hero-dice.mjs";
