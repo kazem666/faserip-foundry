@@ -71,6 +71,7 @@ export class ContactData extends foundry.abstract.TypeDataModel {
       practicality: new StringField({ initial: "" }),
       assistance: new NumberField({ required: true, integer: true, min: 0, max: 10, initial: 0 }),
       acquired: new BooleanField({ initial: false }),
+      definition: new StringField({ initial: "" }),
       notes: new HTMLField({ initial: "" })
     };
   }
@@ -82,6 +83,9 @@ export class EquipmentData extends foundry.abstract.TypeDataModel {
       rank: new StringField({ required: true, initial: "typical" }),
       number: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
       material: new StringField({ required: true, initial: "typical" }),
+      category: new StringField({ initial: "" }),
+      definition: new StringField({ initial: "" }),
+      range: new StringField({ initial: "" }),
       bodyArmor: new BooleanField({ initial: false }),
       notes: new HTMLField({ initial: "" })
     };
@@ -94,6 +98,8 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
       rank: new StringField({ required: true, initial: "typical" }),
       number: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
       material: new StringField({ required: true, initial: "typical" }),
+      category: new StringField({ initial: "" }),
+      definition: new StringField({ initial: "" }),
       range: new StringField({ initial: "1 area" }),
       damage: new StringField({ initial: "" }),
       weaponType: new StringField({ initial: "Blunt" }),
