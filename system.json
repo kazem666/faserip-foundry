@@ -2,7 +2,7 @@
   "id": "faserip",
   "title": "FASERIP",
   "description": "Unofficial Foundry VTT system for FASERIP-style play (Advanced Set mechanics: rank ranges, Battle Effects Table, Intensity, Initiative, generation, Healing/Recovery). Contains no Marvel-copyrighted characters or text.",
-  "version": "1.15.1",
+  "version": "1.15.2",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -62,6 +62,22 @@
       "name": "contacts",
       "label": "FASERIP Contacts",
       "path": "packs/contacts.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+    },
+    {
+      "name": "ammo",
+      "label": "FASERIP Ammunition",
+      "path": "packs/ammo.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+    },
+    {
+      "name": "creatures",
+      "label": "FASERIP Creatures",
+      "path": "packs/creatures.db",
       "type": "Item",
       "system": "faserip",
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
