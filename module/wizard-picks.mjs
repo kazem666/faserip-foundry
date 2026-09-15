@@ -22,7 +22,7 @@ const WEAKNESSES = [
 function d100() { return Math.floor(Math.random() * 100) + 1; }
 
 export function esc(s) {
-  return String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
+  return String(s ?? "").replaceAll("&", "&").replaceAll("<", "<").replaceAll('"', """);
 }
 
 export function options(list, selected = "") {
@@ -69,7 +69,7 @@ export async function pickPowers(result, actor = null, useUpb = false) {
     const { pickUpbPowers } = await import("./wizard-upb.mjs");
     return pickUpbPowers(result, actor);
   }
-  const needed = result.counts.powers[0];
+  const needed = Math.max(0, Number(result.counts?.powers?.[0] ?? 0));
   const selected = [];
   let spent = 0;
   while (spent < needed) {
@@ -125,10 +125,29 @@ export async function pickPowers(result, actor = null, useUpb = false) {
 }
 
 export async function pickTalents(result, actor = null) {
-  const needed = result.counts.talents[0];
+  const needed = Math.max(0, Number(result.counts?.talents?.[0] ?? 0));
+  const cap = Math.max(needed, Number(result.counts?.talents?.[1] ?? needed));
   const selected = [];
-  const hitech = result.origin.id === "hitech";
-  while (selected.length < needed) {
+  const hitech = result.origin?.id === "hitech";
+  while (selected.length < cap) {
+    if (selected.length >= needed) {
+      if (selected.length >= cap) break;
+      const extra = await dialog(
+        `Extra Talent? ${selected.length}/${needed} starting, max ${cap}`,
+        `<p>Starting Talents are filled (${needed}). The table maximum is <strong>${cap}</strong>.</p>
+         <p class="hint">Players Book: each Talent above the initial number costs −1 CS starting Resources.</p>`,
+        [
+          { action: "add", label: "Buy extra (−1 CS Resources)" },
+          { action: "done", label: "Done with Talents", default: true },
+          { action: "cancel", label: "Stop" }
+        ]
+      );
+      if (!extra || extra === "cancel") return extra === "done" ? selected : null;
+      if (extra === "done" || extra === "skip") break;
+      const { shiftRank } = await import("./config.mjs");
+      result.resources = shiftRank(result.resources, -1);
+      ui.notifications.info(`Bought an extra Talent. Resources now ${result.resources}.`);
+    }
     const slot = selected.length + 1;
     let heading;
     let list;
@@ -138,7 +157,7 @@ export async function pickTalents(result, actor = null) {
     } else {
       const catRoll = await promptedD100({
         title: "Talent category " + slot,
-        body: "Roll 1d100 on the Talent Categories table for Talent slot " + slot + " of " + needed + ".",
+        body: "Roll 1d100 on the Talent Categories table for Talent " + slot + " of " + needed + " starting (max " + cap + "). This is not a Power roll.",
         flavor: (actor?.name || "Hero") + " - Talent category " + slot,
         actor
       });
@@ -147,7 +166,7 @@ export async function pickTalents(result, actor = null) {
       list = TALENT_CATALOG[cat.id] ?? [];
       heading = cat.label + " (d100 " + cat.roll + ")";
     }
-    const choice = await dialog("Talent " + slot + " of " + needed,
+    const choice = await dialog("Talent " + slot + " of " + needed + " (max " + cap + ")",
       "<p>Category <strong>" + esc(heading) + "</strong>.</p>" +
       "<div class='form-group'><label>Talent</label><select name='talent'>" + options(list) + "</select></div>" +
       "<div class='form-group'><label>Custom name</label><input name='custom' type='text' /></div>", [
