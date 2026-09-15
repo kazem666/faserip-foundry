@@ -3,8 +3,11 @@
  * These are fan-written play aids, not reprinted rulebook text.
  */
 
-import { UPB_DEFINITIONS } from "./upb-descriptions.mjs";
+import { UPB_DEFINITIONS as UPB_BASE } from "./upb-descriptions.mjs";
+import { UPB_ADDENDA_DEFINITIONS } from "./upb-addenda-descriptions.mjs";
 import { GEAR_DEFINITIONS, describeGear } from "./gear-descriptions.mjs";
+
+const UPB_DEFINITIONS = { ...UPB_BASE, ...UPB_ADDENDA_DEFINITIONS };
 
 export function catalogKey(name) {
   return String(name || "")
@@ -36,7 +39,9 @@ const UPB_CLASS_HINT = {
   physical: "Physical-enhancement Power. The body performs beyond human norms at this rank.",
   powerControl: "Power-control Power. Alter, copy, or feed on other Powers at this rank.",
   selfAlteration: "Self-alteration Power. The hero changes form or state at this rank.",
-  travel: "Travel Power. Movement mode and speed use this rank."
+  travel: "Travel Power. Movement mode and speed use this rank.",
+  addendaRank: "Addenda rank/award Power. Shift abilities, Karma awards, or initiative at this rank. The Judge sets duration.",
+  addendaForm: "Addenda body form. The hero's body is a swarm or colony acting as one character."
 };
 
 export function describePower(name, extra = {}) {
