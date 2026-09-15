@@ -77,10 +77,21 @@ export async function applyGeneration(actor, result, {
   const phys = ["fighting", "agility", "strength", "endurance"].reduce((s, k) => s + numbers[k], 0);
   const ment = ["reason", "intuition", "psyche"].reduce((s, k) => s + numbers[k], 0);
   await actor.update({ "system.health.value": result.doubleHealth ? phys * 2 : phys, "system.karma.value": ment });
-  const { buildCatalogItemData } = await import("./data/descriptions.mjs");
+  let buildCatalogItemData = null;
+  try {
+    ({ buildCatalogItemData } = await import("./data/descriptions.mjs"));
+  } catch (err) {
+    console.warn("FASERIP | descriptions unavailable during generation", err);
+  }
   const items = [];
+  const fallback = (type, name, system) => ({
+    name: String(name || `New ${type}`).trim() || `New ${type}`,
+    type,
+    img: type === "talent" ? "icons/svg/upgrade.svg" : type === "contact" ? "icons/svg/mystery-man.svg" : "icons/svg/aura.svg",
+    system
+  });
   for (const power of powers) {
-    items.push(buildCatalogItemData("power", power.name, {
+    const extra = {
       rank: power.rank ?? "typical",
       number: rankMin(power.rank ?? "typical"),
       category: power.category ?? "",
@@ -88,17 +99,47 @@ export async function applyGeneration(actor, result, {
       forceField: !!power.forceField,
       slotsTaken: Number(power.slotsTaken ?? power.cost ?? 1) || 1,
       notes: power.rankRoll ? `Generation roll ${power.rankRoll}` : ""
-    }));
+    };
+    items.push(buildCatalogItemData
+      ? buildCatalogItemData("power", power.name, extra)
+      : fallback("power", power.name, extra));
   }
   for (const talent of talents) {
-    items.push(buildCatalogItemData("talent", talent.name, {
-      category: talent.category ?? "",
+    const extra = { category: talent.category ?? "", rank: "typical", number: 0 };
+    items.push(buildCatalogItemData
+      ? buildCatalogItemData("talent", talent.name, extra)
+      : fallback("talent", talent.name, extra));
+  }
+  for (const contact of contacts) {
+    const extra = {
+      category: contact.type ?? contact.category ?? "",
+      occupation: contact.type ?? contact.category ?? contact.name ?? "",
       rank: "typical",
       number: 0
-    }));
+    };
+    items.push(buildCatalogItemData
+      ? buildCatalogItemData("contact", contact.name, extra)
+      : fallback("contact", contact.name, extra));
   }
-  for (const contact of contacts) items.push({ name: contact.name, type: "contact", system: { category: contact.type ?? contact.category ?? "", rank: "typical", number: 0 } });
-  if (items.length) await actor.createEmbeddedDocuments("Item", items);
+  let created = 0;
+  if (items.length) {
+    try {
+      const docs = await actor.createEmbeddedDocuments("Item", items);
+      created = docs?.length ?? items.length;
+    } catch (err) {
+      console.error("FASERIP | batch item create failed", err);
+      for (const data of items) {
+        try {
+          await actor.createEmbeddedDocuments("Item", [data]);
+          created += 1;
+        } catch (one) {
+          console.error("FASERIP | could not add generated item", data?.name, one);
+          ui.notifications.warn(`Could not add ${data?.type} "${data?.name}": ${one.message}`);
+        }
+      }
+    }
+  }
+  ui.notifications.info(`${actor.name}: wrote ${created} Power/Talent/Contact item(s) to the sheet.`);
 }
 
 export async function promptGeneration(actor) {
@@ -187,24 +228,41 @@ export async function rollHeroDice(actor, {
   let resources = (!useUpb && origin.id === "hitech") ? "good" : (!useUpb && origin.id === "alien") ? "poor" : "typical";
   resources = shiftRank(resources, resourceMod.cs);
   if (!useUpb && origin.id === "mutant") resources = shiftRank(resources, -1);
+  const countSrc = useUpb ? UPB_COUNT_TABLE : SPECIAL_COUNT_TABLE;
   const powerRoll = await promptedD100({
     title: "Number of Powers",
     body: useUpb
-      ? "UPB count table (01–12 = 1 power, … 95–97 = 10, 00 = 14). A two-slot power later spends two of these."
-      : "Advanced Set table: 01–20 = 2 powers, 21–60 = 3, 61–90 = 4, 91–00 = 5.",
+      ? "Roll 1d100 on the UPB Powers / Talents / Contacts table. The roll sets starting Powers (before the slash) and the campaign maximum (after the slash)."
+      : "Roll 1d100 on the Advanced Set table: 01–20 = 2/4, 21–60 = 3/4, 61–90 = 4/4, 91–00 = 5/5.",
     flavor: actor.name + " - Number of Powers",
     actor
   });
   if (powerRoll == null) return null;
-  const talentRoll = await promptedD100({ title: "Number of Talents", body: "Same table for Talents.", flavor: actor.name + " - Number of Talents", actor });
+  const talentRoll = await promptedD100({
+    title: "Number of Talents",
+    body: useUpb
+      ? "Separate d100 on the same UPB table, Talent column only. Starting Talents never use the Power total."
+      : "Separate d100 on the same Advanced Set table, Talent column: 01–20 = 1/6, 21–60 = 2/5, 61–90 = 3/4, 91–00 = 4/4.",
+    flavor: actor.name + " - Number of Talents",
+    actor
+  });
   if (talentRoll == null) return null;
-  const contactRoll = await promptedD100({ title: "Number of Contacts", body: "Same table for Contacts.", flavor: actor.name + " - Number of Contacts", actor });
+  const contactRoll = await promptedD100({
+    title: "Number of Contacts",
+    body: useUpb
+      ? "Separate d100 on the same UPB table, Contact column only."
+      : "Separate d100 on the same Advanced Set table, Contact column: 01–20 = 0/4, 21–60 = 1/4, 61–90 = 2/4, 91–00 = 3/4.",
+    flavor: actor.name + " - Number of Contacts",
+    actor
+  });
   if (contactRoll == null) return null;
-  const countSrc = useUpb ? UPB_COUNT_TABLE : SPECIAL_COUNT_TABLE;
+  const powerRow = lookupTable(countSrc, powerRoll);
+  const talentRow = lookupTable(countSrc, talentRoll);
+  const contactRow = lookupTable(countSrc, contactRoll);
   const counts = {
-    powers: [...lookupTable(countSrc, powerRoll).powers],
-    talents: [...lookupTable(countSrc, talentRoll).talents],
-    contacts: [...lookupTable(countSrc, contactRoll).contacts]
+    powers: [...(powerRow?.powers ?? [2, 4])],
+    talents: [...(talentRow?.talents ?? [1, 4])],
+    contacts: [...(contactRow?.contacts ?? [0, 4])]
   };
   if (!useUpb && origin.id === "mutant") counts.powers[0] = Math.min(5, counts.powers[0] + 1);
   if (!useUpb && origin.id === "alien") {
@@ -212,6 +270,11 @@ export async function rollHeroDice(actor, {
     counts.contacts[0] = Math.min(1, counts.contacts[0]);
     counts.contacts[1] = 1;
   }
+  ui.notifications.info(
+    `Counts — Powers ${counts.powers[0]}/${counts.powers[1]} (d100 ${powerRoll}), `
+    + `Talents ${counts.talents[0]}/${counts.talents[1]} (d100 ${talentRoll}), `
+    + `Contacts ${counts.contacts[0]}/${counts.contacts[1]} (d100 ${contactRoll}).`
+  );
   return {
     origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod,
     counts, powerCats: [], talentCats: [],
