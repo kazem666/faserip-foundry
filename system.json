@@ -65,54 +65,6 @@
       "type": "Item",
       "system": "faserip",
       "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    },
-    {
-      "name": "ammo",
-      "label": "FASERIP Ammunition",
-      "path": "packs/ammo.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    },
-    {
-      "name": "creatures",
-      "label": "FASERIP Creatures",
-      "path": "packs/creatures.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    },
-    {
-      "name": "equipment",
-      "label": "FASERIP Equipment",
-      "path": "packs/equipment.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    },
-    {
-      "name": "places",
-      "label": "FASERIP Places",
-      "path": "packs/places.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    },
-    {
-      "name": "vehicles",
-      "label": "FASERIP Vehicles",
-      "path": "packs/vehicles.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
-    },
-    {
-      "name": "weapons",
-      "label": "FASERIP Weapons",
-      "path": "packs/weapons.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     }
   ]
 }
