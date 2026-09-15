@@ -1,0 +1,24 @@
+.faserip-sheet .record-card header img,
+.faserip-sheet .power-card img,
+.faserip-sheet .power-card header img,
+.application.faserip .record-card header img,
+.application.faserip .power-card img {
+  width: 28px !important;
+  height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  flex: 0 0 28px !important;
+  object-fit: contain;
+  align-self: center;
+}
+.faserip-sheet .power-card { display: block; }
+.faserip-sheet .power-card header.power-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.faserip-sheet .power-card header.power-head button { margin-left: auto; }
+.faserip-sheet .record-grid.five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}

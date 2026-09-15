@@ -3,77 +3,26 @@
   "title": "FASERIP",
   "description": "Unofficial Foundry VTT system for FASERIP-style play (Advanced Set mechanics: rank ranges, Battle Effects Table, Intensity, Initiative, generation, Healing/Recovery). Contains no Marvel-copyrighted characters or text.",
   "version": "1.17.7",
-  "compatibility": {
-    "minimum": "14",
-    "verified": "14"
-  },
-  "authors": [
-    {
-      "name": "Community FASERIP System",
-      "flags": {}
-    }
-  ],
-  "esmodules": [
-    "faserip.mjs"
-  ],
-  "styles": [
-    "styles/faserip.css"
-  ],
-  "languages": [
-    {
-      "lang": "en",
-      "name": "English",
-      "path": "lang/en.json"
-    }
-  ],
+  "compatibility": { "minimum": "14", "verified": "14" },
+  "authors": [{ "name": "Community FASERIP System", "flags": {} }],
+  "esmodules": ["faserip.mjs"],
+  "styles": ["styles/faserip.css", "styles/power-card.css"],
+  "languages": [{ "lang": "en", "name": "English", "path": "lang/en.json" }],
   "documentTypes": {
     "Actor": {
-      "hero": {
-        "htmlFields": [
-          "biography",
-          "notes"
-        ]
-      },
-      "npc": {
-        "htmlFields": [
-          "biography",
-          "notes"
-        ]
-      }
+      "hero": { "htmlFields": ["biography", "notes"] },
+      "npc": { "htmlFields": ["biography", "notes"] }
     },
     "Item": {
-      "power": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "talent": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "contact": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "equipment": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "weapon": {
-        "htmlFields": [
-          "notes"
-        ]
-      }
+      "power": { "htmlFields": ["notes"] },
+      "talent": { "htmlFields": ["notes"] },
+      "contact": { "htmlFields": ["notes"] },
+      "equipment": { "htmlFields": ["notes"] },
+      "weapon": { "htmlFields": ["notes"] }
     }
   },
   "initiative": "1d10 + @initMod",
-  "grid": {
-    "distance": 1,
-    "units": "area"
-  },
+  "grid": { "distance": 1, "units": "area" },
   "primaryTokenAttribute": "health",
   "secondaryTokenAttribute": "karma",
   "url": "https://github.com/kazem666/faserip-foundry",
@@ -82,216 +31,27 @@
   "bugs": "https://github.com/kazem666/faserip-foundry/issues",
   "readme": "README.md",
   "license": "LICENSE.txt",
-  "flags": {
-    "hotReload": {
-      "extensions": [
-        "css",
-        "html",
-        "hbs",
-        "json"
-      ]
-    }
-  },
+  "flags": { "hotReload": { "extensions": ["css", "html", "hbs", "json"] } },
   "packs": [
-    {
-      "name": "weapons",
-      "label": "FASERIP Weapons",
-      "path": "packs/weapons.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "ammo",
-      "label": "FASERIP Ammunition",
-      "path": "packs/ammo.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "vehicles",
-      "label": "FASERIP Vehicles",
-      "path": "packs/vehicles.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "places",
-      "label": "FASERIP Places",
-      "path": "packs/places.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "equipment",
-      "label": "FASERIP Equipment",
-      "path": "packs/equipment.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "creatures",
-      "label": "FASERIP Creatures",
-      "path": "packs/creatures.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "contacts",
-      "label": "FASERIP Contacts",
-      "path": "packs/contacts.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "rom-spells",
-      "label": "FASERIP RoM Spells",
-      "path": "packs/rom-spells.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "rom-talents",
-      "label": "FASERIP RoM Talents",
-      "path": "packs/rom-talents.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "rom-items",
-      "label": "FASERIP RoM Items",
-      "path": "packs/rom-items.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "rom-schools",
-      "label": "FASERIP RoM Schools",
-      "path": "packs/rom-schools.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "rom-places",
-      "label": "FASERIP RoM Places",
-      "path": "packs/rom-places.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "rom-creatures",
-      "label": "FASERIP RoM Creatures",
-      "path": "packs/rom-creatures.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "rom-contacts",
-      "label": "FASERIP RoM Contacts",
-      "path": "packs/rom-contacts.db",
-      "type": "Item",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "roll-tables",
-      "label": "FASERIP Roll Tables",
-      "path": "packs/roll-tables.db",
-      "type": "RollTable",
-      "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    }
+    { "name": "weapons", "label": "FASERIP Weapons", "path": "packs/weapons.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "ammo", "label": "FASERIP Ammunition", "path": "packs/ammo.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "vehicles", "label": "FASERIP Vehicles", "path": "packs/vehicles.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "places", "label": "FASERIP Places", "path": "packs/places.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "equipment", "label": "FASERIP Equipment", "path": "packs/equipment.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "creatures", "label": "FASERIP Creatures", "path": "packs/creatures.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "contacts", "label": "FASERIP Contacts", "path": "packs/contacts.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "rom-spells", "label": "FASERIP RoM Spells", "path": "packs/rom-spells.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "rom-talents", "label": "FASERIP RoM Talents", "path": "packs/rom-talents.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "rom-items", "label": "FASERIP RoM Items", "path": "packs/rom-items.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "rom-schools", "label": "FASERIP RoM Schools", "path": "packs/rom-schools.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "rom-places", "label": "FASERIP RoM Places", "path": "packs/rom-places.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "rom-creatures", "label": "FASERIP RoM Creatures", "path": "packs/rom-creatures.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "rom-contacts", "label": "FASERIP RoM Contacts", "path": "packs/rom-contacts.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
+    { "name": "roll-tables", "label": "FASERIP Roll Tables", "path": "packs/roll-tables.db", "type": "RollTable", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } }
   ],
   "packFolders": [
-    {
-      "name": "FASERIP Gear",
-      "sorting": "m",
-      "packs": [
-        "weapons",
-        "ammo",
-        "vehicles",
-        "places",
-        "equipment",
-        "creatures",
-        "contacts"
-      ]
-    },
-    {
-      "name": "FASERIP Realms of Magic",
-      "sorting": "m",
-      "packs": [
-        "rom-spells",
-        "rom-talents",
-        "rom-items",
-        "rom-schools",
-        "rom-places",
-        "rom-creatures",
-        "rom-contacts"
-      ]
-    },
-    {
-      "name": "FASERIP Tables",
-      "sorting": "m",
-      "packs": [
-        "roll-tables"
-      ]
-    }
+    { "name": "FASERIP Gear", "sorting": "m", "packs": ["weapons", "ammo", "vehicles", "places", "equipment", "creatures", "contacts"] },
+    { "name": "FASERIP Realms of Magic", "sorting": "m", "packs": ["rom-spells", "rom-talents", "rom-items", "rom-schools", "rom-places", "rom-creatures", "rom-contacts"] },
+    { "name": "FASERIP Tables", "sorting": "m", "packs": ["roll-tables"] }
   ]
 }
