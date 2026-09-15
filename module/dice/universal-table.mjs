@@ -15,6 +15,22 @@ const COLOR_HEX = {
   red: "#c92a2a"
 };
 
+const COLUMN_ALIAS = {
+  wrestling: "grappling",
+  slugfest: "blunt",
+  "blunt attack": "blunt",
+  "edged attack": "edged",
+  "edged throwing": "throwEdged",
+  "blunt throwing": "throwBlunt"
+};
+
+function resolveBattleColumn(columnId) {
+  const raw = String(columnId || "").trim();
+  if (!raw) return "";
+  if (BATTLE_EFFECTS[raw]) return raw;
+  return COLUMN_ALIAS[raw] || COLUMN_ALIAS[raw.toLowerCase()] || raw;
+}
+
 export async function rollFeat({
   actor = null,
   item = null,
@@ -56,8 +72,9 @@ export async function rollFeat({
     else if (intensity.color === "yellow") intensityPass = color === "yellow" || color === "red";
     else intensityPass = color === "red";
   }
-  const effect = effectsColumn ? battleResult(effectsColumn, color) : "";
-  const effectLabel = effectsColumn ? (BATTLE_EFFECTS[effectsColumn]?.label ?? effectsColumn) : "";
+  const columnId = resolveBattleColumn(effectsColumn);
+  const effect = columnId ? battleResult(columnId, color) : "";
+  const effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
 
   const content = await foundry.applications.handlebars.renderTemplate("systems/faserip/templates/chat/feat-roll.hbs", {
     actorName: actor?.name ?? "",
@@ -92,7 +109,7 @@ export async function rollFeat({
         roll: adjusted,
         intensityId: intensityId || null,
         intensityPass,
-        effectsColumn: effectsColumn || null,
+        effectsColumn: columnId || null,
         effect
       }
     }
@@ -107,6 +124,7 @@ function optionList(entries, selected = "") {
 
 export async function promptFeatRoll({
   actor,
+  item = null,
   rankId,
   label,
   defaultColumn = "",
@@ -115,11 +133,15 @@ export async function promptFeatRoll({
   const ranks = (game.faserip?.ranks ?? []).map((r) => [r.id, r.label]);
   const columns = [["", "— none (plain FEAT) —"], ...Object.entries(BATTLE_EFFECTS).map(([id, col]) => [id, col.label])];
   const intensityOpts = [["", "— no Intensity —"], ...ranks];
+  const weaponHint = item?.type === "weapon"
+    ? `<p class="hint">${item.system.weaponType || "Weapon"} · ${item.system.range || "touch"} · damage ${item.system.damage || "by Strength / material"} · column ${BATTLE_EFFECTS[item.system.effectsColumn]?.label || item.system.effectsColumn || "none"}</p>`
+    : "";
 
   const content = `
     <div class="faserip-dialog-scroll">
     <form class="faserip-feat-dialog">
       <p><strong>${label}</strong> — ${rankLabel(rankId)}</p>
+      ${weaponHint}
       <div class="form-group">
         <label>Column Shift (+ right / easier, − left / harder)</label>
         <input type="number" name="cs" value="0" step="1" />
@@ -163,7 +185,7 @@ export async function promptFeatRoll({
   const karma = Number(form.querySelector('[name="karma"]')?.value || 0);
   const intensityId = form.querySelector('[name="intensity"]')?.value || "";
   const effectsColumn = form.querySelector('[name="column"]')?.value || "";
-  return rollFeat({ actor, rankId, label, cs, karma, intensityId, effectsColumn });
+  return rollFeat({ actor, item, rankId, label, cs, karma, intensityId, effectsColumn });
 }
 
 export { COLOR_HEX };
