@@ -2,7 +2,7 @@
   "id": "faserip",
   "title": "FASERIP",
   "description": "Unofficial Foundry VTT system for FASERIP-style play (Advanced Set mechanics: rank ranges, Battle Effects Table, Intensity, Initiative, generation, Healing/Recovery). Contains no Marvel-copyrighted characters or text.",
-  "version": "1.16.6",
+  "version": "1.17.0",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -28,19 +28,52 @@
   ],
   "documentTypes": {
     "Actor": {
-      "hero": { "htmlFields": ["biography", "notes"] },
-      "npc": { "htmlFields": ["biography", "notes"] }
+      "hero": {
+        "htmlFields": [
+          "biography",
+          "notes"
+        ]
+      },
+      "npc": {
+        "htmlFields": [
+          "biography",
+          "notes"
+        ]
+      }
     },
     "Item": {
-      "power": { "htmlFields": ["notes"] },
-      "talent": { "htmlFields": ["notes"] },
-      "contact": { "htmlFields": ["notes"] },
-      "equipment": { "htmlFields": ["notes"] },
-      "weapon": { "htmlFields": ["notes"] }
+      "power": {
+        "htmlFields": [
+          "notes"
+        ]
+      },
+      "talent": {
+        "htmlFields": [
+          "notes"
+        ]
+      },
+      "contact": {
+        "htmlFields": [
+          "notes"
+        ]
+      },
+      "equipment": {
+        "htmlFields": [
+          "notes"
+        ]
+      },
+      "weapon": {
+        "htmlFields": [
+          "notes"
+        ]
+      }
     }
   },
   "initiative": "1d10 + @initMod",
-  "grid": { "distance": 1, "units": "area" },
+  "grid": {
+    "distance": 1,
+    "units": "area"
+  },
   "primaryTokenAttribute": "health",
   "secondaryTokenAttribute": "karma",
   "url": "https://github.com/kazem666/faserip-foundry",
@@ -50,18 +83,107 @@
   "readme": "README.md",
   "license": "LICENSE.txt",
   "flags": {
-    "hotReload": { "extensions": ["css", "html", "hbs", "json"] }
+    "hotReload": {
+      "extensions": [
+        "css",
+        "html",
+        "hbs",
+        "json"
+      ]
+    }
   },
   "packs": [
-    { "name": "weapons", "label": "FASERIP Weapons", "path": "packs/weapons.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
-    { "name": "ammo", "label": "FASERIP Ammunition", "path": "packs/ammo.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
-    { "name": "vehicles", "label": "FASERIP Vehicles", "path": "packs/vehicles.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
-    { "name": "places", "label": "FASERIP Places", "path": "packs/places.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
-    { "name": "equipment", "label": "FASERIP Equipment", "path": "packs/equipment.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
-    { "name": "creatures", "label": "FASERIP Creatures", "path": "packs/creatures.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
-    { "name": "contacts", "label": "FASERIP Contacts", "path": "packs/contacts.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } }
+    {
+      "name": "weapons",
+      "label": "FASERIP Weapons",
+      "path": "packs/weapons.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "ammo",
+      "label": "FASERIP Ammunition",
+      "path": "packs/ammo.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "vehicles",
+      "label": "FASERIP Vehicles",
+      "path": "packs/vehicles.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "places",
+      "label": "FASERIP Places",
+      "path": "packs/places.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "equipment",
+      "label": "FASERIP Equipment",
+      "path": "packs/equipment.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "creatures",
+      "label": "FASERIP Creatures",
+      "path": "packs/creatures.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "contacts",
+      "label": "FASERIP Contacts",
+      "path": "packs/contacts.db",
+      "type": "Item",
+      "system": "faserip",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    }
   ],
   "packFolders": [
-    { "name": "FASERIP Gear", "sorting": "m", "packs": ["weapons", "ammo", "vehicles", "places", "equipment", "creatures", "contacts"] }
+    {
+      "name": "FASERIP Gear",
+      "sorting": "m",
+      "packs": [
+        "weapons",
+        "ammo",
+        "vehicles",
+        "places",
+        "equipment",
+        "creatures",
+        "contacts"
+      ]
+    }
   ]
 }
