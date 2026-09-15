@@ -13,7 +13,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.4";
+const VERSION = "1.17.5";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -116,7 +116,7 @@ function makeCatalogMenu() {
     async render(...args) {
       try {
         await ensureCatalogPacks({ notify: true });
-        await seedRollTables({ notify: true });
+        await seedRollTables({ notify: true, rebuild: true });
         const n = await fillWorldDefinitions();
         if (n) ui.notifications.info(`Filled descriptions on ${n} existing item(s).`);
       } catch (err) {
@@ -164,7 +164,6 @@ function registerSheets(ActorSheetClass, ItemSheetClass) {
   const DocumentSheetConfig = getDocumentSheetConfig();
   const ActorDoc = foundry.documents?.Actor ?? globalThis.Actor;
   const ItemDoc = foundry.documents?.Item ?? globalThis.Item;
-
   try { ActorsCol?.unregisterSheet?.("core", getActorSheetV1()); } catch {}
   try { ItemsCol?.unregisterSheet?.("core", getItemSheetV1()); } catch {}
   try {
@@ -173,29 +172,22 @@ function registerSheets(ActorSheetClass, ItemSheetClass) {
     if (V2A) DocumentSheetConfig?.unregisterSheet?.(ActorDoc, "core", V2A);
     if (V2I) DocumentSheetConfig?.unregisterSheet?.(ItemDoc, "core", V2I);
   } catch {}
-
   if (ActorsCol?.registerSheet) {
     ActorsCol.registerSheet("faserip", ActorSheetClass, {
-      types: ["hero", "npc"],
-      makeDefault: true,
-      label: "FASERIP Character Sheet"
+      types: ["hero", "npc"], makeDefault: true, label: "FASERIP Character Sheet"
     });
   }
   if (ItemsCol?.registerSheet) {
     ItemsCol.registerSheet("faserip", ItemSheetClass, {
-      makeDefault: true,
-      label: "FASERIP Item Sheet"
+      makeDefault: true, label: "FASERIP Item Sheet"
     });
   }
   try {
     DocumentSheetConfig?.registerSheet?.(ActorDoc, "faserip", ActorSheetClass, {
-      types: ["hero", "npc"],
-      makeDefault: true,
-      label: "FASERIP Character Sheet"
+      types: ["hero", "npc"], makeDefault: true, label: "FASERIP Character Sheet"
     });
     DocumentSheetConfig?.registerSheet?.(ItemDoc, "faserip", ItemSheetClass, {
-      makeDefault: true,
-      label: "FASERIP Item Sheet"
+      makeDefault: true, label: "FASERIP Item Sheet"
     });
   } catch (err) {
     console.warn("FASERIP | DocumentSheetConfig register skipped", err);
@@ -205,14 +197,10 @@ function registerSheets(ActorSheetClass, ItemSheetClass) {
 async function pinDefaultSheets() {
   for (const actor of game.actors ?? []) {
     if (actor.type !== "hero" && actor.type !== "npc") continue;
-    try {
-      await actor.setFlag("core", "sheetClass", "faserip.FaseripActorSheet");
-    } catch {}
+    try { await actor.setFlag("core", "sheetClass", "faserip.FaseripActorSheet"); } catch {}
   }
   for (const item of game.items ?? []) {
-    try {
-      await item.setFlag("core", "sheetClass", "faserip.FaseripItemSheet");
-    } catch {}
+    try { await item.setFlag("core", "sheetClass", "faserip.FaseripItemSheet"); } catch {}
   }
 }
 
@@ -232,76 +220,49 @@ Hooks.once("init", () => {
     CONFIG.Item.documentClass = FaseripItem;
     CONFIG.Actor.dataModels = { hero: HeroData, npc: NpcData };
     CONFIG.Item.dataModels = {
-      power: PowerData,
-      talent: TalentData,
-      contact: ContactData,
-      equipment: EquipmentData,
-      weapon: WeaponData
+      power: PowerData, talent: TalentData, contact: ContactData, equipment: EquipmentData, weapon: WeaponData
     };
     CONFIG.Combat.initiative = { formula: "1d10 + @initMod", decimals: 0 };
-
     const FaseripActorSheet = buildActorSheetClass();
     const FaseripItemSheet = buildItemSheetClass();
     registerSheets(FaseripActorSheet, FaseripItemSheet);
-
     try {
       Handlebars.registerHelper("eq", (a, b) => a === b);
       Handlebars.registerHelper("gt", (a, b) => Number(a) > Number(b));
     } catch (err) {
       console.warn("FASERIP | helper register", err);
     }
-
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls.",
-      scope: "world",
-      config: true,
-      type: Boolean,
-      default: false,
-      restricted: true
+      scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "useRealmsOfMagic", {
       name: "Use Realms of Magic (MHAC-9)",
-      hint: "Judge only. When on, Generate Hero can use the magical-character path: type, school, energy lists, spell ranks, wielder talents, and starting relics. Packs seed even if this is off.",
-      scope: "world",
-      config: true,
-      type: Boolean,
-      default: false,
-      restricted: true
+      hint: "Judge only. When on, Generate Hero can use the magical-character path. Packs seed even if this is off.",
+      scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
     try {
       game.settings.registerMenu("faserip", "generateHero", {
-        name: "Generate Hero",
-        label: "Open Character Builder",
+        name: "Generate Hero", label: "Open Character Builder",
         hint: "Runs the sequential 1d100 FASERIP generation wizard.",
-        icon: "fas fa-dice",
-        type: makeGenerateHeroMenu(),
-        restricted: false
+        icon: "fas fa-dice", type: makeGenerateHeroMenu(), restricted: false
       });
-    } catch (err) {
-      console.warn("FASERIP | settings menu skipped", err);
-    }
+    } catch (err) { console.warn("FASERIP | settings menu skipped", err); }
     try {
       game.settings.registerMenu("faserip", "rebuildCatalogs", {
-        name: "Rebuild Catalog Compendia",
-        label: "Seed Catalog Packs",
-        hint: "Creates world Item packs for Powers, Talents, and Gear, plus one RollTable per generation category.",
-        icon: "fas fa-book",
-        type: makeCatalogMenu(),
-        restricted: true
+        name: "Rebuild Catalog Compendia", label: "Seed Catalog Packs",
+        hint: "Creates world Item packs plus one RollTable per generation category.",
+        icon: "fas fa-book", type: makeCatalogMenu(), restricted: true
       });
-    } catch (err) {
-      console.warn("FASERIP | catalog menu skipped", err);
-    }
-
+    } catch (err) { console.warn("FASERIP | catalog menu skipped", err); }
     game.faserip = {
       version: VERSION,
       rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, writeGeneratedItem, persistGenerationStats,
       ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS,
       rankLabel, shiftRank, intensityNeeded, initiativeModifier,
       ensureCatalogPacks, fillWorldDefinitions, seedRollTables, buildCatalogItemData, describeCatalogItem,
-      ActorSheet: FaseripActorSheet,
-      ItemSheet: FaseripItemSheet
+      ActorSheet: FaseripActorSheet, ItemSheet: FaseripItemSheet
     };
     import("./module/data/rom.mjs").then((rom) => {
       game.faserip.isRomEnabled = rom.isRomEnabled;
@@ -334,15 +295,12 @@ Hooks.on("renderSettings", (_app, html) => {
     section.prepend(btn);
   } catch {}
 });
-
 Hooks.on("getActorContextOptions", (_app, options) => {
   try {
     options.unshift({
-      name: "Generate Hero",
-      label: "Generate Hero",
+      name: "Generate Hero", label: "Generate Hero",
       icon: '<i class="fa-solid fa-dice"></i>',
-      callback: () => launchWizard(),
-      onClick: () => launchWizard()
+      callback: () => launchWizard(), onClick: () => launchWizard()
     });
   } catch {}
 });
