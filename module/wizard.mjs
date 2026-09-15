@@ -13,8 +13,8 @@ function abilityRows(result) {
 
 export async function createActorWizard() {
   const originOpts = ORIGINS.map((o) => `<option value="${o.id}">${o.label}</option>`).join("");
-  const choice = await dialog("Create FASERIP Hero — Identity", `
-      <p>Generation: Origin → Abilities → Resources → Powers → Talents → Contacts.</p>
+  const choice = await dialog("Create FASERIP Hero - Identity", `
+      <p>Generation: Origin, abilities, powers, talents, contacts, then a starting gear shop.</p>
       <div class="form-group"><label>Hero name</label><input name="heroName" type="text" value="New Hero" autofocus /></div>
       <div class="form-group"><label>Public identity</label><input name="publicId" type="text" /></div>
       <div class="form-group"><label>Secret identity</label><input name="secretName" type="text" /></div>
@@ -95,6 +95,13 @@ export async function runFullGeneration(actor, extras = {}) {
     console.error("FASERIP | applyGeneration failed", err);
     ui.notifications.error("Generation stats saved but items failed: " + err.message);
   }
+  let purchasedGear = [];
+  try {
+    const { pickStartingShop } = await import("./wizard-shop.mjs");
+    purchasedGear = (await pickStartingShop(actor, result)) || [];
+  } catch (err) {
+    console.warn("FASERIP | starting shop skipped", err);
+  }
   await actor.update({
     "system.identity.public": extras.publicId || actor.system.identity.public,
     "system.identity.secret": extras.secretName || actor.system.identity.secret
@@ -106,9 +113,10 @@ export async function runFullGeneration(actor, extras = {}) {
     powers: selectedPowers.map((p) => p.name),
     talents: selectedTalents.map((t) => t.name),
     contacts: selectedContacts.map((c) => c.name),
-    weakness, powerCount: result.counts.powers, talentCount: result.counts.talents, contactCount: result.counts.contacts
+    weakness, gear: purchasedGear,
+    powerCount: result.counts.powers, talentCount: result.counts.talents, contactCount: result.counts.contacts
   });
-  ui.notifications.info(`${actor.name}: ${selectedPowers.length} powers, ${selectedTalents.length} talents, ${selectedContacts.length} contacts.`);
+  ui.notifications.info(actor.name + ": " + selectedPowers.length + " powers, " + selectedTalents.length + " talents, " + selectedContacts.length + " contacts, " + purchasedGear.length + " gear item(s).");
   try { actor.sheet?.render(true); } catch { actor.sheet?.render?.({ force: true }); }
   return true;
 }
@@ -121,13 +129,13 @@ async function reviewAbilities(actor, result, extras) {
     : `<input type="hidden" name="raise" value="" />`;
   const health = ["fighting", "agility", "strength", "endurance"].reduce((s, k) => s + result.numbers[k], 0);
   const karma = ["reason", "intuition", "psyche"].reduce((s, k) => s + result.numbers[k], 0);
-  const choice = await dialog(`Abilities — ${result.origin.label}`, `
+  const choice = await dialog("Abilities - " + result.origin.label, `
       <p><strong>${result.form ? "Form" : "Origin"}:</strong> ${result.origin.label} (column ${result.origin.column})</p>
       <p class="hint">${result.origin.notes}</p>
       <table class="chargen-table"><thead><tr><th>Ability</th><th>d100</th><th>Rank</th><th>#</th></tr></thead>
       <tbody>${abilityRows(result)}</tbody></table>
-      <p><strong>Health</strong> ${health} &nbsp; <strong>Karma</strong> ${karma}</p>
-      <p><strong>Resources:</strong> ${rankLabel(result.resources)} — ${result.resourceMod.label} (roll ${result.resourceModRoll})</p>
+      <p><strong>Health</strong> ${health}  <strong>Karma</strong> ${karma}</p>
+      <p><strong>Resources:</strong> ${rankLabel(result.resources)} - ${result.resourceMod.label} (roll ${result.resourceModRoll})</p>
       <p>Powers ${result.counts.powers[0]}/${result.counts.powers[1]} · Talents ${result.counts.talents[0]}/${result.counts.talents[1]} · Contacts ${result.counts.contacts[0]}/${result.counts.contacts[1]}</p>
       ${raiseBlock}`, [
     { action: "next", label: "Choose Powers", icon: "fa-solid fa-bolt", default: true, callback: (_e, b) => ({ action: "next", ...collect(b) }) },
@@ -162,7 +170,7 @@ export function attachDirectoryButton(app, element) {
   btn.innerHTML = `<i class="fa-solid fa-dice"></i> Generate Hero`;
   btn.addEventListener("click", (event) => {
     event.preventDefault();
-    createActorWizard().catch((err) => ui.notifications.error(`Hero generation failed: ${err.message}`));
+    createActorWizard().catch((err) => ui.notifications.error("Hero generation failed: " + err.message));
   });
   header.prepend(btn);
 }
