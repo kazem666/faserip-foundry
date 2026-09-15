@@ -3,6 +3,7 @@ import { generateHero, applyGeneration } from "./chargen.mjs";
 import { rollHeroDice } from "./roll-hero-dice.mjs";
 import { dialog, collect, pickPowers, pickTalents, pickContacts, pickWeakness } from "./wizard-picks.mjs";
 import { isUpbEnabled, wantUpb } from "./data/upb.mjs";
+import { isRomEnabled, wantRom } from "./data/rom.mjs";
 
 function abilityRows(result) {
   return ABILITIES.map((key) => {
@@ -23,7 +24,8 @@ export async function createActorWizard() {
       <div class="form-group"><label><input type="checkbox" name="rollOrigin" checked /> Roll Advanced Set origin</label></div>
       <div class="form-group"><label><input type="checkbox" name="secretId" /> Secret identity</label></div>
       <div class="form-group"><label><input type="checkbox" name="guided" checked /> Run full generation now</label></div>
-      <div class="form-group"><label><input type="checkbox" name="useUpb" ${isUpbEnabled() ? "checked" : ""} /> Use Ultimate Powers Book (MA3) tables</label></div>`, [
+      <div class="form-group"><label><input type="checkbox" name="useUpb" ${isUpbEnabled() ? "checked" : ""} /> Use Ultimate Powers Book (MA3) tables</label></div>
+      <div class="form-group"><label><input type="checkbox" name="useRom" ${isRomEnabled() ? "checked" : ""} /> Use Realms of Magic (MHAC-9) magical-character path</label></div>`, [
     { action: "create", label: "Continue", icon: "fa-solid fa-dice", default: true, callback: (_e, b) => ({ action: "create", ...collect(b) }) },
     { action: "cancel", label: "Cancel" }
   ]);
@@ -34,7 +36,8 @@ export async function createActorWizard() {
     originId: choice.origin || "altered", rollOrigin: !!choice.rollOrigin,
     secretId: !!choice.secretId,
     guided: choice.guided !== false && choice.guided !== "false",
-    useUpb: wantUpb(choice.useUpb)
+    useUpb: wantUpb(choice.useUpb),
+    useRom: wantRom(choice.useRom)
   };
   const actor = await CONFIG.Actor.documentClass.create({
     name: extras.name, type: extras.type,
@@ -50,6 +53,7 @@ export async function createActorWizard() {
 
 export async function runFullGeneration(actor, extras = {}) {
   extras.useUpb = wantUpb(extras.useUpb);
+  extras.useRom = wantRom(extras.useRom);
   try { actor.sheet?.close(); } catch {}
   let prelude = null;
   if (extras.useUpb) {
@@ -79,9 +83,42 @@ export async function runFullGeneration(actor, extras = {}) {
   if (!abilitiesOk) return false;
   result = abilitiesOk.result;
   extras.raise = abilitiesOk.raise;
-  const selectedPowers = (await pickPowers(result, actor, extras.useUpb)) || [];
-  const selectedTalents = (await pickTalents(result, actor)) || [];
+
+  let selectedPowers = [];
+  let selectedTalents = [];
+  let romPrelude = null;
+  if (extras.useRom) {
+    try {
+      const rom = await import("./wizard-rom.mjs");
+      romPrelude = await rom.pickRomPrelude(actor);
+      if (romPrelude) {
+        if (romPrelude.type?.id === "enhanced") {
+          selectedPowers = (await rom.pickRomEnhancement(romPrelude, actor, result)) || [];
+          selectedTalents = (await pickTalents(result, actor)) || [];
+        } else {
+          if (romPrelude.type?.id === "wielder") result = (await rom.pickRomResources(romPrelude, actor, result)) || result;
+          selectedPowers = (await rom.pickRomSpells(romPrelude, actor)) || [];
+          selectedTalents = (await rom.pickRomTalents(romPrelude, actor)) || [];
+          if (romPrelude.type?.id !== "wielder") selectedTalents = selectedTalents.concat((await pickTalents(result, actor)) || []);
+        }
+      }
+    } catch (err) {
+      console.error("FASERIP | Realms of Magic path failed", err);
+      ui.notifications.warn("Realms of Magic path failed — continuing with standard picks.");
+      romPrelude = null;
+    }
+  }
+  if (!romPrelude) {
+    if (!selectedPowers.length) selectedPowers = (await pickPowers(result, actor, extras.useUpb)) || [];
+    if (!selectedTalents.length) selectedTalents = (await pickTalents(result, actor)) || [];
+  }
   let contactSlots = Number(result.counts?.contacts?.[0] || 0);
+  if (romPrelude) {
+    try {
+      const { romContactSlots } = await import("./wizard-rom.mjs");
+      contactSlots = Math.max(contactSlots, romContactSlots(romPrelude, selectedPowers));
+    } catch {}
+  }
   if (selectedTalents.some((t) => /Journalism/i.test(t.name))) contactSlots += 2;
   const selectedContacts = (await pickContacts(contactSlots, result.counts?.contacts?.[1] ?? 4, result.origin.id, actor)) || [];
   const weakness = (await pickWeakness(actor, extras.useUpb)) || "";
@@ -109,7 +146,8 @@ export async function runFullGeneration(actor, extras = {}) {
   await actor.setFlag("faserip", "generation", {
     origin: result.origin.label || result.origin.id,
     form: result.form?.label || "", originOfPower: result.originOfPower?.label || "",
-    upb: !!extras.useUpb,
+    upb: !!extras.useUpb, rom: !!extras.useRom,
+    school: romPrelude?.school?.label || "", magicType: romPrelude?.type?.label || "",
     powers: selectedPowers.map((p) => p.name),
     talents: selectedTalents.map((t) => t.name),
     contacts: selectedContacts.map((c) => c.name),
