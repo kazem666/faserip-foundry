@@ -29,6 +29,8 @@ export async function rollHeroDice(actor, {
   const abilityRolls = {};
   const abilities = {};
   const order = ["fighting", "agility", "strength", "endurance", "reason", "intuition", "psyche"];
+  try { await actor.setFlag("faserip", "generating", true); } catch {}
+  try { actor.sheet?.close(); } catch {}
   let step = 1;
   for (const key of order) {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
@@ -41,8 +43,15 @@ export async function rollHeroDice(actor, {
       await actor.update({
         [`system.abilities.${key}.rank`]: abilities[key],
         [`system.abilities.${key}.number`]: rankMin(abilities[key])
-      });
-    } catch {}
+      }, { render: false });
+    } catch {
+      try {
+        await actor.update({
+          [`system.abilities.${key}.rank`]: abilities[key],
+          [`system.abilities.${key}.number`]: rankMin(abilities[key])
+        });
+      } catch {}
+    }
     step += 1;
   }
   if (!skipOriginMods && !useUpb) {
@@ -65,29 +74,38 @@ export async function rollHeroDice(actor, {
   const countSrc = useUpb ? UPB_COUNT_TABLE : SPECIAL_COUNT_TABLE;
   const powerRoll = await promptedD100({
     title: "Number of Powers",
-    body: useUpb ? "d100 on the UPB count table. Starting / max Powers only." : "d100 Advanced Set Powers: 01–20 = 2/4, 21–60 = 3/4, 61–90 = 4/4, 91–00 = 5/5.",
+    body: useUpb
+      ? "d100 on the UPB count table. Starting / max Powers only — Talents use a separate roll."
+      : "d100 Advanced Set Powers: 01–20 = 2/4, 21–60 = 3/4, 61–90 = 4/4, 91–00 = 5/5.",
     flavor: actor.name + " - Number of Powers",
     actor
   });
   if (powerRoll == null) return null;
   const talentRoll = await promptedD100({
     title: "Number of Talents",
-    body: useUpb ? "Separate d100, Talent column only. Never uses the Power total." : "Separate d100 Talent column: 01–20 = 1/6, 21–60 = 2/5, 61–90 = 3/4, 91–00 = 4/4.",
+    body: useUpb
+      ? "Separate d100, Talent column only. Never uses the Power total."
+      : "Separate d100 Talent column: 01–20 = 1/6, 21–60 = 2/5, 61–90 = 3/4, 91–00 = 4/4.",
     flavor: actor.name + " - Number of Talents",
     actor
   });
   if (talentRoll == null) return null;
   const contactRoll = await promptedD100({
     title: "Number of Contacts",
-    body: useUpb ? "Separate d100, Contact column only." : "Separate d100 Contact column: 01–20 = 0/4, 21–60 = 1/4, 61–90 = 2/4, 91–00 = 3/4.",
+    body: useUpb
+      ? "Separate d100, Contact column only."
+      : "Separate d100 Contact column: 01–20 = 0/4, 21–60 = 1/4, 61–90 = 2/4, 91–00 = 3/4.",
     flavor: actor.name + " - Number of Contacts",
     actor
   });
   if (contactRoll == null) return null;
+  const powerRow = lookupTable(countSrc, powerRoll);
+  const talentRow = lookupTable(countSrc, talentRoll);
+  const contactRow = lookupTable(countSrc, contactRoll);
   let counts = clampCounts({
-    powers: lookupTable(countSrc, powerRoll)?.powers ?? [2, 4],
-    talents: lookupTable(countSrc, talentRoll)?.talents ?? [1, 4],
-    contacts: lookupTable(countSrc, contactRoll)?.contacts ?? [0, 4]
+    powers: powerRow?.powers ?? [2, 4],
+    talents: talentRow?.talents ?? [1, 4],
+    contacts: contactRow?.contacts ?? [0, 4]
   }, useUpb);
   if (!useUpb && origin.id === "mutant") counts.powers[0] = Math.min(5, counts.powers[0] + 1);
   if (!useUpb && origin.id === "alien") {
@@ -99,17 +117,26 @@ export async function rollHeroDice(actor, {
   const popularity = (!useUpb && (origin.id === "mutant" || origin.id === "robot")) ? 0 : 10;
   const result = {
     origin, originRoll, abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod,
-    counts, powerCats: [], talentCats: [], popularity, useUpb, column: col,
+    counts, powerCats: [], talentCats: [],
+    popularity, useUpb, column: col,
     countRolls: { powers: powerRoll, talents: talentRoll, contacts: contactRoll }
   };
   await persistGenerationStats(actor, result, { originLabel: colLabel });
   try {
     await actor.setFlag("faserip", "generation", {
-      origin: originLabel || origin.label, upb: !!useUpb,
-      powerCount: counts.powers, talentCount: counts.talents, contactCount: counts.contacts,
-      countRolls: result.countRolls, inProgress: true
+      origin: originLabel || origin.label,
+      upb: !!useUpb,
+      powerCount: counts.powers,
+      talentCount: counts.talents,
+      contactCount: counts.contacts,
+      countRolls: result.countRolls,
+      inProgress: true
     });
   } catch {}
-  ui.notifications.info(`Table result — Powers ${counts.powers[0]} starting / ${counts.powers[1]} max. Talents ${counts.talents[0]} starting / ${counts.talents[1]} max. Contacts ${counts.contacts[0]} starting / ${counts.contacts[1]} max.`);
+  ui.notifications.info(
+    `Table result — Powers ${counts.powers[0]} starting / ${counts.powers[1]} max (d100 ${powerRoll}). `
+    + `Talents ${counts.talents[0]} starting / ${counts.talents[1]} max (d100 ${talentRoll}). `
+    + `Contacts ${counts.contacts[0]} starting / ${counts.contacts[1]} max (d100 ${contactRoll}).`
+  );
   return result;
 }
