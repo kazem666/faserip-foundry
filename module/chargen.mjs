@@ -108,19 +108,26 @@ export function buildRolledStatsStamp(result = {}, extras = {}) {
   };
 }
 
+export async function closeActorSheets(actor) {
+  const closeApp = async (app) => {
+    if (!app?.close) return;
+    try { await app.close({ submit: false }); }
+    catch {
+      try { await app.close({ submit: false, force: true }); } catch {}
+    }
+  };
+  try { await closeApp(actor?.sheet); } catch {}
+  for (const app of Object.values(actor?.apps || {})) {
+    try { await closeApp(app); } catch {}
+  }
+}
+
 export async function persistGenerationStats(actor, result = {}, extras = {}) {
   if (!actor || !result) return;
   const stamp = buildRolledStatsStamp(result, extras);
   try { await actor.setFlag("faserip", "generating", true); } catch {}
   try { await actor.setFlag("faserip", "rolledStats", stamp); } catch {}
-  if (!extras.quiet) {
-    try { await actor.sheet?.close(); } catch {}
-    try {
-      for (const app of Object.values(actor.apps || {})) {
-        if (app?.close) await app.close();
-      }
-    } catch {}
-  }
+  if (!extras.quiet) await closeActorSheets(actor);
   const abilities = result.abilities || {};
   const numbers = result.numbers || {};
   const update = { "flags.faserip.rolledStats": stamp };
