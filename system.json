@@ -2,7 +2,7 @@
   "id": "faserip",
   "title": "FASERIP",
   "description": "Unofficial Foundry VTT system for FASERIP-style play (Advanced Set mechanics: rank ranges, Battle Effects Table, Intensity, Initiative, generation, Healing/Recovery). Contains no Marvel-copyrighted characters or text.",
-  "version": "1.16.3",
+  "version": "1.16.4",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -29,44 +29,18 @@
   "documentTypes": {
     "Actor": {
       "hero": {
-        "htmlFields": [
-          "biography",
-          "notes"
-        ]
+        "htmlFields": ["biography", "notes"]
       },
       "npc": {
-        "htmlFields": [
-          "biography",
-          "notes"
-        ]
+        "htmlFields": ["biography", "notes"]
       }
     },
     "Item": {
-      "power": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "talent": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "contact": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "equipment": {
-        "htmlFields": [
-          "notes"
-        ]
-      },
-      "weapon": {
-        "htmlFields": [
-          "notes"
-        ]
-      }
+      "power": { "htmlFields": ["notes"] },
+      "talent": { "htmlFields": ["notes"] },
+      "contact": { "htmlFields": ["notes"] },
+      "equipment": { "htmlFields": ["notes"] },
+      "weapon": { "htmlFields": ["notes"] }
     }
   },
   "initiative": "1d10 + @initMod",
@@ -84,12 +58,7 @@
   "license": "LICENSE.txt",
   "flags": {
     "hotReload": {
-      "extensions": [
-        "css",
-        "html",
-        "hbs",
-        "json"
-      ]
+      "extensions": ["css", "html", "hbs", "json"]
     }
   },
   "packs": [
@@ -99,10 +68,7 @@
       "path": "packs/weapons.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
       "name": "ammo",
@@ -110,10 +76,7 @@
       "path": "packs/ammo.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
       "name": "vehicles",
@@ -121,10 +84,7 @@
       "path": "packs/vehicles.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
       "name": "places",
@@ -132,10 +92,7 @@
       "path": "packs/places.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
       "name": "equipment",
@@ -143,10 +100,7 @@
       "path": "packs/equipment.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
       "name": "creatures",
@@ -154,10 +108,7 @@
       "path": "packs/creatures.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     },
     {
       "name": "contacts",
@@ -165,25 +116,14 @@
       "path": "packs/contacts.db",
       "type": "Item",
       "system": "faserip",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
     }
   ],
   "packFolders": [
     {
       "name": "FASERIP Gear",
       "sorting": "m",
-      "packs": [
-        "weapons",
-        "ammo",
-        "vehicles",
-        "places",
-        "equipment",
-        "creatures",
-        "contacts"
-      ]
+      "packs": ["weapons", "ammo", "vehicles", "places", "equipment", "creatures", "contacts"]
     }
   ]
 }
