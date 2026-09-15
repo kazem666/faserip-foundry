@@ -96,21 +96,38 @@ export async function writeGeneratedItem(actor, type, name, extra = {}) {
   }
 }
 
+export function buildRolledStatsStamp(result = {}, extras = {}) {
+  return {
+    abilities: result.abilities || {},
+    numbers: result.numbers || {},
+    resources: result.resources || "",
+    popularity: result.popularity ?? null,
+    originLabel: extras.originLabel || result.origin?.label || "",
+    form: result.form?.label || "",
+    originOfPower: result.originOfPower?.label || ""
+  };
+}
+
 export async function persistGenerationStats(actor, result = {}, extras = {}) {
   if (!actor || !result) return;
+  const stamp = buildRolledStatsStamp(result, extras);
   try { await actor.setFlag("faserip", "generating", true); } catch {}
-  try { actor.sheet?.close(); } catch {}
-  try {
-    for (const app of Object.values(actor.apps || {})) {
-      if (app?.close) await app.close();
-    }
-  } catch {}
+  try { await actor.setFlag("faserip", "rolledStats", stamp); } catch {}
+  if (!extras.quiet) {
+    try { await actor.sheet?.close(); } catch {}
+    try {
+      for (const app of Object.values(actor.apps || {})) {
+        if (app?.close) await app.close();
+      }
+    } catch {}
+  }
   const abilities = result.abilities || {};
   const numbers = result.numbers || {};
-  const update = {};
+  const update = { "flags.faserip.rolledStats": stamp };
+  if (!extras.quiet) update["flags.faserip.generating"] = true;
   for (const key of ABILITIES) {
     if (abilities[key]) update[`system.abilities.${key}.rank`] = abilities[key];
-    if (numbers[key] != null) update[`system.abilities.${key}.number`] = numbers[key];
+    if (numbers[key] != null) update[`system.abilities.${key}.number`] = Number(numbers[key]);
   }
   if (result.resources) {
     update["system.resources.rank"] = result.resources;
@@ -133,11 +150,40 @@ export async function persistGenerationStats(actor, result = {}, extras = {}) {
     update["system.popularity.value"] = result.popularity;
     update["system.popularity.secret"] = result.popularity;
   }
+  const opts = { diff: false, render: false, faseripApplyRolls: true };
   try {
-    if (Object.keys(update).length) await actor.update(update);
+    if (Object.keys(update).length) {
+      await actor.update(update, opts);
+      console.log("FASERIP | persistGenerationStats", actor.name, abilities, numbers, { health: phys, karma: ment });
+    }
   } catch (err) {
     console.warn("FASERIP | persistGenerationStats", err);
+    try {
+      if (Object.keys(update).length) await actor.update(update, { faseripApplyRolls: true });
+    } catch (err2) {
+      console.warn("FASERIP | persistGenerationStats retry", err2);
+    }
   }
+}
+
+export async function reapplyRolledStats(actor) {
+  if (!actor) return false;
+  const stamped = actor.getFlag("faserip", "rolledStats");
+  const abilities = stamped?.abilities || {};
+  if (!Object.keys(abilities).length) return false;
+  const current = actor.system?.abilities || {};
+  const stale = ABILITIES.some((key) => abilities[key] && current[key]?.rank !== abilities[key]);
+  if (!stale) return false;
+  await persistGenerationStats(actor, {
+    abilities,
+    numbers: stamped.numbers || {},
+    resources: stamped.resources,
+    popularity: stamped.popularity,
+    origin: { label: stamped.originLabel },
+    form: stamped.form ? { label: stamped.form } : null,
+    originOfPower: stamped.originOfPower ? { label: stamped.originOfPower } : null
+  }, { originLabel: stamped.originLabel, quiet: true });
+  return true;
 }
 
 export function generateHero({ originId = null, rollOrigin = false } = {}) {
