@@ -28,6 +28,15 @@ function optionList(list) {
   return list.map((n) => "<option value='" + String(n) + "'>" + n + "</option>").join("");
 }
 
+function featRankForItem(actor, item) {
+  const column = item.system?.effectsColumn || "";
+  const ability = BATTLE_EFFECTS[column]?.ability;
+  if ((item.type === "weapon" || item.type === "equipment") && ability) {
+    return actor.getAbilityRank(ability);
+  }
+  return item.system?.rank ?? "typical";
+}
+
 export class FaseripActorSheet extends ActorSheetBase {
   static get defaultOptions() {
     const base = foundry.utils.mergeObject(super.defaultOptions, {
@@ -92,6 +101,9 @@ export class FaseripActorSheet extends ActorSheetBase {
         img: item.img,
         type: item.type,
         rankLabel: rankLabel(item.system.rank ?? "typical"),
+        weaponType: item.system.weaponType ?? "",
+        damage: item.system.damage ?? "",
+        effectsColumn: item.system.effectsColumn ?? "",
         category: item.system.category ?? "",
         slotsTaken: item.system.slotsTaken ?? 1,
         range: item.system.range ?? "",
@@ -220,7 +232,8 @@ export class FaseripActorSheet extends ActorSheetBase {
     if (!item) return;
     return promptFeatRoll({
       actor: this.actor,
-      rankId: item.system.rank ?? "typical",
+      item,
+      rankId: featRankForItem(this.actor, item),
       label: item.name,
       defaultColumn: item.system.effectsColumn ?? ""
     });
