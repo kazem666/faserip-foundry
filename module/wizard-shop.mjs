@@ -127,7 +127,7 @@ async function tryPurchase(actor, resources, item) {
   if (!autoBuy(resources, item.cost)) {
     const { rollFeat } = await import("./dice/universal-table.mjs");
     const feat = await rollFeat({ actor, rankId: resources, intensityId: item.cost, label: "Resource FEAT - " + item.name });
-    const color = feat?.color || "white";
+    const color = feat?.flags?.faserip?.color || "white";
     const pass = info.delta === 0 ? (color === "yellow" || color === "red") : color === "red";
     if (!pass) {
       ui.notifications.warn("Resource FEAT failed. " + item.name + " stays on the shelf.");
