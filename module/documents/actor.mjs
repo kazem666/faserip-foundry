@@ -2,7 +2,58 @@ import { rankValue, ABILITIES, abilityNumber, initiativeModifier } from "../conf
 import { rollFeat } from "../dice/universal-table.mjs";
 import { createActorWizard } from "../wizard.mjs";
 
+function rolledStatsStamp(actor) {
+  return actor.getFlag?.("faserip", "rolledStats") || actor.flags?.faserip?.rolledStats || null;
+}
+
+function isApplyingRolledStats(options = {}) {
+  return !!(options.faseripApplyRolls || options.faseripReapply);
+}
+
+/**
+ * Sheet submitOnChange posts the HTML form that was open when generation
+ * started (all Typical / 6). Block that revert whenever we have a stamp.
+ */
+function protectRolledAbilities(actor, changed, options = {}) {
+  if (isApplyingRolledStats(options)) return;
+  const rolled = rolledStatsStamp(actor);
+  if (!rolled?.abilities || !changed?.system?.abilities) return;
+  const incoming = changed.system.abilities;
+  const generating = !!(actor.getFlag?.("faserip", "generating") || actor.flags?.faserip?.generating);
+  const touched = ABILITIES.filter((key) => incoming[key]);
+  if (!touched.length) return;
+  const stale = touched.filter((key) => {
+    const want = rolled.abilities[key];
+    const next = incoming[key];
+    if (!want || !next) return false;
+    if (next.rank && next.rank !== want) return true;
+    if (rolled.numbers?.[key] != null && next.number != null && Number(next.number) !== Number(rolled.numbers[key])) {
+      return next.rank === "typical" || generating;
+    }
+    return false;
+  });
+  const bulkRevert = touched.length >= 4 && stale.length >= 3;
+  if (!generating && !bulkRevert) return;
+  for (const key of stale) {
+    const want = rolled.abilities[key];
+    const wantNum = rolled.numbers?.[key];
+    const patch = { rank: want };
+    if (wantNum != null) patch.number = Number(wantNum);
+    incoming[key] = patch;
+  }
+  if (stale.length) {
+    console.log("FASERIP | blocked stale ability submit", stale, rolled.abilities);
+  }
+}
+
 export class FaseripActor extends Actor {
+  async _preUpdate(changed, options, userId) {
+    try { protectRolledAbilities(this, changed, options); } catch (err) {
+      console.warn("FASERIP | protectRolledAbilities", err);
+    }
+    return super._preUpdate(changed, options, userId);
+  }
+
   static async createDialog(data = {}, options = {}) {
     if (data?.type && data.type !== "hero" && data.type !== "npc") {
       return super.createDialog(data, options);
