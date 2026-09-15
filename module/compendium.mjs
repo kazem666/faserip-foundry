@@ -162,17 +162,24 @@ const BUILDERS = {
   contacts: buildContactDocuments
 };
 
+function packIsLocked(pack) {
+  if (!pack) return true;
+  if (pack.locked) return true;
+  const pkg = pack.metadata?.packageType || pack.metadata?.package;
+  if (pkg === "system" || String(pack.collection || "").startsWith("faserip.")) return true;
+  return false;
+}
+
 async function locateOrCreatePack(name, label) {
-  const aliases = [`world.${name}`, `faserip.${name.replace(/^faserip-/, "")}`, `world.faserip-${name.replace(/^faserip-/, "")}`];
-  for (const id of aliases) {
-    const pack = game.packs.get(id);
-    if (pack) return pack;
-  }
-  const found = [...game.packs].find((p) => p.metadata?.name === name || p.metadata?.name === name.replace(/^faserip-/, "") || p.metadata?.label === label);
-  if (found) return found;
   const collection = `world.${name}`;
+  let pack = game.packs.get(collection);
+  if (pack && !packIsLocked(pack)) return pack;
+  const worldMatch = [...(game.packs ?? [])].find((p) => {
+    if (packIsLocked(p)) return false;
+    return p.collection === collection || p.metadata?.name === name;
+  });
+  if (worldMatch) return worldMatch;
   const meta = { name, label, type: "Item", system: "faserip" };
-  let pack = null;
   try {
     const Ctor = foundry.documents?.collections?.CompendiumCollection;
     if (Ctor?.createCompendium) pack = await Ctor.createCompendium(meta);
@@ -184,11 +191,14 @@ async function locateOrCreatePack(name, label) {
       console.warn("FASERIP | game.packs.createCompendium", err);
     }
   }
-  return game.packs.get(collection) ?? pack;
+  pack = game.packs.get(collection) ?? pack;
+  if (pack && packIsLocked(pack)) return null;
+  return pack;
 }
 
 async function syncPack(pack, documents) {
   if (!pack) return 0;
+  if (packIsLocked(pack)) return 0;
   const index = await pack.getIndex({ fields: ["name", "type", "system"] });
   const have = new Map(index.map((e) => [`${e.type}:${e.name}`, e]));
   const missing = [];
@@ -217,13 +227,13 @@ async function syncPack(pack, documents) {
     }
   }
   const ItemDoc = CONFIG.Item.documentClass ?? foundry.documents?.Item ?? globalThis.Item;
-  if (missing.length) await ItemDoc.createDocuments(missing, { pack: pack.collection, keepId: false });
-  if (updates.length) {
-    try {
-      await ItemDoc.updateDocuments(updates, { pack: pack.collection });
-    } catch (err) {
-      console.warn("FASERIP | pack update skipped (locked?)", pack.collection, err);
-    }
+  try {
+    if (missing.length) await ItemDoc.createDocuments(missing, { pack: pack.collection, keepId: false });
+    if (updates.length) await ItemDoc.updateDocuments(updates, { pack: pack.collection });
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (/locked compendium/i.test(msg)) return 0;
+    throw err;
   }
   return missing.length + updates.length;
 }
@@ -241,7 +251,8 @@ export async function ensureCatalogPacks({ notify = false } = {}) {
       const builder = BUILDERS[spec.builder];
       gearAdded[spec.builder] = builder ? await syncPack(pack, builder()) : 0;
     } catch (err) {
-      console.warn("FASERIP | gear pack", spec.name, err);
+      const msg = String(err?.message || err);
+      if (!/locked compendium/i.test(msg)) console.warn("FASERIP | gear pack", spec.name, err);
       gearAdded[spec.builder] = 0;
     }
   }
@@ -249,7 +260,7 @@ export async function ensureCatalogPacks({ notify = false } = {}) {
   if (notify) {
     ui.notifications.info(`FASERIP compendia ready. Powers +${addedPowers}, Talents +${addedTalents}, Gear +${gearTotal}.`);
   } else if (addedPowers || addedTalents || gearTotal) {
-    ui.notifications.info("FASERIP loaded Powers, Talents, and Gear into Compendium packs.");
+    ui.notifications.info("FASERIP loaded Powers, Talents, and Gear into world Compendium packs.");
   }
 }
 
