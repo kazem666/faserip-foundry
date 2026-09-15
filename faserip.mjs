@@ -6,14 +6,14 @@ import { buildActorSheetClass } from "./module/sheets/actor-sheet.mjs";
 import { buildItemSheetClass } from "./module/sheets/item-sheet.mjs";
 import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded, initiativeModifier } from "./module/config.mjs";
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
-import { generateHero, writeGeneratedItem, persistGenerationStats } from "./module/chargen.mjs";
+import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
 import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getActorSheetV1, getItemSheetV1 } from "./module/foundry-api.mjs";
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.5";
+const VERSION = "1.17.9";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -258,7 +258,7 @@ Hooks.once("init", () => {
     } catch (err) { console.warn("FASERIP | catalog menu skipped", err); }
     game.faserip = {
       version: VERSION,
-      rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, writeGeneratedItem, persistGenerationStats,
+      rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, writeGeneratedItem, persistGenerationStats, reapplyRolledStats,
       ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS,
       rankLabel, shiftRank, intensityNeeded, initiativeModifier,
       ensureCatalogPacks, fillWorldDefinitions, seedRollTables, buildCatalogItemData, describeCatalogItem,
@@ -320,6 +320,48 @@ Hooks.once("ready", () => {
     })
     .catch((err) => console.warn("FASERIP | catalog seed", err));
   ui.notifications.info(`FASERIP ${VERSION} loaded. Generate Hero: Create Actor, Actors tab button, or Game Settings.`);
+});
+
+Hooks.on("preUpdateActor", (actor, changes, options) => {
+  if (options?.faseripApplyRolls || options?.faseripReapply) return;
+  const rolled = actor.getFlag("faserip", "rolledStats");
+  if (!rolled?.abilities || !changes?.system?.abilities) return;
+  const generating = !!actor.getFlag("faserip", "generating");
+  const incoming = changes.system.abilities;
+  const touched = ABILITIES.filter((key) => incoming[key]);
+  const stale = touched.filter((key) => incoming[key]?.rank && rolled.abilities[key] && incoming[key].rank !== rolled.abilities[key]);
+  if (!generating && !(touched.length >= 4 && stale.length >= 3)) return;
+  for (const key of stale) {
+    incoming[key] = {
+      rank: rolled.abilities[key],
+      ...(rolled.numbers?.[key] != null ? { number: Number(rolled.numbers[key]) } : {})
+    };
+  }
+});
+
+async function tryReapplyRolledStats(actor) {
+  if (!actor || actor.getFlag("faserip", "generating")) return;
+  if (!actor.getFlag("faserip", "rolledStats")) return;
+  try {
+    const mod = await import("./module/chargen.mjs");
+    if (typeof mod.reapplyRolledStats === "function") await mod.reapplyRolledStats(actor);
+  } catch {}
+}
+
+Hooks.on("updateActor", (actor, _changes, options) => {
+  if (options?.faseripApplyRolls || options?.faseripReapply) return;
+  tryReapplyRolledStats(actor).catch(() => {});
+});
+
+Hooks.on("renderActorSheet", (app) => {
+  const actor = app?.actor ?? app?.document;
+  tryReapplyRolledStats(actor).catch(() => {});
+});
+
+Hooks.on("renderApplicationV2", (app) => {
+  const actor = app?.actor ?? app?.document;
+  if (!actor || actor.documentName !== "Actor") return;
+  tryReapplyRolledStats(actor).catch(() => {});
 });
 
 Hooks.on("createActor", async (actor, _options, userId) => {
