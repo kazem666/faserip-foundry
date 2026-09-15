@@ -2,7 +2,7 @@
   "id": "faserip",
   "title": "FASERIP",
   "description": "Unofficial Foundry VTT system for FASERIP-style play (Advanced Set mechanics: rank ranges, Battle Effects Table, Intensity, Initiative, generation, Healing/Recovery). Contains no Marvel-copyrighted characters or text.",
-  "version": "1.17.10",
+  "version": "1.17.11",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -28,12 +28,8 @@
   ],
   "documentTypes": {
     "Actor": {
-      "hero": {
-        "htmlFields": ["biography", "notes"]
-      },
-      "npc": {
-        "htmlFields": ["biography", "notes"]
-      }
+      "hero": { "htmlFields": ["biography", "notes"] },
+      "npc": { "htmlFields": ["biography", "notes"] }
     },
     "Item": {
       "power": { "htmlFields": ["notes"] },
@@ -44,10 +40,7 @@
     }
   },
   "initiative": "1d10 + @initMod",
-  "grid": {
-    "distance": 1,
-    "units": "area"
-  },
+  "grid": { "distance": 1, "units": "area" },
   "primaryTokenAttribute": "health",
   "secondaryTokenAttribute": "karma",
   "url": "https://github.com/kazem666/faserip-foundry",
@@ -57,9 +50,7 @@
   "readme": "README.md",
   "license": "LICENSE.txt",
   "flags": {
-    "hotReload": {
-      "extensions": ["css", "html", "hbs", "json"]
-    }
+    "hotReload": { "extensions": ["css", "html", "hbs", "json"] }
   },
   "packs": [
     { "name": "weapons", "label": "FASERIP Weapons", "path": "packs/weapons.db", "type": "Item", "system": "faserip", "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" } },
