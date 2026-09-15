@@ -8,6 +8,11 @@ import { clampCounts, persistGenerationStats } from "./chargen.mjs";
 
 export async function promptGeneration(actor) {
   const { isUpbEnabled } = await import("./data/upb.mjs");
+  let romOn = false;
+  try {
+    const { isRomEnabled } = await import("./data/rom.mjs");
+    romOn = isRomEnabled();
+  } catch {}
   const upbOn = isUpbEnabled();
   const originOptions = ORIGINS.map((o) => `<option value="${o.id}">${o.label}</option>`).join("");
   const DialogV2 = foundry.applications.api.DialogV2;
@@ -18,6 +23,7 @@ export async function promptGeneration(actor) {
     <div class="faserip-dialog-scroll">
     <form class="faserip-feat-dialog">
       <div class="form-group"><label><input type="checkbox" name="useUpb" ${upbOn ? "checked" : ""} /> Use Ultimate Powers Book (MA3)</label></div>
+      <div class="form-group"><label><input type="checkbox" name="useRom" ${romOn ? "checked" : ""} /> Use Realms of Magic (MHAC-9)</label></div>
       <div class="form-group"><label>Advanced Set origin (ignored if UPB is on)</label><select name="origin">${originOptions}</select></div>
       <div class="form-group"><label><input type="checkbox" name="rollOrigin" ${upbOn ? "" : "checked"} /> Roll Advanced Set origin</label></div>
       <div class="form-group"><label><input type="checkbox" name="secretId" /> Secret identity</label></div>
@@ -36,6 +42,7 @@ export async function promptGeneration(actor) {
     rollOrigin: !!form.querySelector('[name="rollOrigin"]')?.checked,
     secretId: !!form.querySelector('[name="secretId"]')?.checked,
     useUpb: !!form.querySelector('[name="useUpb"]')?.checked,
+    useRom: !!form.querySelector('[name="useRom"]')?.checked,
     publicId: actor.system.identity?.public,
     secretName: actor.system.identity?.secret
   });
