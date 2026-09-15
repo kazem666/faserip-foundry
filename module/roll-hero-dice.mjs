@@ -30,7 +30,12 @@ export async function rollHeroDice(actor, {
   const abilities = {};
   const order = ["fighting", "agility", "strength", "endurance", "reason", "intuition", "psyche"];
   try { await actor.setFlag("faserip", "generating", true); } catch {}
-  try { actor.sheet?.close(); } catch {}
+  try {
+    const { closeActorSheets } = await import("./chargen.mjs");
+    await closeActorSheets(actor);
+  } catch {
+    try { await actor.sheet?.close?.({ submit: false }); } catch {}
+  }
   let step = 1;
   for (const key of order) {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
