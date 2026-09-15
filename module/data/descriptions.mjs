@@ -4,18 +4,21 @@
  */
 
 import { UPB_DEFINITIONS } from "./upb-descriptions.mjs";
-import { POWER_DEFINITIONS, TALENT_DEFINITIONS } from "./adv-descriptions.mjs";
-export { POWER_DEFINITIONS, TALENT_DEFINITIONS } from "./adv-descriptions.mjs";
+import { GEAR_DEFINITIONS, describeGear } from "./gear-descriptions.mjs";
 
 export function catalogKey(name) {
   return String(name || "")
     .replace(/\s*\(counts as two[^)]*\)/gi, "")
     .replace(/\s*\([^)]*\)/g, "")
-    .replace(/[\u2014\u2013]/g, "-")
+    .replace(/[—–]/g, "-")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
 }
+
+export { POWER_DEFINITIONS, TALENT_DEFINITIONS } from "./adv-descriptions.mjs";
+export { GEAR_DEFINITIONS, describeGear } from "./gear-descriptions.mjs";
+import { POWER_DEFINITIONS, TALENT_DEFINITIONS } from "./adv-descriptions.mjs";
 
 const UPB_CLASS_HINT = {
   defensive: "Defensive Power. Use this rank to resist, block, or shed the listed threat.",
@@ -70,41 +73,70 @@ export function describeTalent(name, extra = {}) {
 
 export function describeCatalogItem(type, name, extra = {}) {
   if (type === "talent") return describeTalent(name, extra);
-  return describePower(name, extra);
+  if (type === "power") return describePower(name, extra);
+  return describeGear(name, { ...extra, itemType: type });
 }
 
 export function displayName(name) {
   return String(name || "").replace(/\s*\(counts as two[^)]*\)/gi, "").trim();
 }
 
+const TYPE_ICONS = {
+  power: "icons/svg/aura.svg",
+  talent: "icons/svg/upgrade.svg",
+  contact: "icons/svg/mystery-man.svg",
+  weapon: "icons/svg/sword.svg",
+  equipment: "icons/svg/item-bag.svg"
+};
+
 export function buildCatalogItemData(type, rawName, extra = {}) {
   const name = displayName(rawName);
   const two = /counts as two/i.test(rawName);
   const info = describeCatalogItem(type, rawName, { ...extra, slotsTaken: two ? 2 : extra.slotsTaken });
+  const resolvedType = extra.itemType || info.itemType || type;
   const system = {
     category: extra.category || info.category || "",
     definition: info.definition,
     notes: extra.notes || ""
   };
-  if (type === "power") {
+  if (resolvedType === "power") {
     system.rank = extra.rank || "typical";
     system.number = extra.number ?? 0;
     system.slotsTaken = info.slotsTaken;
     system.bodyArmor = info.bodyArmor;
     system.forceField = info.forceField;
-    if (extra.range) system.range = extra.range;
-  }
-  if (type === "talent") {
+    if (extra.range || info.range) system.range = extra.range || info.range;
+  } else if (resolvedType === "talent") {
     system.rank = extra.rank || "typical";
     system.number = extra.number ?? 0;
     system.bonus = info.bonus;
     system.attribute = info.attribute;
     system.slotsTaken = info.slotsTaken;
+  } else if (resolvedType === "weapon") {
+    system.rank = extra.rank || info.rank || "typical";
+    system.number = extra.number ?? 0;
+    system.material = extra.material || info.material || "typical";
+    system.range = extra.range || info.range || "1 area";
+    system.damage = extra.damage || info.damage || "";
+    system.weaponType = extra.weaponType || info.weaponType || "Blunt";
+    system.effectsColumn = extra.effectsColumn || info.effectsColumn || "blunt";
+  } else if (resolvedType === "contact") {
+    system.rank = extra.rank || "typical";
+    system.number = extra.number ?? 0;
+    system.occupation = extra.occupation || info.occupation || extra.category || info.category || name;
+    system.base = extra.base || "";
+    system.tie = extra.tie || "";
+  } else {
+    system.rank = extra.rank || info.rank || "typical";
+    system.number = extra.number ?? 0;
+    system.material = extra.material || info.material || "typical";
+    system.bodyArmor = extra.bodyArmor ?? info.bodyArmor ?? false;
+    if (info.range || extra.range) system.range = extra.range || info.range;
   }
   return {
     name,
-    type,
-    img: type === "talent" ? "icons/svg/upgrade.svg" : "icons/svg/aura.svg",
+    type: resolvedType,
+    img: extra.img || TYPE_ICONS[resolvedType] || "icons/svg/item-bag.svg",
     system
   };
 }
@@ -116,5 +148,5 @@ export function upbHint(classId) {
 export function isGenericDefinition(text) {
   const t = String(text || "");
   if (!t) return true;
-  return /is a FASERIP Power\. Use this rank|Use this Power rank for FEATs\. The Judge sets details|Defensive Power\. Use this rank|Detection Power\. Use this rank|Energy-control Power\.|Energy-emission Power\.|Fighting Power\. Apply this rank|Illusory Power\.|Lifeform-control Power\.|Magic Power\. Treat rites|Matter-control Power\.|Matter-conversion Power\.|Matter-creation Power\.|Mental Power\. Psyche contests|Physical-enhancement Power\.|Power-control Power\.|Self-alteration Power\.|Travel Power\. Movement mode/i.test(t);
+  return /is a FASERIP Power\. Use this rank|Use this Power rank for FEATs\. The Judge sets details|Defensive Power\. Use this rank|Detection Power\. Use this rank|Energy-control Power\.|Energy-emission Power\.|Fighting Power\. Apply this rank|Illusory Power\.|Lifeform-control Power\.|Magic Power\. Treat rites|Matter-control Power\.|Matter-conversion Power\.|Matter-creation Power\.|Mental Power\. Psyche contests|Physical-enhancement Power\.|Power-control Power\.|Self-alteration Power\.|Travel Power\. Movement mode|is catalog gear\. The Judge sets cost/i.test(t);
 }
