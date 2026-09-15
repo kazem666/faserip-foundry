@@ -3,7 +3,8 @@ import { rollFeat } from "../dice/universal-table.mjs";
 export class FaseripItem extends Item {
   async _preCreate(data, options, user) {
     await super._preCreate(data, options, user);
-    if (this.type !== "power" && this.type !== "talent") return;
+    const fillTypes = new Set(["power", "talent", "weapon", "equipment", "contact"]);
+    if (!fillTypes.has(this.type)) return;
     const { describeCatalogItem } = await import("../data/descriptions.mjs");
     const info = describeCatalogItem(this.type, this.name, this.system ?? {});
     const patch = {};
@@ -14,6 +15,19 @@ export class FaseripItem extends Item {
     }
     if (this.type === "power" && info.slotsTaken && !data.system?.slotsTaken) {
       patch["system.slotsTaken"] = info.slotsTaken;
+    }
+    if (this.type === "weapon") {
+      if (!this.system.weaponType && info.weaponType) patch["system.weaponType"] = info.weaponType;
+      if (!this.system.damage && info.damage) patch["system.damage"] = info.damage;
+      if ((!this.system.range || this.system.range === "1 area") && info.range) patch["system.range"] = info.range;
+      if (info.effectsColumn && !data.system?.effectsColumn) patch["system.effectsColumn"] = info.effectsColumn;
+      if (info.material && this.system.material === "typical") patch["system.material"] = info.material;
+    }
+    if ((this.type === "equipment" || this.type === "contact") && info.category && !this.system.category) {
+      patch["system.category"] = info.category;
+    }
+    if (this.type === "contact" && info.occupation && !this.system.occupation) {
+      patch["system.occupation"] = info.occupation;
     }
     if (Object.keys(patch).length) this.updateSource(patch);
   }
