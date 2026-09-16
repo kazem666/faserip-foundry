@@ -45,13 +45,21 @@ export async function rollHeroDice(actor, {
     abilityRolls[key] = total;
     abilities[key] = rollOnColumn(col, total);
     try {
+      const number = rankMin(abilities[key]);
       await actor.update({
-        [`system.abilities.${key}.rank`]: abilities[key],
-        [`system.abilities.${key}.number`]: rankMin(abilities[key]),
+        [`system.abilities.${key}`]: { rank: abilities[key], number },
         "flags.faserip.generating": true
       }, { render: false, faseripApplyRolls: true });
     } catch (err) {
       console.warn("FASERIP | ability write failed", key, err);
+      try {
+        await actor.update({
+          [`system.abilities.${key}.rank`]: abilities[key],
+          [`system.abilities.${key}.number`]: rankMin(abilities[key])
+        }, { render: false, faseripApplyRolls: true });
+      } catch (err2) {
+        console.warn("FASERIP | ability dotted write failed", key, err2);
+      }
     }
     step += 1;
   }
