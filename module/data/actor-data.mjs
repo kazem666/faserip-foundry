@@ -111,6 +111,21 @@ export class HeroData extends foundry.abstract.TypeDataModel {
     };
   }
 
+  prepareBaseData() {
+    const rolled = this.parent?.flags?.faserip?.rolledStats;
+    if (!rolled?.abilities) return;
+    for (const key of ABILITIES) {
+      const slot = this.abilities?.[key];
+      const want = rolled.abilities[key];
+      if (!slot || !want) continue;
+      const have = slot.rank || "typical";
+      if (have !== want && have === "typical") {
+        slot.rank = want;
+        if (rolled.numbers?.[key] != null) slot.number = Number(rolled.numbers[key]);
+      }
+    }
+  }
+
   prepareDerivedData() {
     const phys = PHYSICAL.reduce((sum, k) => sum + abilityNumber(this.abilities[k]), 0);
     const ment = MENTAL.reduce((sum, k) => sum + abilityNumber(this.abilities[k]), 0);
