@@ -13,7 +13,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.9";
+const VERSION = "1.17.12";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -355,6 +355,11 @@ Hooks.on("updateActor", (actor, _changes, options) => {
 
 Hooks.on("renderActorSheet", (app) => {
   const actor = app?.actor ?? app?.document;
+  if (app && !app._faseripClosePatched && typeof app.close === "function") {
+    app._faseripClosePatched = true;
+    const orig = app.close.bind(app);
+    app.close = (options = {}) => orig({ ...options, submit: false });
+  }
   tryReapplyRolledStats(actor).catch(() => {});
 });
 
