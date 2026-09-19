@@ -119,9 +119,11 @@ export class HeroData extends foundry.abstract.TypeDataModel {
       const want = rolled.abilities[key];
       if (!slot || !want) continue;
       const have = slot.rank || "typical";
-      if (have !== want && have === "typical") {
+      if (have !== want && (have === "typical" || !have)) {
         slot.rank = want;
         if (rolled.numbers?.[key] != null) slot.number = Number(rolled.numbers[key]);
+      } else if (want && (slot.number == null || slot.number === 0) && rolled.numbers?.[key] != null && have === want) {
+        slot.number = Number(rolled.numbers[key]);
       }
     }
   }
