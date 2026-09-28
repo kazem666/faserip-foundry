@@ -91,13 +91,14 @@ function tokenOf(actor) {
   return globalThis.canvas?.tokens?.placeables?.find((token) => token.actor === actor) ?? null;
 }
 
-function specFor({ item, columnId, label }) {
+export function specFor({ item, columnId, label }) {
   const blob = `${item?.name || ""} ${item?.system?.weaponType || ""} ${label || ""}`.toLowerCase();
   if (isEnergyWeapon(item, columnId, blob)) return ENERGY_BEAM;
   const attack = !!(columnId && COLUMN[columnId]);
   for (const [re, spec] of RULES) {
     if (!re.test(blob)) continue;
     if (attack && spec.mode === "self") continue;
+    if (columnId === "force" && spec.muzzle) continue;
     return spec;
   }
   if (attack) return COLUMN[columnId];
@@ -116,16 +117,63 @@ function place(effect, spec, source, target, color) {
   return effect;
 }
 
+const AA_MENUS = ["melee", "range", "ontoken", "templatefx", "aura", "preset"];
+
+function rinseAa(name) {
+  return String(name || "").replace(/\s+/g, "").toLowerCase();
+}
+
+function menuRecognizes(name) {
+  const rinsed = rinseAa(name);
+  if (!rinsed) return false;
+  const settings = globalThis.game?.settings;
+  if (!settings) return false;
+  for (const menu of AA_MENUS) {
+    let entries = [];
+    try { entries = settings.get("autoanimations", `aaAutorec-${menu}`) || []; } catch { continue; }
+    for (const entry of entries) {
+      const label = rinseAa(entry?.label);
+      if (label && rinsed.includes(label)) return true;
+    }
+  }
+  return false;
+}
+
+function autoRecognitionPlays({ item, label, source, dest }) {
+  const play = globalThis.AutomatedAnimations?.playAnimation;
+  if (typeof play !== "function" || !source) return false;
+  try {
+    if (globalThis.game?.settings?.get("autoanimations", "disableAutoRec")) return false;
+  } catch {
+    return false;
+  }
+  const name = item?.name || label || "";
+  const flags = item?.flags?.autoanimations;
+  if (!flags?.isCustomized && !flags?.killAnim && !menuRecognizes(name)) return false;
+  const standIn = item?.name ? item : { name, type: "weapon" };
+  try {
+    Promise.resolve(play(source, standIn, { targets: dest ? [dest] : [] })).catch((err) => {
+      console.warn("FASERIP | Automated Animations", err);
+    });
+  } catch (err) {
+    console.warn("FASERIP | Automated Animations", err);
+    return false;
+  }
+  return true;
+}
+
 export function playFeatVfx({ actor, target, item, columnId = "", color = "", label = "" } = {}) {
-  if (!workflowOn("jb2aVfx") || !librariesOn()) return;
-  const Sequence = globalThis.Sequence;
-  if (typeof Sequence !== "function") return;
+  if (!workflowOn("jb2aVfx")) return;
   const spec = specFor({ item, columnId, label });
   if (!spec) return;
   const source = tokenOf(actor);
   const dest = tokenOf(target);
   if (!source) return;
   if ((spec.mode === "melee" || spec.mode === "ranged" || spec.mode === "ray") && !dest) return;
+  if (autoRecognitionPlays({ item, label, source, dest })) return;
+  if (!librariesOn()) return;
+  const Sequence = globalThis.Sequence;
+  if (typeof Sequence !== "function") return;
   try {
     const seq = new Sequence();
     if (spec.muzzle && dest) {
