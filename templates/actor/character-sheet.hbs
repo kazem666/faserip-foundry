@@ -180,6 +180,20 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="identity">
+      <div class="life-rolls">
+        <button type="button" data-action="rollHeight">Height &amp; weight</button>
+        <button type="button" data-action="rollCalling">Calling</button>
+        <button type="button" data-action="rollQuirk">Quirk</button>
+        <button type="button" data-action="rollLife">Life details</button>
+      </div>
+      <div class="id-grid three">
+        <label>Archetype <input name="system.identity.archetype" type="text" value="{{system.identity.archetype}}" /></label>
+        <label>Calling <input name="system.identity.calling" type="text" value="{{system.identity.calling}}" /></label>
+        <label>Orientation <input name="system.identity.orientation" type="text" value="{{system.identity.orientation}}" /></label>
+      </div>
+      <label>Quirks
+        <textarea name="system.identity.quirks" rows="2">{{system.identity.quirks}}</textarea>
+      </label>
       <div class="panel-grid two">
         <section class="panel description">
           <h2>Description</h2>

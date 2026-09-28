@@ -263,11 +263,39 @@ export class FaseripActorSheet extends ActorSheetBase {
     on("addStunt", this._onAddStunt);
     on("stuntAttempt", this._onStuntAttempt);
     on("contactAssist", this._onContactAssist);
+    on("rollHeight", this._onRollHeight);
+    on("rollCalling", this._onRollCalling);
+    on("rollQuirk", this._onRollQuirk);
+    on("rollLife", this._onRollLife);
   }
 
   async _onGenerate(event) {
     event.preventDefault();
     return promptGeneration(this.actor);
+  }
+
+  async _onRollHeight(event) {
+    event.preventDefault();
+    const { writeHeightWeight } = await import("../life.mjs");
+    return writeHeightWeight(this.actor);
+  }
+
+  async _onRollCalling(event) {
+    event.preventDefault();
+    const { writeCalling } = await import("../life.mjs");
+    return writeCalling(this.actor);
+  }
+
+  async _onRollQuirk(event) {
+    event.preventDefault();
+    const { writeQuirk } = await import("../life.mjs");
+    return writeQuirk(this.actor);
+  }
+
+  async _onRollLife(event) {
+    event.preventDefault();
+    const { writeLifeDetails } = await import("../life.mjs");
+    return writeLifeDetails(this.actor);
   }
 
   async _onRollAbility(event) {

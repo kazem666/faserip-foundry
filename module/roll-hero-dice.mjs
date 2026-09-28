@@ -7,7 +7,8 @@ import { UPB_COUNT_TABLE } from "./data/upb.mjs";
 import { clampCounts, persistGenerationStats } from "./chargen.mjs";
 
 export async function rollHeroDice(actor, {
-  originId = "altered", rollOrigin = false, useUpb = false, column = null, originLabel = null, skipOriginMods = false
+  originId = "altered", rollOrigin = false, useUpb = false, column = null, originLabel = null, skipOriginMods = false,
+  rankFor = null, fixedAbilities = null
 } = {}) {
   let originRoll = null;
   let id = originId || "altered";
@@ -37,13 +38,26 @@ export async function rollHeroDice(actor, {
     try { await actor.sheet?.close?.({ submit: false }); } catch {}
   }
   let step = 1;
+  if (fixedAbilities) {
+    for (const key of order) {
+      abilityRolls[key] = 0;
+      abilities[key] = fixedAbilities[key] || "typical";
+      const number = rankMin(abilities[key]);
+      await actor.update({
+        [`system.abilities.${key}`]: { rank: abilities[key], number },
+        "flags.faserip.generating": true
+      }, { render: false, faseripApplyRolls: true });
+    }
+  }
   for (const key of order) {
+    if (fixedAbilities) break;
     const label = key.charAt(0).toUpperCase() + key.slice(1);
-    const go = await promptNextRoll("FASERIP " + step + " of 7 — " + label, actor.name + " rolls <strong>" + label + "</strong> on column " + col + " (" + colLabel + ").");
+    const where = typeof rankFor === "function" ? `the ${colLabel} table` : `column ${col} (${colLabel})`;
+    const go = await promptNextRoll("FASERIP " + step + " of 7 — " + label, actor.name + " rolls <strong>" + label + "</strong> on " + where + ".");
     if (!go) return null;
     const total = await rollD100({ flavor: actor.name + " — " + label + " (column " + col + ")", actor });
     abilityRolls[key] = total;
-    abilities[key] = rollOnColumn(col, total);
+    abilities[key] = typeof rankFor === "function" ? rankFor(key, total) : rollOnColumn(col, total);
     try {
       const number = rankMin(abilities[key]);
       await actor.update({

@@ -135,6 +135,11 @@
   box-sizing: border-box;
 }
 
+.faserip-sheet .life-rolls { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.faserip-sheet .life-rolls button { font-family: Oswald, sans-serif; font-size: 13px; letter-spacing: 0.04em; }
+.faserip-dialog .implant-list { display: grid; gap: 4px; max-height: 360px; overflow: auto; }
+.faserip-dialog .implant-list label { display: block; font-size: 13px; }
+
 .faserip-sheet button.generate {
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;

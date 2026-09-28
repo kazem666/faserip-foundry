@@ -5,6 +5,11 @@ import { dialog, collect, pickPowers, pickTalents, pickContacts, pickWeakness } 
 import { isUpbEnabled, wantUpb } from "./data/upb.mjs";
 import { isRomEnabled, wantRom } from "./data/rom.mjs";
 import { isUltimateTalentsEnabled, wantUltimateTalents } from "./data/ultimate-talents.mjs";
+import {
+  ARCHETYPE_CHOICES, archetypeSetup, tuneArchetypeResult, promptArchetypeExtras,
+  packagePowers, pickMartialPowers, pickImplants, vampireWeakness,
+  writeHeightWeight, writeCalling, writeQuirk, writeLifeDetails
+} from "./life.mjs";
 
 function abilityRows(result) {
   return ABILITIES.map((key) => {
@@ -27,7 +32,12 @@ export async function createActorWizard() {
       <div class="form-group"><label><input type="checkbox" name="guided" checked /> Run full generation now</label></div>
       <div class="form-group"><label><input type="checkbox" name="useUpb" ${isUpbEnabled() ? "checked" : ""} /> Use Ultimate Powers Book (MA3) tables</label></div>
       <div class="form-group"><label><input type="checkbox" name="useUltimateTalents" ${isUltimateTalentsEnabled() ? "checked" : ""} /> Use Ultimate Talents list</label></div>
-      <div class="form-group"><label><input type="checkbox" name="useRom" ${isRomEnabled() ? "checked" : ""} /> Use Realms of Magic (MHAC-9) magical-character path</label></div>`, [
+      <div class="form-group"><label><input type="checkbox" name="useRom" ${isRomEnabled() ? "checked" : ""} /> Use Realms of Magic (MHAC-9) magical-character path</label></div>
+      <div class="form-group"><label>Archetype</label><select name="archetype">${ARCHETYPE_CHOICES.map((row) => `<option value="${row.id}">${row.label}</option>`).join("")}</select></div>
+      <div class="form-group"><label><input type="checkbox" name="lifeHeight" checked /> Roll height and weight from Strength</label></div>
+      <div class="form-group"><label><input type="checkbox" name="lifeCalling" checked /> Roll a calling</label></div>
+      <div class="form-group"><label><input type="checkbox" name="lifeQuirk" checked /> Roll one helpful quirk and one drawback</label></div>
+      <div class="form-group"><label><input type="checkbox" name="lifeDetails" /> Roll ordinary-life details</label></div>`, [
     { action: "create", label: "Continue", icon: "fa-solid fa-dice", default: true, callback: (_e, b) => ({ action: "create", ...collect(b) }) },
     { action: "cancel", label: "Cancel" }
   ]);
@@ -40,8 +50,22 @@ export async function createActorWizard() {
     guided: choice.guided !== false && choice.guided !== "false",
     useUpb: wantUpb(choice.useUpb),
     useUltimateTalents: wantUltimateTalents(choice.useUltimateTalents),
-    useRom: wantRom(choice.useRom)
+    useRom: wantRom(choice.useRom),
+    archetype: choice.archetype || "",
+    lifeHeight: !!choice.lifeHeight,
+    lifeCalling: !!choice.lifeCalling,
+    lifeQuirk: !!choice.lifeQuirk,
+    lifeDetails: !!choice.lifeDetails
   };
+  const setup = archetypeSetup(extras.archetype);
+  if (setup) {
+    extras.originId = setup.originId;
+    extras.rollOrigin = false;
+    extras.originLabel = setup.originLabel;
+    extras.rankFor = setup.rankFor || null;
+    extras.fixedAbilities = setup.fixedAbilities || null;
+    extras.useUpb = false;
+  }
   const actor = await CONFIG.Actor.documentClass.create({
     name: extras.name, type: extras.type,
     system: { identity: { public: extras.publicId, secret: extras.secretName, origin: "", secretId: extras.secretId } },
@@ -60,7 +84,7 @@ export async function runFullGeneration(actor, extras = {}) {
   extras.useRom = wantRom(extras.useRom);
   try { await actor.sheet?.close?.({ submit: false }); } catch {}
   let prelude = null;
-  if (extras.useUpb) {
+  if (extras.useUpb && !extras.archetype) {
     const { pickUpbPrelude } = await import("./wizard-upb.mjs");
     prelude = await pickUpbPrelude(actor);
     if (!prelude) return false;
@@ -75,10 +99,13 @@ export async function runFullGeneration(actor, extras = {}) {
     rollOrigin: extras.useUpb ? false : extras.rollOrigin,
     useUpb: extras.useUpb,
     column: prelude?.form?.column,
-    originLabel: prelude?.form?.label,
-    skipOriginMods: !!extras.useUpb
+    originLabel: extras.originLabel || prelude?.form?.label,
+    skipOriginMods: !!extras.useUpb || !!extras.archetype,
+    rankFor: extras.rankFor,
+    fixedAbilities: extras.fixedAbilities
   });
   if (!result) return false;
+  tuneArchetypeResult(result, extras.archetype);
   result.useUltimateTalents = !!extras.useUltimateTalents;
   if (prelude) {
     const { finalizeUpbResult } = await import("./wizard-upb.mjs");
@@ -93,7 +120,12 @@ export async function runFullGeneration(actor, extras = {}) {
   let selectedPowers = [];
   let selectedTalents = [];
   let romPrelude = null;
-  if (extras.useRom) {
+  if (extras.archetype) {
+    try { await promptArchetypeExtras(actor, result, extras.archetype); } catch (err) {
+      console.warn("FASERIP | archetype extras", err);
+    }
+  }
+  if (extras.useRom && !extras.archetype) {
     try {
       const rom = await import("./wizard-rom.mjs");
       romPrelude = await rom.pickRomPrelude(actor);
@@ -114,10 +146,19 @@ export async function runFullGeneration(actor, extras = {}) {
       romPrelude = null;
     }
   }
-  if (!romPrelude) {
+  if (extras.archetype === "cyborg") {
+    await pickImplants(actor);
+    selectedTalents = (await pickTalents(result, actor)) || [];
+  } else if (extras.archetype === "martial") {
+    selectedPowers = (await pickMartialPowers(actor, result.counts.powers[0])) || [];
+    selectedTalents = (await pickTalents(result, actor)) || [];
+  } else if (extras.archetype === "vampire") {
+    selectedTalents = (await pickTalents(result, actor)) || [];
+  } else if (!romPrelude) {
     if (!selectedPowers.length) selectedPowers = (await pickPowers(result, actor, extras.useUpb)) || [];
     if (!selectedTalents.length) selectedTalents = (await pickTalents(result, actor)) || [];
   }
+  selectedPowers = selectedPowers.concat(packagePowers(extras.archetype), result.archetypePowers || []);
   let contactSlots = Number(result.counts?.contacts?.[0] || 0);
   if (romPrelude) {
     try {
@@ -127,7 +168,8 @@ export async function runFullGeneration(actor, extras = {}) {
   }
   if (selectedTalents.some((t) => /Journalism/i.test(t.name))) contactSlots += 2;
   const selectedContacts = (await pickContacts(contactSlots, result.counts?.contacts?.[1] ?? 4, result.origin.id, actor)) || [];
-  const weakness = (await pickWeakness(actor, extras.useUpb)) || "";
+  let weakness = (await pickWeakness(actor, extras.useUpb)) || "";
+  if (extras.archetype === "vampire") weakness = [weakness, vampireWeakness()].filter(Boolean).join(" ");
   if (selectedTalents.some((t) => /Heir to Fortune/i.test(t.name))) result.resources = "amazing";
   try {
     await applyGeneration(actor, result, {
@@ -147,8 +189,17 @@ export async function runFullGeneration(actor, extras = {}) {
   }
   await actor.update({
     "system.identity.public": extras.publicId || actor.system.identity.public,
-    "system.identity.secret": extras.secretName || actor.system.identity.secret
+    "system.identity.secret": extras.secretName || actor.system.identity.secret,
+    "system.identity.archetype": ARCHETYPE_CHOICES.find((row) => row.id === extras.archetype)?.label || ""
   });
+  try {
+    if (extras.lifeHeight) await writeHeightWeight(actor, { prompt: true });
+    if (extras.lifeCalling) await writeCalling(actor, { prompt: true });
+    if (extras.lifeQuirk) await writeQuirk(actor, { prompt: true, balanced: true });
+    if (extras.lifeDetails) await writeLifeDetails(actor, { prompt: false });
+  } catch (err) {
+    console.warn("FASERIP | life rolls", err);
+  }
   await actor.setFlag("faserip", "generation", {
     origin: result.origin.label || result.origin.id,
     form: result.form?.label || "", originOfPower: result.originOfPower?.label || "",
@@ -191,9 +242,12 @@ async function reviewAbilities(actor, result, extras) {
     const reroll = await rollHeroDice(actor, {
       originId: result.origin.id, rollOrigin: false, useUpb: extras.useUpb,
       column: result.form?.column || result.column,
-      originLabel: result.form?.label || result.origin.label,
-      skipOriginMods: !!extras.useUpb
+      originLabel: extras.originLabel || result.form?.label || result.origin.label,
+      skipOriginMods: !!extras.useUpb || !!extras.archetype,
+      rankFor: extras.rankFor,
+      fixedAbilities: extras.fixedAbilities
     });
+    if (reroll) tuneArchetypeResult(reroll, extras.archetype);
     if (!reroll) return null;
     if (result.form) {
       const { finalizeUpbResult } = await import("./wizard-upb.mjs");

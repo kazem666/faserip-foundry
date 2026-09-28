@@ -4,6 +4,7 @@
  */
 
 import { ORIGINS, ORIGIN_TABLE, RANDOM_RANKS, ABILITY_MODIFIER_TABLE, SPECIAL_COUNT_TABLE, POWER_CATEGORIES, POWER_CATALOG, TALENT_CATEGORIES, TALENT_CATALOG, CONTACT_TYPES, RANK_BY_ID } from "./config.mjs";
+import { lifeTableSpecs } from "./life.mjs";
 import { UPB_POWERS, UPB_POWER_CLASSES, UPB_COUNT_TABLE, UPB_WEAKNESS_STIMULUS, UPB_WEAKNESS_EFFECT, UPB_WEAKNESS_DURATION } from "./data/upb.mjs";
 import { UPB_PHYSICAL_FORMS, UPB_ORIGINS_OF_POWER } from "./data/upb-forms.mjs";
 import {
@@ -281,6 +282,10 @@ export function buildRollTableDocuments() {
     "Catch or extra working on a starting magical item.",
     ROM_ITEM_CONDITION.map((row) => ({ lo: row.lo, hi: row.hi, text: row.label }))
   ));
+
+  for (const spec of lifeTableSpecs()) {
+    tables.push(tableDoc(spec.name, spec.description, spec.rows));
+  }
 
   return tables;
 }
