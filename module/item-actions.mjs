@@ -1,6 +1,7 @@
 import { BATTLE_EFFECTS, rankLabel, rankValue } from "./config.mjs";
 import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combatTarget } from "./play-rules.mjs";
 import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
+import { attackOutOfRange, rangePhrase } from "./movement.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -185,14 +186,14 @@ function abilityName(key) {
 }
 
 export const STANDARD_ACTIONS = [
-  { group: "strikes", id: "slugfest", label: "Slugfest", detail: "Unarmed · Fighting", column: "blunt", ability: "fighting" },
-  { group: "strikes", id: "edged", label: "Edged Attack", detail: "Fighting", column: "edged", ability: "fighting" },
-  { group: "strikes", id: "charging", label: "Charging", detail: "Endurance", column: "charging", ability: "endurance" },
-  { group: "ranged", id: "shooting", label: "Shooting", detail: "Agility", column: "shooting", ability: "agility" },
-  { group: "ranged", id: "throwEdged", label: "Thrown Weapon", detail: "Agility", column: "throwEdged", ability: "agility" },
-  { group: "ranged", id: "throwBlunt", label: "Thrown Object", detail: "Agility", column: "throwBlunt", ability: "agility" },
-  { group: "ranged", id: "energy", label: "Energy Attack", detail: "Agility", column: "energy", ability: "agility" },
-  { group: "ranged", id: "force", label: "Force Attack", detail: "Agility", column: "force", ability: "agility" },
+  { group: "strikes", id: "slugfest", label: "Slugfest", detail: "Unarmed · beside the target", column: "blunt", ability: "fighting" },
+  { group: "strikes", id: "edged", label: "Edged Attack", detail: "Beside the target", column: "edged", ability: "fighting" },
+  { group: "strikes", id: "charging", label: "Charging", detail: "Up to your move", column: "charging", ability: "endurance" },
+  { group: "ranged", id: "shooting", label: "Shooting", detail: "10 areas", column: "shooting", ability: "agility" },
+  { group: "ranged", id: "throwEdged", label: "Thrown Weapon", detail: "Strength throw range", column: "throwEdged", ability: "agility" },
+  { group: "ranged", id: "throwBlunt", label: "Thrown Object", detail: "Strength throw range", column: "throwBlunt", ability: "agility" },
+  { group: "ranged", id: "energy", label: "Energy Attack", detail: "5 areas", column: "energy", ability: "agility" },
+  { group: "ranged", id: "force", label: "Force Attack", detail: "5 areas", column: "force", ability: "agility" },
   { group: "holds", id: "grappling", label: "Grappling", detail: "Strength", column: "grappling", ability: "strength" },
   { group: "holds", id: "grabbing", label: "Grabbing", detail: "Strength", column: "grabbing", ability: "strength" },
   { group: "holds", id: "escaping", label: "Escaping", detail: "Strength", column: "escaping", ability: "strength" },
@@ -219,11 +220,16 @@ function actionCard(entry) {
   };
 }
 
-export function sheetActionGroups(items = []) {
+export function sheetActionGroups(items = [], actor = null) {
   const groups = ACTION_GROUPS.map((group) => ({
     id: group.id,
     label: group.label,
-    actions: STANDARD_ACTIONS.filter((entry) => entry.group === group.id).map((entry) => actionCard({ ...entry, standard: entry.id, itemId: "" }))
+    actions: STANDARD_ACTIONS.filter((entry) => entry.group === group.id).map((entry) => {
+      const reach = actor ? rangePhrase(actor, entry.column) : "";
+      const base = entry.id === "slugfest" ? "Unarmed" : abilityName(entry.ability);
+      const detail = reach ? `${base} · ${reach}` : entry.detail;
+      return actionCard({ ...entry, detail, standard: entry.id, itemId: "" });
+    })
   }));
   const powers = [];
   const weapons = [];
@@ -232,9 +238,10 @@ export function sheetActionGroups(items = []) {
     if (!item || (item.type !== "power" && item.type !== "weapon" && item.type !== "talent")) continue;
     const spec = describeItemAction(item);
     const rank = item.system?.rank ? rankLabel(item.system.rank) : "";
+    const reach = actor ? rangePhrase(actor, spec.column, item) : "";
     const card = actionCard({
       label: item.name,
-      detail: `${spec.label} · ${abilityName(spec.ability)}${rank ? ` · ${rank}` : ""}`,
+      detail: `${spec.label} · ${abilityName(spec.ability)}${reach ? ` · ${reach}` : ""}${rank ? ` · ${rank}` : ""}`,
       itemId: item.id,
       standard: ""
     });
@@ -279,6 +286,13 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
   const needsTarget = spec.kind === "attack" && ATTACK_COLUMNS.has(spec.column);
   const damaging = DAMAGE_COLUMNS.has(spec.column);
   const target = needsTarget ? combatTarget(actor?.id) : null;
+  if (target && spec.column) {
+    const blocked = attackOutOfRange(actor, target, spec.column, item);
+    if (blocked) {
+      ui.notifications?.warn(`${name}: ${blocked}`);
+      return null;
+    }
+  }
   if (damaging && !target) {
     ui.notifications?.warn(`Target a token before ${name} so damage can land.`);
     if (workflowActive("requireTarget")) return null;

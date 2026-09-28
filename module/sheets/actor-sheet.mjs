@@ -172,7 +172,7 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.talents = decorate(items.filter((i) => i.type === "talent"));
       context.contacts = decorate(items.filter((i) => i.type === "contact"));
       context.gear = decorate(items.filter((i) => i.type === "equipment" || i.type === "weapon"));
-      context.actionGroups = sheetActionGroups(items);
+      context.actionGroups = sheetActionGroups(items, actor);
       try {
         const TextEditor = getTextEditor();
         context.enrichedBiography = await TextEditor.enrichHTML(actor.system.biography ?? "", { secrets: actor.isOwner });

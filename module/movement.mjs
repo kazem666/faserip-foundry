@@ -1,4 +1,4 @@
-import { MOVEMENT_AREAS } from "./config.mjs";
+import { MOVEMENT_AREAS, THROW_RANGE } from "./config.mjs";
 
 export const DEFAULT_FEET_PER_AREA = 20;
 
@@ -45,11 +45,22 @@ export function feetToAreas(feet) {
   return per > 0 ? Number(feet || 0) / per : 0;
 }
 
+export function squaresPerArea() {
+  const grid = gridFeet();
+  return grid > 0 ? feetPerArea() / grid : 4;
+}
+
 export function formatAreaCount(areas) {
   const n = Number(areas);
   if (!Number.isFinite(n)) return "";
-  const whole = Math.abs(n - Math.round(n)) < 0.05;
-  const shown = whole ? Math.round(n) : Math.round(n * 10) / 10;
+  const quarter = Math.round(n * 4) / 4;
+  const shown = Math.abs(n - quarter) < 0.02 ? quarter : Math.round(n * 10) / 10;
+  if (shown === 0.25) return "1/4 area";
+  if (shown === 0.5) return "1/2 area";
+  if (shown === 0.75) return "3/4 area";
+  if (shown === 1.25) return "1 1/4 areas";
+  if (shown === 1.5) return "1 1/2 areas";
+  if (shown === 1.75) return "1 3/4 areas";
   return `${shown} ${Math.abs(shown) === 1 ? "area" : "areas"}`;
 }
 
@@ -98,6 +109,129 @@ export function movementLines(actor) {
   return { walk: formatMovement(modes.walk || 0), extra, feetPerArea: feetPerArea(), squaresPerArea: feetPerArea() / gridFeet() };
 }
 
+const MELEE_COLUMNS = new Set(["blunt", "edged", "grappling", "grabbing"]);
+const RANGED_COLUMNS = new Set(["charging", "shooting", "throwEdged", "throwBlunt", "energy", "force"]);
+const THROWN_COLUMNS = new Set(["throwEdged", "throwBlunt"]);
+const REACH_POWER = /elongat|plasticity|stretch|prehensile hair/;
+
+export function parseRangeAreas(text) {
+  const raw = String(text || "").trim().toLowerCase();
+  if (!raw || /touch|melee|beside|adjacent/.test(raw)) return null;
+  const areas = raw.match(/(\d+(?:\.\d+)?)\s*areas?/);
+  if (areas) return Number(areas[1]);
+  const feet = raw.match(/(\d+(?:\.\d+)?)\s*(?:ft|feet|')/);
+  if (feet) return Number(feet[1]) / feetPerArea();
+  return null;
+}
+
+export function reachSquares(actor) {
+  let areas = 0;
+  for (const item of actor?.items ?? []) {
+    if (item?.type !== "power") continue;
+    if (!REACH_POWER.test(String(item.name || "").toLowerCase())) continue;
+    areas = Math.max(areas, MOVEMENT_AREAS[item.system?.rank] ?? 0);
+  }
+  if (!(areas > 0)) return 1;
+  return Math.max(1, Math.round(areas * squaresPerArea()));
+}
+
+export function maxRangeSquares(actor, column, item = null) {
+  if (!MELEE_COLUMNS.has(column) && !RANGED_COLUMNS.has(column)) return Infinity;
+  const listed = parseRangeAreas(item?.system?.range);
+  if (column === "charging") {
+    const areas = movementModes(actor).walk || 0;
+    return Math.max(1, Math.round(areas * squaresPerArea()));
+  }
+  if (MELEE_COLUMNS.has(column)) {
+    const beside = reachSquares(actor);
+    if (listed == null) return beside;
+    return Math.max(beside, Math.round(listed * squaresPerArea()));
+  }
+  if (THROWN_COLUMNS.has(column)) {
+    const strength = typeof actor?.getAbilityRank === "function"
+      ? (THROW_RANGE[actor.getAbilityRank("strength")] ?? 1)
+      : 1;
+    const areas = listed ?? strength;
+    return Math.max(1, Math.round(areas * squaresPerArea()));
+  }
+  if (listed != null) return Math.max(1, Math.round(listed * squaresPerArea()));
+  if (item?.type === "power") {
+    const areas = THROW_RANGE[item.system?.rank] ?? 2;
+    return Math.max(1, Math.round(areas * squaresPerArea()));
+  }
+  const fallback = column === "shooting" ? 10 : column === "energy" || column === "force" ? 5 : 1;
+  return Math.max(1, Math.round(fallback * squaresPerArea()));
+}
+
+export function rangePhrase(actor, column, item = null) {
+  const max = maxRangeSquares(actor, column, item);
+  if (!Number.isFinite(max)) return "";
+  if (max <= 1 && MELEE_COLUMNS.has(column) && parseRangeAreas(item?.system?.range) == null && reachSquares(actor) <= 1) {
+    return "beside the target";
+  }
+  const areas = max / squaresPerArea();
+  return `${formatAreaCount(areas)} (${max} squares)`;
+}
+
+export function gridSeparation(tokenA, tokenB) {
+  const a = occupiedOffsets(tokenA);
+  const b = occupiedOffsets(tokenB);
+  if (!a.length || !b.length) return Infinity;
+  let best = Infinity;
+  for (const left of a) {
+    for (const right of b) {
+      const gap = Math.max(Math.abs(left.i - right.i), Math.abs(left.j - right.j));
+      if (gap < best) best = gap;
+    }
+  }
+  return best;
+}
+
+function occupiedOffsets(token) {
+  try {
+    const offsets = token?.document?.getOccupiedGridSpaceOffsets?.();
+    const list = offsets ? (Array.isArray(offsets) ? offsets : [...offsets]) : [];
+    const usable = list.filter((entry) => Number.isFinite(entry?.i) && Number.isFinite(entry?.j));
+    if (usable.length) return usable;
+  } catch {
+    /* grid not ready */
+  }
+  const doc = token?.document;
+  const grid = globalThis.canvas?.grid;
+  if (!doc || typeof grid?.getOffset !== "function") return [];
+  try {
+    const point = grid.getOffset({
+      x: doc.x + ((doc.width || 1) * (grid.size || 0)) / 2,
+      y: doc.y + ((doc.height || 1) * (grid.size || 0)) / 2
+    });
+    if (Number.isFinite(point?.i) && Number.isFinite(point?.j)) return [point];
+  } catch {
+    /* point is off the grid */
+  }
+  return [];
+}
+
+function sceneToken(actor, { targeted = false, controlled = false } = {}) {
+  const tokens = globalThis.canvas?.tokens?.placeables ?? [];
+  const matches = tokens.filter((token) => token.actor === actor || token.actor?.uuid === actor?.uuid);
+  if (controlled) return matches.find((token) => token.controlled) || matches[0] || null;
+  if (targeted) return matches.find((token) => token.isTargeted || token.targeted) || matches[0] || null;
+  return matches[0] || null;
+}
+
+export function attackOutOfRange(actor, target, column, item = null) {
+  if (!actor || !target || !column) return "";
+  const max = maxRangeSquares(actor, column, item);
+  if (!Number.isFinite(max)) return "";
+  const from = sceneToken(actor, { controlled: true });
+  const to = sceneToken(target, { targeted: true });
+  if (!from || !to) return "";
+  const gap = gridSeparation(from, to);
+  if (!Number.isFinite(gap) || !(gap > max)) return "";
+  const reach = max <= 1 ? "someone beside you" : rangePhrase(actor, column, item);
+  return `${target.name} is ${gap} squares away. This attack reaches ${reach}.`;
+}
+
 function appendAreas(label, feet) {
   const n = Number(feet);
   if (!Number.isFinite(n)) return label || "";
@@ -123,6 +257,15 @@ export function registerMovement() {
 function installMovementActions() {
   const actions = globalThis.CONFIG?.Token?.movement?.actions;
   if (!actions) return;
+  for (const [id, action] of Object.entries(actions)) {
+    if (!action || action.teleport || id === "displace" || action._faseripCost) continue;
+    action.getCostFunction = () => (first, _from, _to, distance) => {
+      const per = feetPerArea();
+      const measured = Number.isFinite(Number(distance)) ? Number(distance) : Number(first);
+      return per > 0 && Number.isFinite(measured) ? measured / per : measured;
+    };
+    action._faseripCost = true;
+  }
   for (const id of ["fly", "swim", "climb", "jump", "burrow", "blink"]) {
     const action = actions[id];
     if (!action || action._faseripWrapped) continue;
@@ -161,10 +304,16 @@ function installRulers() {
     _getWaypointLabelContext(waypoint, state) {
       const context = super._getWaypointLabelContext(waypoint, state);
       if (!context) return context;
-      const feet = Number(context.distance ?? waypoint?.measurement?.distance);
-      if (!Number.isFinite(feet)) return context;
-      const areas = formatAreaCount(feetToAreas(feet));
-      context.units = context.units ? `${context.units} · ${areas}` : areas;
+      const measured = Number(waypoint?.measurement?.distance);
+      if (!Number.isFinite(measured)) return context;
+      const areas = formatAreaCount(feetToAreas(measured));
+      if (context.cost) {
+        context.cost.total = areas;
+        context.cost.units = "";
+        context.cost.delta = "";
+      }
+      if (context.distance) context.distance.total = areas;
+      context.units = "";
       return context;
     }
 
