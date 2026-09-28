@@ -1,9 +1,9 @@
 <div class="faserip-chat color-{{color}}">
   <header>
     <span class="feat-label">{{label}}</span>
+    <span class="result-chip {{color}}">{{colorLabel}}</span>
     {{#if actorName}}<span class="who">{{actorName}}</span>{{/if}}
   </header>
-  <div class="result-banner {{color}}">{{colorLabel}}</div>
   <p class="hint">{{colorHint}}</p>
   {{#if effect}}
   <div class="effect-banner">{{effectLabel}}: <strong>{{effect}}</strong></div>
@@ -14,18 +14,16 @@
     {{#if intensityPass}} · SUCCESS{{else}} · FAIL{{/if}}
   </p>
   {{/if}}
-  <dl>
-    <dt>d100</dt>
-    <dd>{{raw}}{{#if karma}} <span class="mod">+{{karma}} Karma = {{adjusted}}</span>{{/if}}</dd>
-    <dt>Rank</dt>
-    <dd>{{baseRank}}{{#if cs}} <span class="mod">{{#if (gt cs 0)}}+{{/if}}{{cs}} CS → {{effectiveRank}}</span>{{/if}}</dd>
-    {{#if targetName}}<dt>Target</dt><dd>{{targetName}}</dd>{{/if}}
-  </dl>
+  <div class="feat-facts">
+    <span>d100 {{raw}}{{#if karma}} +{{karma}} = {{adjusted}}{{/if}}</span>
+    <span>{{baseRank}}{{#if cs}} {{#if (gt cs 0)}}+{{/if}}{{cs}} CS → {{effectiveRank}}{{/if}}</span>
+    {{#if targetName}}<button type="button" class="target-pill" data-faserip-pan title="Pan to {{targetName}}">{{targetName}}</button>{{/if}}
+  </div>
   {{#if shiftNotes}}<p class="hint">{{shiftNotes}}</p>{{/if}}
   {{#if healthNote}}<p class="effect-banner">{{healthNote}}</p>{{/if}}
   <div class="feat-actions">
     {{#if showButtons}}
-    {{#if canDamage}}<button type="button" data-faserip-apply>Apply {{damageAmount}} to {{targetName}}</button>{{/if}}
+    {{#if canDamage}}<button type="button" data-faserip-apply>Apply {{damageAmount}}{{#if damageEnergy}} energy{{/if}}{{#if targetName}} to {{targetName}}{{/if}}</button>{{/if}}
     {{#if checkColumn}}<button type="button" data-faserip-check>{{checkLabel}}</button>{{/if}}
     {{/if}}
   </div>

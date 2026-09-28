@@ -30,6 +30,13 @@ export function wakeResult(color) {
   return "dying";
 }
 
+/** One building floor is about 10 feet. Shorter than that is a step, not a fall. */
+export function floorsFromFeet(feet) {
+  const n = Number(feet);
+  if (!(n >= 8)) return 0;
+  return Math.max(1, Math.round(n / 10));
+}
+
 export function fallRate(floors) {
   let left = Math.max(0, Math.floor(Number(floors) || 0));
   if (left <= 0) return 0;

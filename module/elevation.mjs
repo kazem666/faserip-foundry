@@ -140,7 +140,24 @@ function installCombatElevation() {
       const token = combatant.token;
       turn.elevation = token ? Math.round(elevationFeet(token)) : "";
       turn.canEditElevation = !!token && !!combatant.isOwner;
+      turn.canDrop = !!token && token.movementAction !== "fly" && elevationFeet(token) >= 8 && !!combatant.isOwner;
       return turn;
+    }
+
+    _attachFrameListeners() {
+      super._attachFrameListeners();
+      this.element?.addEventListener("click", (event) => {
+        const button = event.target?.closest?.("[data-faserip-drop]");
+        if (!button) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const combatantId = button.closest("[data-combatant-id]")?.dataset?.combatantId;
+        const token = this.viewed?.combatants?.get(combatantId)?.token;
+        if (!token) return;
+        import("./falling.mjs").then((mod) => mod.dropToken(token)).catch((err) => {
+          console.warn("FASERIP | drop", err);
+        });
+      });
     }
 
     _onChangeInput(event) {

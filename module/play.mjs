@@ -139,16 +139,48 @@ export async function checkFromChat(message) {
   });
 }
 
+function markApplied(button) {
+  if (!button) return;
+  button.disabled = true;
+  button.textContent = "Applied";
+}
+
+async function panToFeatTarget(message) {
+  const uuid = message.getFlag?.("faserip", "targetUuid") || message.flags?.faserip?.targetUuid;
+  const id = message.getFlag?.("faserip", "targetId") || message.flags?.faserip?.targetId;
+  let doc = null;
+  try { doc = uuid ? await fromUuid(uuid) : null; } catch { doc = null; }
+  const placeable = doc?.object
+    || doc?.getActiveTokens?.()?.[0]
+    || globalThis.canvas?.tokens?.placeables?.find((token) => token.id === id || token.actor?.id === id);
+  const center = placeable?.center;
+  if (!center) return;
+  try { placeable.control?.({ releaseOthers: false }); } catch {}
+  await globalThis.canvas?.animatePan?.({ x: center.x, y: center.y });
+}
+
 export function bindFeatChat(message, html) {
   const root = html instanceof HTMLElement ? html : html?.[0];
   if (!root?.querySelectorAll) return;
-  root.querySelector("[data-faserip-apply]")?.addEventListener("click", (event) => {
+  const applyButton = root.querySelector("[data-faserip-apply]");
+  const applied = !!(message.getFlag?.("faserip", "damageApplied") ?? message.flags?.faserip?.damageApplied);
+  if (applied) markApplied(applyButton);
+  applyButton?.addEventListener("click", async (event) => {
     event.preventDefault();
-    applyDamageFromChat(message);
+    await applyDamageFromChat(message);
+    markApplied(applyButton);
   });
   root.querySelector("[data-faserip-check]")?.addEventListener("click", (event) => {
     event.preventDefault();
     checkFromChat(message);
+  });
+  root.querySelector("[data-faserip-pan]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    panToFeatTarget(message);
+  });
+  root.querySelector("[data-faserip-pan]")?.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    panToFeatTarget(message);
   });
 }
 

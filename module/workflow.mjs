@@ -116,6 +116,12 @@ export const WORKFLOW_SETTINGS = [
     default: true
   },
   {
+    key: "autoFalling",
+    name: "Workflow: Mark a token as falling when it is up in the air",
+    hint: "A token above the ground that is not using Fly is marked Falling. Drop, on the combat tracker, brings it down and applies falling impact. Turn this off if the marker gets in the way. The Drop button still works.",
+    default: true
+  },
+  {
     key: "strictInitiative",
     name: "Workflow: A natural 1 on initiative stays 1",
     hint: "The d10 is not modified when it rolls 1. Turn off to always add the Intuition modifier.",

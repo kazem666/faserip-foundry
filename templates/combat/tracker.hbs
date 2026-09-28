@@ -41,6 +41,9 @@
             <input type="text" class="elevation-input" inputmode="decimal" value="{{ elevation }}"
                    aria-label="Elevation in feet"
                    {{#unless canEditElevation}}readonly{{/unless}}>
+            {{#if canDrop}}
+            <button type="button" class="drop-control" data-faserip-drop title="Drop to the ground and roll falling impact">Drop</button>
+            {{/if}}
         </div>
 
         <div class="token-initiative">

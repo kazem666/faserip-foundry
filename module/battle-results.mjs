@@ -384,7 +384,7 @@ export async function clearCondition(actor) {
   await actor.update({ "system.condition.unconscious": false });
 }
 
-export async function promptFall(actor) {
+export async function promptFall(actor, { floors = 3 } = {}) {
   const { promptForm, formValue } = await import("./foundry-api.mjs");
   const { RANKS } = await import("./config.mjs");
   const options = RANKS.map((rank) => `<option value="${rank.id}" ${rank.id === "excellent" ? "selected" : ""}>${rank.label}</option>`).join("");
@@ -393,21 +393,22 @@ export async function promptFall(actor) {
     okLabel: "Apply",
     content: `<form>
       <p class="hint">The first round covers 3 floors, the second 6, the third 10, and later rounds 20. If the impact outranks the surface, the surface gives and the fall is absorbed. If the surface holds, the hero takes the impact after Body Armor.</p>
-      <div class="form-group"><label>Floors fallen</label><input type="number" name="floors" value="3" min="1" /></div>
+      <div class="form-group"><label>Floors fallen</label><input type="number" name="floors" value="${Math.max(1, Number(floors) || 3)}" min="1" /></div>
       <div class="form-group"><label>Surface rank</label><select name="surface">${options}</select></div>
     </form>`
   });
-  if (!form) return;
+  if (!form) return false;
   const outcome = fallOutcome(formValue(form, "floors"), formValue(form, "surface"));
   if (outcome.damage <= 0) {
     await note(outcome.rate <= 0
       ? `${actor.name} does not fall far enough to be hurt.`
       : `${actor.name} falls at ${outcome.rate} areas this round. The ${rankLabel(outcome.surface)} surface gives way, so the impact is absorbed.`);
-    return;
+    return true;
   }
   const taken = await actor.applyDamage(outcome.damage, { energy: false });
   await note(`${actor.name} falls at ${outcome.rate} areas this round onto ${rankLabel(outcome.surface)}. Impact ${rankLabel(outcome.impactId)} gets through for ${taken} Health.`);
   if (Number(actor.system?.health?.value) === 0) await collapseAtZero(actor);
+  return true;
 }
 
 export async function promptCatch(actor) {

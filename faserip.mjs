@@ -12,6 +12,7 @@ import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./
 import { registerComicSocket } from "./module/comic-hit.mjs";
 import { registerMovement } from "./module/movement.mjs";
 import { registerElevation } from "./module/elevation.mjs";
+import { registerFalling } from "./module/falling.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
@@ -19,7 +20,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.34";
+const VERSION = "1.17.35";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -245,6 +246,7 @@ Hooks.once("init", () => {
     registerSheets(FaseripActorSheet, FaseripItemSheet);
     registerMovement();
     registerElevation();
+    registerFalling();
     try {
       Handlebars.registerHelper("eq", (a, b) => a === b);
       Handlebars.registerHelper("gt", (a, b) => Number(a) > Number(b));
