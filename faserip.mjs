@@ -19,7 +19,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.33";
+const VERSION = "1.17.34";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -233,7 +233,8 @@ Hooks.once("init", () => {
     if (typeof BaseCombatant === "function") {
       class FaseripCombatant extends BaseCombatant {
         getInitiativeRoll(formula) {
-          if (typeof this.actor?.getInitiativeRoll === "function") return this.actor.getInitiativeRoll(formula);
+          const built = this.actor?.getInitiativeRoll?.(formula);
+          if (built && typeof built.evaluate === "function") return built;
           return super.getInitiativeRoll(formula);
         }
       }

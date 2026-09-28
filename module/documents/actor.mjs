@@ -199,9 +199,12 @@ export class FaseripActor extends Actor {
     return initiativeModifier(this.getAbilityNumber("intuition")) + initiativeTalentBonus(this);
   }
 
-  async getInitiativeRoll() {
+  getInitiativeRoll() {
     const mod = this.getInitiativeMod();
-    const roll = new Roll("1d10", this.getRollData());
+    const RollClass = globalThis.foundry?.dice?.Roll ?? globalThis.Roll;
+    const roll = typeof RollClass?.create === "function"
+      ? RollClass.create("1d10", this.getRollData())
+      : new RollClass("1d10", this.getRollData());
     const evaluate = roll.evaluate.bind(roll);
     roll.evaluate = async (options = {}) => {
       await evaluate({ ...options, allowInteractive: false });
