@@ -7,7 +7,7 @@ import { workflowOn } from "./workflow.mjs";
 const RULES = [
   [/flamethrower|fire jet|flame jet/, { file: "jb2a.fire_jet", mode: "ray" }],
   [/grenade|bazooka|missile launcher|artillery|\blaw\b|\bbomb\b|detonation|explosive power/, { file: "jb2a.fireball.beam.orange", impact: "jb2a.fireball.explosion.orange", mode: "ranged" }],
-  [/laser|photon|plasma beam|stun pistol|stun rifle|stun cannon/, { file: "jb2a.lasershot", mode: "ranged", muzzle: true }],
+  [/laser|photon|plasma/, { file: "jb2a.energy_beam", mode: "ray" }],
   [/shotgun|handgun|pistol|rifle|machine gun|sub-machine|cannon|gyro-jet|artillery/, { file: "jb2a.bullet", mode: "ranged", muzzle: true }],
   [/bow|crossbow|arrow/, { file: "jb2a.arrow", mode: "ranged" }],
   [/shuriken|kunai/, { file: "jb2a.shuriken", mode: "ranged" }],
@@ -68,6 +68,14 @@ const COLUMN = {
 };
 
 const POWER_CAST = { file: "jb2a.cast_generic", mode: "self" };
+const ENERGY_BEAM = { file: "jb2a.energy_beam", mode: "ray" };
+
+function isEnergyWeapon(item, columnId, blob) {
+  if (/flamethrower|flame jet|incendiary|sonic/.test(blob)) return false;
+  if (/laser|photon|plasma/.test(blob)) return true;
+  if (item?.type === "weapon" && /energy/i.test(item.system?.weaponType || "")) return true;
+  return item?.type === "weapon" && columnId === "energy" && /pistol|rifle|cannon|gun|beam/.test(blob);
+}
 
 function librariesOn() {
   const modules = globalThis.game?.modules;
@@ -85,6 +93,7 @@ function tokenOf(actor) {
 
 function specFor({ item, columnId, label }) {
   const blob = `${item?.name || ""} ${item?.system?.weaponType || ""} ${label || ""}`.toLowerCase();
+  if (isEnergyWeapon(item, columnId, blob)) return ENERGY_BEAM;
   const attack = !!(columnId && COLUMN[columnId]);
   for (const [re, spec] of RULES) {
     if (!re.test(blob)) continue;
