@@ -1,5 +1,6 @@
 import { BATTLE_EFFECTS, rankValue } from "./config.mjs";
-import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combinedShift } from "./play-rules.mjs";
+import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn } from "./play-rules.mjs";
+import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -183,10 +184,24 @@ export function targetedActor(excludeId = "") {
   return null;
 }
 
+export function defenseChoices(actor) {
+  const seen = new Set();
+  const choices = [];
+  for (const item of actor?.items ?? []) {
+    if (item.type !== "talent") continue;
+    const spec = describeItemAction(item);
+    if (!["dodging", "blocking", "evading"].includes(spec.column) || seen.has(spec.column)) continue;
+    seen.add(spec.column);
+    choices.push({ column: spec.column, ability: spec.ability, label: `${spec.label} (${item.name})` });
+  }
+  return choices;
+}
+
 export async function rollItemAction(actor, item, { dialog = false } = {}) {
   const spec = describeItemAction(item);
   const { promptFeatRoll, rollFeat } = await import("./dice/universal-table.mjs");
-  if (dialog) {
+  const fast = workflowActive("autoRollAttack") && (game.user?.isGM || workflowOn("playersFastForward"));
+  if (dialog || !fast) {
     return promptFeatRoll({
       actor,
       item,
@@ -196,21 +211,27 @@ export async function rollItemAction(actor, item, { dialog = false } = {}) {
       defaultColumn: spec.column
     });
   }
-  const target = spec.kind === "attack" && ATTACK_COLUMNS.has(spec.column) ? targetedActor(actor?.id) : null;
-  if (spec.kind === "attack" && DAMAGE_COLUMNS.has(spec.column) && !target) {
+  const needsTarget = spec.kind === "attack" && ATTACK_COLUMNS.has(spec.column);
+  const damaging = DAMAGE_COLUMNS.has(spec.column);
+  const target = needsTarget ? targetedActor(actor?.id) : null;
+  if (damaging && !target) {
     ui.notifications?.warn(`Target a token before ${item.name} so damage can land.`);
+    if (workflowActive("requireTarget")) return null;
   }
-  const plan = combinedShift(actor, { ability: spec.ability, effectsColumn: spec.column, target });
-  return rollFeat({
+  const reactionCs = target && damaging ? await offerDefenseReaction(target, item.name) : 0;
+  const plan = shiftPlan(actor, { ability: spec.ability, effectsColumn: spec.column, target });
+  const message = await rollFeat({
     actor,
     item,
     rankId: rankIdForAction(actor, item, spec),
     label: item.name,
-    cs: plan.cs,
+    cs: plan.cs + reactionCs,
     effectsColumn: spec.column,
     targetId: target?.id || "",
     shiftNotes: plan.note,
     consumeOutgoing: plan.consumeOutgoing,
-    consumeIncoming: plan.consumeIncoming
+    consumeIncoming: plan.consumeIncoming && !reactionCs
   });
+  if (needsTarget) clearUserTargets();
+  return message;
 }

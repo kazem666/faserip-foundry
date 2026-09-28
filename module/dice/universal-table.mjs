@@ -7,7 +7,8 @@ import {
   intensityNeeded,
   battleResult
 } from "../config.mjs";
-import { abilityForColumn, combinedShift, sceneActorChoices } from "../play-rules.mjs";
+import { abilityForColumn, sceneActorChoices } from "../play-rules.mjs";
+import { shiftPlan, showCombatButtons } from "../workflow.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -122,7 +123,8 @@ export async function rollFeat({
     canDamage: combat.damageAmount != null,
     damageEnergy: !!combat.damageEnergy,
     checkColumn: combat.checkColumn || "",
-    checkLabel: combat.checkColumn ? (BATTLE_EFFECTS[combat.checkColumn]?.label ?? "") : ""
+    checkLabel: combat.checkColumn ? (BATTLE_EFFECTS[combat.checkColumn]?.label ?? "") : "",
+    showButtons: showCombatButtons()
   });
 
   return ChatMessage.create({
@@ -218,7 +220,7 @@ export async function promptFeatRoll({
     if (!root || holdPending) return;
     const column = root.querySelector('[name="column"]')?.value || "";
     const target = game.actors.get(root.querySelector('[name="target"]')?.value || "");
-    const plan = combinedShift(actor, {
+    const plan = shiftPlan(actor, {
       ability: abilityForColumn(column, ability),
       effectsColumn: column,
       target
@@ -266,7 +268,7 @@ export async function promptFeatRoll({
   const effectsColumn = form.querySelector('[name="column"]')?.value || "";
   const targetId = form.querySelector('[name="target"]')?.value || "";
   const target = targetId ? game.actors.get(targetId) : null;
-  const plan = holdPending ? { note: "", consumeOutgoing: false, consumeIncoming: false } : combinedShift(actor, {
+  const plan = holdPending ? { note: "", consumeOutgoing: false, consumeIncoming: false } : shiftPlan(actor, {
     ability: abilityForColumn(effectsColumn, ability),
     effectsColumn,
     target

@@ -2,6 +2,7 @@ import { rankValue, ABILITIES, abilityNumber, initiativeModifier } from "../conf
 import { rollFeat } from "../dice/universal-table.mjs";
 import { createActorWizard } from "../wizard.mjs";
 import { initiativeTalentBonus, initiativeTotal, readPending, shiftedArmor, writePending } from "../play-rules.mjs";
+import { workflowOn } from "../workflow.mjs";
 
 function rolledStatsStamp(actor) {
   return actor.getFlag?.("faserip", "rolledStats") || actor.flags?.faserip?.rolledStats || null;
@@ -198,7 +199,7 @@ export class FaseripActor extends Actor {
       await evaluate({ ...options, allowInteractive: false });
       const term = roll.terms?.find((part) => part.faces === 10);
       const face = Number(term?.results?.[0]?.result ?? term?.total ?? roll.total);
-      roll._total = initiativeTotal(face, mod);
+      roll._total = workflowOn("strictInitiative") ? initiativeTotal(face, mod) : face + mod;
       return roll;
     };
     return roll;

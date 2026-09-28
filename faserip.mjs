@@ -8,6 +8,7 @@ import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-table-app.mjs";
 import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.mjs";
+import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./module/workflow.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
@@ -15,7 +16,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.21";
+const VERSION = "1.17.22";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -259,6 +260,7 @@ Hooks.once("init", () => {
       hint: "Judge only. When on, Generate Hero can use the magical-character path. Packs seed even if this is off.",
       scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
+    registerWorkflowSettings();
     try {
       game.settings.registerMenu("faserip", "generateHero", {
         name: "Generate Hero", label: "Open Character Builder",
@@ -356,9 +358,11 @@ Hooks.on("createChatMessage", (message) => {
   if (!rankId || roll == null || !color) return;
   const label = message.getFlag?.("faserip", "label") ?? message.flags?.faserip?.label ?? "FEAT";
   const actorName = message.getFlag?.("faserip", "actorName") ?? message.flags?.faserip?.actorName ?? message.speaker?.alias ?? "";
-  showRollOnTable({ rankId, roll, color, label, actorName }).catch((err) => {
-    console.warn("FASERIP | universal table", err);
-  });
+  if (workflowOn("showUniversalTable")) {
+    showRollOnTable({ rankId, roll, color, label, actorName }).catch((err) => {
+      console.warn("FASERIP | universal table", err);
+    });
+  }
   const damageAmount = message.getFlag?.("faserip", "damageAmount") ?? message.flags?.faserip?.damageAmount;
   const checkColumn = message.getFlag?.("faserip", "checkColumn") ?? message.flags?.faserip?.checkColumn;
   if (damageAmount == null && !checkColumn) return;
@@ -410,6 +414,7 @@ Hooks.on("renderHotbar", () => attachUniversalTableButton());
 
 Hooks.once("ready", () => {
   console.log("FASERIP | Ready", game.version, "system", VERSION);
+  registerWorkflowSocket();
   injectScrollableWindowStyles();
   attachUniversalTableButton();
   attachGenerateButton(ui.actors?.element);

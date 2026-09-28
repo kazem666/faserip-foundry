@@ -23,7 +23,9 @@
   </dl>
   {{#if shiftNotes}}<p class="hint">{{shiftNotes}}</p>{{/if}}
   <div class="feat-actions">
+    {{#if showButtons}}
     {{#if canDamage}}<button type="button" data-faserip-apply>Apply {{damageAmount}} to {{targetName}}</button>{{/if}}
     {{#if checkColumn}}<button type="button" data-faserip-check>{{checkLabel}}</button>{{/if}}
+    {{/if}}
   </div>
 </div>

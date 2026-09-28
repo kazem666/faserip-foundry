@@ -2,6 +2,7 @@ import { BATTLE_EFFECTS } from "./config.mjs";
 import { promptForm, formValue } from "./foundry-api.mjs";
 import { attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
 import { powerDamage } from "./item-actions.mjs";
+import { workflowActive, workflowOn } from "./workflow.mjs";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -16,7 +17,7 @@ function chainClient(message) {
 }
 
 export async function openCombatChain(message) {
-  if (!chainClient(message)) return;
+  if (!chainClient(message) || !workflowOn("workflowEnabled")) return;
   const targetId = message.getFlag?.("faserip", "targetId") ?? message.flags?.faserip?.targetId;
   const damageAmount = message.getFlag?.("faserip", "damageAmount") ?? message.flags?.faserip?.damageAmount;
   const checkColumn = message.getFlag?.("faserip", "checkColumn") ?? message.flags?.faserip?.checkColumn;
@@ -25,9 +26,10 @@ export async function openCombatChain(message) {
   if (!target) return;
   const energyDefault = !!(message.getFlag?.("faserip", "damageEnergy") ?? message.flags?.faserip?.damageEnergy);
 
-  if (damageAmount != null && !message.getFlag?.("faserip", "damageApplied")) {
+  if (damageAmount != null && workflowActive("autoApplyDamage") && !message.getFlag?.("faserip", "damageApplied")) {
     if (target.isOwner || game.user.isGM) {
-      const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault });
+      const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;
+      const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault, useForceField });
       try { await message.setFlag("faserip", "damageApplied", true); } catch {}
       ui.notifications.info(`${target.name} loses ${taken} Health.`);
     } else {
@@ -35,7 +37,7 @@ export async function openCombatChain(message) {
     }
   }
 
-  if (checkColumn && BATTLE_EFFECTS[checkColumn]) {
+  if (checkColumn && workflowActive("autoEnduranceCheck") && BATTLE_EFFECTS[checkColumn]) {
     const { rollFeat } = await import("./dice/universal-table.mjs");
     await rollFeat({
       actor: target,
