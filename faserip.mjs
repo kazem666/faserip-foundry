@@ -13,7 +13,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.16";
+const VERSION = "1.17.17";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -235,6 +235,11 @@ Hooks.once("init", () => {
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls.",
+      scope: "world", config: true, type: Boolean, default: false, restricted: true
+    });
+    game.settings.register("faserip", "useUltimateTalents", {
+      name: "Use Ultimate Talents list",
+      hint: "Judge only. When on, Generate Hero rolls talent categories and specialties from the Ultimate Talents list instead of the short Advanced Set list.",
       scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "useRealmsOfMagic", {

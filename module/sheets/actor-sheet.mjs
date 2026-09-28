@@ -15,6 +15,7 @@ import {
 import { promptFeatRoll } from "../dice/universal-table.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
+import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
 import { confirmDialog, promptForm, formValue, getActorSheetClass, getTextEditor } from "../foundry-api.mjs";
 
 const ActorSheetBase = getActorSheetClass();
@@ -190,12 +191,19 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.powerCatalog = Object.entries(POWER_CATALOG).map(([id, list]) => ({
         id, label: catLabels[id] || id, items: list
       }));
-      context.talentCatalog = Object.entries(TALENT_CATALOG).map(([id, list]) => ({
-        id,
-        label: ({ weapon: "Weapon Skills", fighting: "Fighting Skills", professional: "Professional Skills",
-          scientific: "Scientific Skills", mystic: "Mystic and Mental Skills", other: "Other Skills" })[id] || id,
-        items: list
-      }));
+      const talentsOn = isUltimateTalentsEnabled() || !!gen?.ultimateTalents;
+      context.talentCatalog = talentsOn
+        ? ULTIMATE_TALENT_CATEGORIES.map((cat) => ({
+          id: cat.id,
+          label: cat.label,
+          items: (ULTIMATE_TALENT_CATALOG[cat.id] || []).map((row) => row.name)
+        }))
+        : Object.entries(TALENT_CATALOG).map(([id, list]) => ({
+          id,
+          label: ({ weapon: "Weapon Skills", fighting: "Fighting Skills", professional: "Professional Skills",
+            scientific: "Scientific Skills", mystic: "Mystic and Mental Skills", other: "Other Skills" })[id] || id,
+          items: list
+        }));
       context.contactCatalog = CONTACT_TYPES;
       context.upbEnabled = isUpbEnabled() || !!gen?.upb;
       context.upbCatalog = context.upbEnabled ? upbCatalogGroups() : [];
@@ -296,7 +304,15 @@ export class FaseripActorSheet extends ActorSheetBase {
       }
       return this.createFromCatalog("power", catalog);
     }
-    if (type === "talent") return this.createFromCatalog("talent", TALENT_CATALOG);
+    if (type === "talent") {
+      const talentsOn = isUltimateTalentsEnabled() || !!this.actor.getFlag("faserip", "generation")?.ultimateTalents;
+      if (!talentsOn) return this.createFromCatalog("talent", TALENT_CATALOG);
+      const catalog = {};
+      for (const cat of ULTIMATE_TALENT_CATEGORIES) {
+        catalog[cat.label] = (ULTIMATE_TALENT_CATALOG[cat.id] || []).map((row) => row.name);
+      }
+      return this.createFromCatalog("talent", catalog);
+    }
     if (type === "contact") return this.createContact();
     await this.actor.createEmbeddedDocuments("Item", [{
       name: type === "weapon" ? "New Weapon" : "New Equipment",

@@ -4,6 +4,7 @@ import { rollHeroDice } from "./roll-hero-dice.mjs";
 import { dialog, collect, pickPowers, pickTalents, pickContacts, pickWeakness } from "./wizard-picks.mjs";
 import { isUpbEnabled, wantUpb } from "./data/upb.mjs";
 import { isRomEnabled, wantRom } from "./data/rom.mjs";
+import { isUltimateTalentsEnabled, wantUltimateTalents } from "./data/ultimate-talents.mjs";
 
 function abilityRows(result) {
   return ABILITIES.map((key) => {
@@ -25,6 +26,7 @@ export async function createActorWizard() {
       <div class="form-group"><label><input type="checkbox" name="secretId" /> Secret identity</label></div>
       <div class="form-group"><label><input type="checkbox" name="guided" checked /> Run full generation now</label></div>
       <div class="form-group"><label><input type="checkbox" name="useUpb" ${isUpbEnabled() ? "checked" : ""} /> Use Ultimate Powers Book (MA3) tables</label></div>
+      <div class="form-group"><label><input type="checkbox" name="useUltimateTalents" ${isUltimateTalentsEnabled() ? "checked" : ""} /> Use Ultimate Talents list</label></div>
       <div class="form-group"><label><input type="checkbox" name="useRom" ${isRomEnabled() ? "checked" : ""} /> Use Realms of Magic (MHAC-9) magical-character path</label></div>`, [
     { action: "create", label: "Continue", icon: "fa-solid fa-dice", default: true, callback: (_e, b) => ({ action: "create", ...collect(b) }) },
     { action: "cancel", label: "Cancel" }
@@ -37,6 +39,7 @@ export async function createActorWizard() {
     secretId: !!choice.secretId,
     guided: choice.guided !== false && choice.guided !== "false",
     useUpb: wantUpb(choice.useUpb),
+    useUltimateTalents: wantUltimateTalents(choice.useUltimateTalents),
     useRom: wantRom(choice.useRom)
   };
   const actor = await CONFIG.Actor.documentClass.create({
@@ -53,6 +56,7 @@ export async function createActorWizard() {
 
 export async function runFullGeneration(actor, extras = {}) {
   extras.useUpb = wantUpb(extras.useUpb);
+  extras.useUltimateTalents = wantUltimateTalents(extras.useUltimateTalents);
   extras.useRom = wantRom(extras.useRom);
   try { await actor.sheet?.close?.({ submit: false }); } catch {}
   let prelude = null;
@@ -75,6 +79,7 @@ export async function runFullGeneration(actor, extras = {}) {
     skipOriginMods: !!extras.useUpb
   });
   if (!result) return false;
+  result.useUltimateTalents = !!extras.useUltimateTalents;
   if (prelude) {
     const { finalizeUpbResult } = await import("./wizard-upb.mjs");
     result = finalizeUpbResult(result, prelude);
@@ -82,6 +87,7 @@ export async function runFullGeneration(actor, extras = {}) {
   const abilitiesOk = await reviewAbilities(actor, result, extras);
   if (!abilitiesOk) return false;
   result = abilitiesOk.result;
+  result.useUltimateTalents = !!extras.useUltimateTalents;
   extras.raise = abilitiesOk.raise;
 
   let selectedPowers = [];
@@ -146,7 +152,7 @@ export async function runFullGeneration(actor, extras = {}) {
   await actor.setFlag("faserip", "generation", {
     origin: result.origin.label || result.origin.id,
     form: result.form?.label || "", originOfPower: result.originOfPower?.label || "",
-    upb: !!extras.useUpb, rom: !!extras.useRom,
+    upb: !!extras.useUpb, rom: !!extras.useRom, ultimateTalents: !!extras.useUltimateTalents,
     school: romPrelude?.school?.label || "", magicType: romPrelude?.type?.label || "",
     powers: selectedPowers.map((p) => p.name),
     talents: selectedTalents.map((t) => t.name),

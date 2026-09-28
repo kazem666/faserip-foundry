@@ -5,6 +5,10 @@ import {
 import { promptedD100 } from "./dice/percentile.mjs";
 import { isTwoSlotPower, cleanPowerName, slotCost } from "./data/slots.mjs";
 import { parseCountPair, writeGeneratedItem } from "./chargen.mjs";
+import {
+  ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG, ULTIMATE_HITECH_CATEGORIES,
+  ultimateTalentNames, ultimateTalentByName
+} from "./data/ultimate-talents.mjs";
 
 const WEAKNESSES = [
   "None",
@@ -143,6 +147,7 @@ export async function pickPowers(result, actor = null, useUpb = false) {
 
 export async function pickTalents(result, actor = null) {
   const useUpb = !!(result.useUpb);
+  const useUltimate = !!(result.useUltimateTalents);
   const pair = parseCountPair(result.counts?.talents, [1, 4]);
   const needed = pair[0];
   const cap = Math.min(useUpb ? 8 : 6, pair[1]);
@@ -152,9 +157,38 @@ export async function pickTalents(result, actor = null) {
   async function chooseOne(slot, buyingExtra = false) {
     let heading;
     let list;
+    let preselect = "";
     if (hitech && selected.length === 0) {
-      list = [].concat(TALENT_CATALOG.scientific || [], TALENT_CATALOG.professional || []);
-      heading = "Scientific / Professional (required for Hi-Tech)";
+      if (useUltimate) {
+        list = ultimateTalentNames(ULTIMATE_HITECH_CATEGORIES);
+        heading = "Scientific / professional (Ultimate Talents, required for Hi-Tech)";
+      } else {
+        list = [].concat(TALENT_CATALOG.scientific || [], TALENT_CATALOG.professional || []);
+        heading = "Scientific / Professional (required for Hi-Tech)";
+      }
+    } else if (useUltimate) {
+      const catRoll = await promptedD100({
+        title: "Ultimate Talent category " + slot,
+        body: buyingExtra
+          ? "Extra Talent " + slot + " of max " + cap + ". Roll the Ultimate Talents category table."
+          : "Roll 1d100 on the Ultimate Talents category table for Talent " + slot + " of " + needed + " (max " + cap + ").",
+        flavor: (actor?.name || "Hero") + " - Ultimate Talent category " + slot,
+        actor
+      });
+      if (catRoll == null) return "keep";
+      const cat = { roll: catRoll, ...lookupTable(ULTIMATE_TALENT_CATEGORIES, catRoll) };
+      const rows = ULTIMATE_TALENT_CATALOG[cat.id] || [];
+      const subRoll = await promptedD100({
+        title: cat.label + " specialty",
+        body: "Roll 1d100 within <strong>" + esc(cat.label) + "</strong> (category d100 " + cat.roll + ").",
+        flavor: (actor?.name || "Hero") + " - " + cat.label,
+        actor
+      });
+      if (subRoll == null) return "keep";
+      const rolled = lookupTable(rows, subRoll);
+      list = rows.map((row) => row.name);
+      preselect = rolled?.name || "";
+      heading = cat.label + " (d100 " + cat.roll + ") · " + (rolled?.name || "specialty") + " (d100 " + subRoll + ")";
     } else {
       const catRoll = await promptedD100({
         title: "Talent category " + slot,
@@ -174,8 +208,10 @@ export async function pickTalents(result, actor = null) {
         ? "Extra Talent " + slot + " / max " + cap
         : "Starting Talent " + slot + " of " + needed,
       "<p>Category <strong>" + esc(heading) + "</strong>.</p>" +
-      "<p class='hint'>Starting Talents are " + needed + " (max " + cap + ").</p>" +
-      "<div class='form-group'><label>Talent</label><select name='talent'>" + options(list) + "</select></div>" +
+      "<p class='hint'>Starting Talents are " + needed + " (max " + cap + ")." +
+      (useUltimate ? " Ultimate Talents: the specialty roll is selected, and you can still pick another name in that category." : "") +
+      "</p>" +
+      "<div class='form-group'><label>Talent</label><select name='talent'>" + options(list, preselect) + "</select></div>" +
       "<div class='form-group'><label>Custom name</label><input name='custom' type='text' /></div>", [
       { action: "add", label: "Add Talent", icon: "fa-solid fa-plus", default: true, callback: (_e, b, d) => ({ action: "add", ...collect(b, d) }) },
       { action: "reroll", label: "Reroll Category", icon: "fa-solid fa-rotate" },
@@ -187,8 +223,13 @@ export async function pickTalents(result, actor = null) {
     if (choice === "reroll") return "reroll";
     const name = String((choice.custom || "").trim() || choice.talent || "").trim();
     if (!name) return "reroll";
-    selected.push({ name, category: heading });
-    if (actor) await writeGeneratedItem(actor, "talent", name, { category: heading, rank: "typical", number: 0 });
+    const gloss = ultimateTalentByName(name);
+    selected.push({ name, category: heading, definition: gloss?.definition || "" });
+    if (actor) {
+      await writeGeneratedItem(actor, "talent", name, {
+        category: heading, rank: "typical", number: 0, definition: gloss?.definition || ""
+      });
+    }
     ui.notifications.info("Talent " + selected.length + "/" + needed + " starting (max " + cap + "): " + name);
     return "added";
   }
