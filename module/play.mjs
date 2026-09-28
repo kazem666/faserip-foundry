@@ -3,6 +3,7 @@ import { promptForm, formValue } from "./foundry-api.mjs";
 import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
 import { powerDamage } from "./item-actions.mjs";
 import { workflowActive, workflowOn } from "./workflow.mjs";
+import { playComicHit } from "./comic-hit.mjs";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -34,6 +35,13 @@ export async function openCombatChain(message) {
       const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault, useForceField });
       try { await message.setFlag("faserip", "damageApplied", true); } catch {}
       ui.notifications.info(`${target.name} loses ${taken} Health.`);
+      playComicHit({
+        targetUuid: target.uuid,
+        columnId: message.getFlag?.("faserip", "effectsColumn") ?? message.flags?.faserip?.effectsColumn,
+        color: message.getFlag?.("faserip", "color") ?? message.flags?.faserip?.color,
+        effect: message.getFlag?.("faserip", "effect") ?? message.flags?.faserip?.effect,
+        taken
+      });
     } else {
       ui.notifications.warn(`Only the Judge can apply damage to ${target.name}. Use the button on the chat card.`);
     }
@@ -69,6 +77,13 @@ export async function applyDamageFromChat(message) {
   const taken = await target.applyDamage(amount, { energy });
   try { await message.setFlag("faserip", "damageApplied", true); } catch {}
   ui.notifications.info(`${target.name} loses ${taken} Health.`);
+  playComicHit({
+    targetUuid: target.uuid,
+    columnId: message.getFlag?.("faserip", "effectsColumn"),
+    color: message.getFlag?.("faserip", "color"),
+    effect: message.getFlag?.("faserip", "effect"),
+    taken
+  });
 }
 
 export async function checkFromChat(message) {

@@ -9,6 +9,7 @@ import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-table-app.mjs";
 import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.mjs";
 import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./module/workflow.mjs";
+import { registerComicSocket } from "./module/comic-hit.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
@@ -16,7 +17,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.23";
+const VERSION = "1.17.24";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -414,6 +415,7 @@ Hooks.on("renderHotbar", () => attachUniversalTableButton());
 Hooks.once("ready", () => {
   console.log("FASERIP | Ready", game.version, "system", VERSION);
   registerWorkflowSocket();
+  registerComicSocket();
   injectScrollableWindowStyles();
   attachUniversalTableButton();
   attachGenerateButton(ui.actors?.element);

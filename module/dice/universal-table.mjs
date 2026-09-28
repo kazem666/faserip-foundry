@@ -9,6 +9,7 @@ import {
 } from "../config.mjs";
 import { abilityForColumn, actorFromRef, combatTarget, sceneActorChoices } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
+import { playComicHit } from "../comic-hit.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -100,12 +101,13 @@ export async function rollFeat({
   }
   let healthNote = "";
   let damageApplied = false;
+  let taken = null;
   if (target && combat.damageAmount != null && workflowActive("autoApplyDamage")) {
     if (target.isOwner || game.user?.isGM) {
       const before = Number(target.system?.health?.value ?? 0);
       const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;
       try {
-        const taken = await target.applyDamage(Number(combat.damageAmount) || 0, {
+        taken = await target.applyDamage(Number(combat.damageAmount) || 0, {
           energy: !!combat.damageEnergy,
           useForceField
         });
@@ -122,6 +124,15 @@ export async function rollFeat({
         console.warn("FASERIP | apply damage", err);
       }
     }
+  }
+  if (!holdPending && target && (combat.damageAmount == null || damageApplied)) {
+    playComicHit({
+      targetUuid: target.uuid,
+      columnId,
+      color,
+      effect,
+      taken: damageApplied ? taken : null
+    });
   }
   const content = await foundry.applications.handlebars.renderTemplate("systems/faserip/templates/chat/feat-roll.hbs", {
     actorName: actor?.name ?? "",

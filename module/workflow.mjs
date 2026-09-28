@@ -74,6 +74,12 @@ export const WORKFLOW_SETTINGS = [
     default: false
   },
   {
+    key: "comicHits",
+    name: "Workflow: Comic hit bursts",
+    hint: "A hit pops a POW-style burst on the target. The word follows the attack, and green, yellow, red, Slam, Stun, and Kill change the size. The Health lost floats beside it.",
+    default: true
+  },
+  {
     key: "strictInitiative",
     name: "Workflow: A natural 1 on initiative stays 1",
     hint: "The d10 is not modified when it rolls 1. Turn off to always add the Intuition modifier.",

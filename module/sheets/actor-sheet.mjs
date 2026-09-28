@@ -16,6 +16,7 @@ import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
 import { promptJudgeAward } from "../play.mjs";
 import { formatPending, readPending } from "../play-rules.mjs";
 import { describeItemAction, rollItemAction } from "../item-actions.mjs";
+import { playComicHit } from "../comic-hit.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
@@ -358,6 +359,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     if (amount) {
       const taken = await this.actor.applyDamage(amount, { energy, useForceField });
       ui.notifications.info(this.actor.name + " takes " + taken + " after armor/fields.");
+      playComicHit({ targetUuid: this.actor.uuid, taken, effect: "Hit" });
     }
   }
 
