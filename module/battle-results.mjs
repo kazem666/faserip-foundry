@@ -127,7 +127,7 @@ async function markDead(actor, killerId) {
   await note(`${killer.name} drops to 0 current Karma.`);
 }
 
-async function dropEndurance(actor, killerId) {
+export async function dropEndurance(actor, killerId) {
   const current = actor.getAbilityRank?.("endurance") || "typical";
   if (rankIndexSafe(current) <= 0) {
     await markDead(actor, killerId);
@@ -159,9 +159,27 @@ async function applySlam(actor, color, resultOf) {
     await note(`${actor.name} is staggered in place.`);
     return;
   }
-  const shove = await shoveActor(actor, attacker, squares);
+  let facing = "back";
+  if (workflowActive("autoSlamDirection")) {
+    const roll = await new Roll("1d10").evaluate({ allowInteractive: false });
+    facing = ["back", "back", "back", "backLeft", "backLeft", "backRight", "backRight", "right", "left", "up", "down"][Number(roll.total)] || "back";
+  }
+  const names = {
+    back: "straight back",
+    backLeft: "back and left",
+    backRight: "back and right",
+    right: "straight right",
+    left: "straight left",
+    up: "straight up",
+    down: "straight down"
+  };
+  const shove = await shoveActor(actor, attacker, squares, facing);
+  if (shove.vertical) {
+    await note(`${actor.name} is slammed ${names[shove.vertical]}.`);
+    return;
+  }
   const label = color === "yellow" ? "staggers" : color === "green" ? "is knocked back 1 area" : "is slammed";
-  const landed = shove.squares ? `${shove.squares} square${shove.squares === 1 ? "" : "s"}` : "no open square";
+  const landed = shove.squares ? `${shove.squares} square${shove.squares === 1 ? "" : "s"} ${names[facing]}` : "no open square";
   const blocked = shove.stopped ? " Something in the way stops the slide. Treat the rest as a charging impact." : "";
   await note(`${actor.name} ${label} (${landed}).${blocked}`);
 }

@@ -225,6 +225,15 @@ export async function promptJudgeAward(preselect = []) {
     content: `
       <p class="hint">Selected tokens start checked. Use a negative number to reduce Karma or Popularity.</p>
       <div class="form-group"><label>Karma<input type="number" name="karma" value="0" step="1" /></label></div>
+      <div class="form-group"><label>Popularity preset
+        <select name="popPreset">
+          <option value="">Custom amount</option>
+          <option value="-30">Defeated by a hero (−30)</option>
+          <option value="10">Defeated a hero (+10)</option>
+          <option value="5">Defeated another villain (+5)</option>
+          <option value="-5">Imprisoned or a public challenge (−5)</option>
+        </select>
+      </label></div>
       <div class="form-group"><label>Hero Popularity<input type="number" name="popularity" value="0" step="1" /></label></div>
       <div class="form-group"><label>Secret Popularity<input type="number" name="secret" value="0" step="1" /></label></div>
       <div class="award-list">${checks}</div>
@@ -232,7 +241,8 @@ export async function promptJudgeAward(preselect = []) {
   });
   if (!form) return null;
   const karma = Number(formValue(form, "karma") || 0);
-  const popularity = Number(formValue(form, "popularity") || 0);
+  const preset = formValue(form, "popPreset");
+  const popularity = preset === "" ? Number(formValue(form, "popularity") || 0) : Number(preset);
   const secret = Number(formValue(form, "secret") || 0);
   const ids = [...form.querySelectorAll('[name="actor"]:checked')].map((el) => el.value);
   if (!ids.length) {

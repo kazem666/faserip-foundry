@@ -292,6 +292,12 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
   const damaging = DAMAGE_COLUMNS.has(spec.column);
   const target = needsTarget ? combatTarget(actor?.id) : null;
   if (target && spec.column) {
+    const { situationProblem } = await import("./situation.mjs");
+    const situationBlock = situationProblem(actor, target, spec.column);
+    if (situationBlock) {
+      ui.notifications?.warn(`${name}: ${situationBlock}`);
+      return null;
+    }
     const blocked = attackOutOfRange(actor, target, spec.column, item);
     if (blocked) {
       ui.notifications?.warn(`${name}: ${blocked}`);
@@ -322,6 +328,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     targetId: target?.id || "",
     targetUuid: target?.uuid || "",
     shiftNotes: plan.note,
+    damageCs: plan.damageCs || 0,
     skipCondition: true,
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming && !reactionCs

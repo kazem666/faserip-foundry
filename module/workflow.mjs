@@ -68,6 +68,24 @@ export const WORKFLOW_SETTINGS = [
     default: true
   },
   {
+    key: "autoSituation",
+    name: "Workflow: Apply the current situation",
+    hint: "Darkness, fog, rain, heat, cold, and underwater change FEATs, damage, and sight. The Judge sets the situation on the character sheet. Night vision and water powers ignore the matching penalty.",
+    default: true
+  },
+  {
+    key: "autoSlamDirection",
+    name: "Workflow: Roll slam direction",
+    hint: "A Slam that moves the target rolls a direction: back, back-left, back-right, left, right, up, or down.",
+    default: true
+  },
+  {
+    key: "autoLineOfFire",
+    name: "Workflow: A ranged miss checks people beside the target",
+    hint: "A white miss with a ranged attack rolls again at −2 CS against each other token beside the original target.",
+    default: true
+  },
+  {
     key: "autoKarmaOnKill",
     name: "Workflow: A kill clears the attacker's current Karma",
     hint: "When Endurance reaches Shift 0 from a Kill result, the attacker's current Karma drops to 0. Banked advancement Karma stays. A hero in the group pool also wipes that pool.",
@@ -120,6 +138,15 @@ export function registerWorkflowSettings() {
       restricted: true
     });
   }
+  game.settings.register("faserip", "situation", {
+    name: "Current situation",
+    hint: "Blank, dark, fog, rain, heavyRain, heat, cold, or underwater. The character sheet control sets this.",
+    scope: "world",
+    config: true,
+    type: String,
+    default: "",
+    restricted: true
+  });
   game.settings.register("faserip", "groupKarma", {
     name: "Group Karma pool",
     hint: "Shared Karma for a team. A member who reduces someone to Shift 0 Endurance drops this pool to 0 along with their own current Karma.",

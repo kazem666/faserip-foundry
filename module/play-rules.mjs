@@ -1,4 +1,5 @@
 import { BATTLE_EFFECTS, rankFromNumber, rankValue, shiftRank } from "./config.mjs";
+import { situationMods } from "./situation.mjs";
 
 export const ATTACK_COLUMNS = new Set([
   "blunt", "edged", "shooting", "throwEdged", "throwBlunt", "energy", "force", "charging", "grappling", "grabbing"
@@ -179,8 +180,12 @@ export function combinedShift(actor, { ability = "", effectsColumn = "", target 
       consumeIncoming = true;
     }
   }
+  const situation = situationMods(actor, effectsColumn);
+  cs += situation.cs;
+  if (situation.note) notes.push(situation.note);
   return {
     cs,
+    damageCs: situation.damageCs,
     notes,
     note: notes.join("; "),
     consumeOutgoing: !!pending.nextCs,

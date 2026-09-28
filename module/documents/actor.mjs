@@ -145,6 +145,10 @@ export class FaseripActor extends Actor {
   }
 
   async heal(amount) {
+    if (this.getFlag("faserip", "poison")) {
+      ui.notifications?.warn(`${this.name} cannot regain Health until the poison is treated.`);
+      return;
+    }
     const max = this.system.health.max ?? 0;
     const value = Math.min(max, (this.system.health.value ?? 0) + Number(amount || 0));
     const update = { "system.health.value": value };
@@ -155,6 +159,12 @@ export class FaseripActor extends Actor {
   async recover() {
     if (this.system.condition?.recoveredToday) {
       ui.notifications.warn(`${this.name} already used Recovery today.`);
+      return;
+    }
+    const last = Number(this.system.condition?.lastDamageRound || 0);
+    const round = Number(game.combat?.round || 0);
+    if (round && last && round - last < 10) {
+      ui.notifications.warn(`${this.name} can recover 10 turns after the last hit. ${10 - (round - last)} turns remain.`);
       return;
     }
     const amount = this.getAbilityNumber("endurance");

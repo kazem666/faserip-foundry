@@ -228,6 +228,10 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.conditionHours = battle?.state === "unconscious" && battle?.unit === "hours";
       context.groupMember = !!actor.getFlag("faserip", "groupMember");
       try { context.groupKarma = game.settings.get("faserip", "groupKarma") || 0; } catch { context.groupKarma = 0; }
+      const situationMod = await import("../situation.mjs");
+      context.situations = situationMod.SITUATIONS;
+      context.situation = situationMod.currentSituation().id;
+      context.poisoned = !!actor.getFlag("faserip", "poison");
     } catch (err) {
       console.error("FASERIP | actor sheet getData failed", err);
       ui.notifications?.error(`FASERIP sheet data error: ${err.message}`);
@@ -292,6 +296,14 @@ export class FaseripActorSheet extends ActorSheetBase {
     on("addPower", this._onAddPower);
     on("addTalent", this._onAddTalent);
     on("addContact", this._onAddContact);
+    on("setSituation", this._onSetSituation);
+    on("randomEvent", this._onRandomEvent);
+    on("holdBreath", this._onHoldBreath);
+    on("drown", this._onDrown);
+    on("poison", this._onPoison);
+    on("treatPoison", this._onTreatPoison);
+    on("escapeFate", this._onEscapeFate);
+    on("askContact", this._onAskContact);
   }
 
   async _onGenerate(event) {
@@ -689,15 +701,146 @@ export class FaseripActorSheet extends ActorSheetBase {
     const stunts = foundry.utils.deepClone(item.system.stunts ?? []);
     const row = stunts[idx];
     if (!row || row.mastered) return;
-    row.attempts = Math.min(10, Number(row.attempts || 0) + 1);
-    if (row.attempts >= 10) row.mastered = true;
+    const bank = this.actor.system.karmaBank ?? {};
     await this.actor.update({
       "system.karma.value": available - fee,
-      "system.karmaBank.powers": (this.actor.system.karmaBank?.powers ?? 0) + fee,
-      "system.karmaBank.totalSpent": (this.actor.system.karmaBank?.totalSpent ?? 0) + fee
+      "system.karmaBank.powers": (bank.powers ?? 0) + fee,
+      "system.karmaBank.totalSpent": (bank.totalSpent ?? 0) + fee
     });
+    const message = await promptFeatRoll({
+      actor: this.actor,
+      rankId: item.system.rank || "typical",
+      label: `${item.name}: ${row.name}`,
+      ability: "powers"
+    });
+    const color = message?.flags?.faserip?.color || message?.getFlag?.("faserip", "color") || "";
+    if (!message || color === "white") {
+      await this.actor.update({
+        "system.karma.value": available,
+        "system.karmaBank.powers": bank.powers ?? 0,
+        "system.karmaBank.totalSpent": bank.totalSpent ?? 0
+      });
+      ui.notifications.info(`${row.name} does not work. The 100 Karma is returned.`);
+      return;
+    }
+    row.attempts = Math.min(10, Number(row.attempts || 0) + 1);
+    if (row.attempts >= 10) row.mastered = true;
     await item.update({ "system.stunts": stunts });
-    ui.notifications.info(row.name + ": attempt " + row.attempts + "/10");
+    const verdict = {
+      green: "does not work, and that much is clear.",
+      yellow: "might work, but only in a specific condition.",
+      red: "works. The Judge sets what it does."
+    }[color] || "is attempted.";
+    ui.notifications.info(`${row.name} ${verdict} Attempt ${row.attempts}/10.`);
+  }
+
+  async _onAskContact(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(event.currentTarget.dataset.itemId);
+    if (!item) return;
+    ui.notifications.info(`The Judge checks ${item.name} in private.`);
+    return promptFeatRoll({
+      actor: this.actor,
+      rankId: (await import("../config.mjs")).rankFromNumber(Math.max(0, Number(this.actor.system?.popularity?.value || 0))),
+      label: `Contact: ${item.name}`,
+      karmaMode: "none",
+      whisperGM: true
+    });
+  }
+
+  async _onSetSituation(event) {
+    event.preventDefault();
+    const { setSituation } = await import("../situation.mjs");
+    return setSituation(this._formEl("situationId")?.value || "");
+  }
+
+  async _onRandomEvent(event) {
+    event.preventDefault();
+    const { rollRandomEvent } = await import("../situation.mjs");
+    return rollRandomEvent();
+  }
+
+  async _onHoldBreath(event) {
+    event.preventDefault();
+    const held = Number(this.actor.getFlag("faserip", "breath") || 0) + 1;
+    await this.actor.setFlag("faserip", "breath", held);
+    const { rankFromNumber } = await import("../config.mjs");
+    return promptFeatRoll({
+      actor: this.actor,
+      rankId: this.actor.getAbilityRank("endurance"),
+      label: `Holding breath, round ${held}`,
+      ability: "endurance",
+      defaultIntensity: rankFromNumber(held)
+    });
+  }
+
+  async _onDrown(event) {
+    event.preventDefault();
+    const message = await promptFeatRoll({
+      actor: this.actor,
+      rankId: this.actor.getAbilityRank("endurance"),
+      label: "Drowning",
+      ability: "endurance",
+      defaultIntensity: "monstrous"
+    });
+    const pass = message?.flags?.faserip?.intensityPass;
+    if (message && pass === false) {
+      const { dropEndurance } = await import("../battle-results.mjs");
+      await dropEndurance(this.actor, "");
+    }
+  }
+
+  async _onPoison(event) {
+    event.preventDefault();
+    const { RANKS } = await import("../config.mjs");
+    const options = RANKS.map((rank) => `<option value="${rank.id}" ${rank.id === "excellent" ? "selected" : ""}>${rank.label}</option>`).join("");
+    const form = await promptForm({
+      title: "Poison",
+      okLabel: "Roll",
+      content: `<form><p class="hint">Failure means 1–10 rounds unconscious and one Endurance rank lost. Health does not return until the poison is treated.</p><div class="form-group"><label>Intensity</label><select name="rank">${options}</select></div></form>`
+    });
+    if (!form) return;
+    const intensityId = formValue(form, "rank") || "excellent";
+    const message = await promptFeatRoll({
+      actor: this.actor,
+      rankId: this.actor.getAbilityRank("endurance"),
+      label: "Poison",
+      ability: "endurance",
+      defaultIntensity: intensityId
+    });
+    if (!message || message.flags?.faserip?.intensityPass !== false) return;
+    const rounds = (await new Roll("1d10").evaluate({ allowInteractive: false })).total;
+    await this.actor.setFlag("faserip", "poison", { intensityId, rounds });
+    await this.actor.update({ "system.condition.unconscious": true });
+    const { dropEndurance } = await import("../battle-results.mjs");
+    await dropEndurance(this.actor, "");
+    ui.notifications.warn(`${this.actor.name} is poisoned and unconscious for ${rounds} rounds.`);
+  }
+
+  async _onTreatPoison(event) {
+    event.preventDefault();
+    if (!this.actor.getFlag("faserip", "poison")) {
+      ui.notifications.info(`${this.actor.name} is not poisoned.`);
+      return;
+    }
+    const skilled = [...this.actor.items].some((item) => item.type === "talent" && /first aid|medicine/i.test(item.name || ""));
+    if (!skilled && !game.user?.isGM) {
+      ui.notifications.warn("Treating poison takes First Aid, Medicine, or the Judge.");
+      return;
+    }
+    await this.actor.unsetFlag("faserip", "poison");
+    ui.notifications.info(`${this.actor.name} is no longer poisoned.`);
+  }
+
+  async _onEscapeFate(event) {
+    event.preventDefault();
+    const karma = Number(this.actor.system?.karma?.value || 0);
+    if (karma <= 100) {
+      ui.notifications.warn(`${this.actor.name} needs more than 100 Karma to spend down to the escape reserve.`);
+      return;
+    }
+    await this.actor.update({ "system.karma.value": 100 });
+    ui.notifications.info(`${this.actor.name} spends Karma down to 100 trying to escape.`);
   }
 
   async _onContactAssist(event) {

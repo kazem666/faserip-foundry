@@ -237,7 +237,28 @@ export function chargeStop(attackerCells, targetCells, blocked = []) {
   return best;
 }
 
-export function knockbackLanding(targetCells, attackerCells, squares, blocked = []) {
+const OCTANTS = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+
+export function facingStep(di, dj, facing = "back") {
+  const turns = { back: 0, backLeft: 1, backRight: -1, left: 2, right: -2 }[facing];
+  if (turns == null) return null;
+  const exact = OCTANTS.findIndex((dir) => dir[0] === di && dir[1] === dj);
+  let best = exact;
+  if (best < 0) {
+    let score = -Infinity;
+    OCTANTS.forEach((dir, index) => {
+      const dot = dir[0] * di + dir[1] * dj;
+      if (dot > score) {
+        score = dot;
+        best = index;
+      }
+    });
+  }
+  const next = OCTANTS[(best + ((turns % 8) + 8)) % 8];
+  return { di: next[0], dj: next[1] };
+}
+
+export function knockbackLanding(targetCells, attackerCells, squares, blocked = [], facing = "back") {
   const steps = Math.max(0, Math.floor(Number(squares) || 0));
   if (!targetCells?.length || steps <= 0) return null;
   const origin = anchorOffset(targetCells);
@@ -251,6 +272,14 @@ export function knockbackLanding(targetCells, attackerCells, squares, blocked = 
       di = Math.sign(rawI);
       dj = Math.sign(rawJ);
     }
+  }
+  if (facing === "up" || facing === "down") {
+    return { i: origin.i, j: origin.j, squares: 0, stopped: false, vertical: facing };
+  }
+  const turned = facingStep(di, dj, facing);
+  if (turned) {
+    di = turned.di;
+    dj = turned.dj;
   }
   const footprint = targetCells.map((cell) => ({ di: cell.i - origin.i, dj: cell.j - origin.j }));
   const blockedSet = new Set(blocked.map(cellKey));
@@ -268,7 +297,7 @@ export function knockbackLanding(targetCells, attackerCells, squares, blocked = 
   return landed;
 }
 
-export async function shoveActor(actor, awayFrom, squares) {
+export async function shoveActor(actor, awayFrom, squares, facing = "back") {
   const token = sceneToken(actor);
   const fromToken = awayFrom ? sceneToken(awayFrom) : null;
   if (!token) return { moved: false, squares: 0, stopped: false };
@@ -276,8 +305,10 @@ export async function shoveActor(actor, awayFrom, squares) {
     occupiedOffsets(token),
     fromToken ? occupiedOffsets(fromToken) : [],
     squares,
-    occupiedByOthers(token, fromToken)
+    occupiedByOthers(token, fromToken),
+    facing
   );
+  if (landing?.vertical) return { moved: false, squares: 0, stopped: false, vertical: landing.vertical };
   if (!landing || landing.squares <= 0) return { moved: false, squares: 0, stopped: !!landing?.stopped };
   const point = gridTopLeft(landing);
   if (!point) return { moved: false, squares: landing.squares, stopped: landing.stopped };

@@ -168,7 +168,22 @@
         <button type="button" data-action="toggleTable">Universal Table</button>
         <button type="button" data-action="fallImpact">Fall</button>
         <button type="button" data-action="catchFall">Catch</button>
-        {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
+        <button type="button" data-action="holdBreath">Hold breath</button>
+        <button type="button" data-action="drown">Drowning</button>
+        <button type="button" data-action="poison">Poison</button>
+        <button type="button" data-action="treatPoison">Treat poison</button>
+        <button type="button" data-action="escapeFate">Escape to 100 Karma</button>
+        {{#if isGM}}<button type="button" data-action="award">Award</button>
+        <label>Situation
+          <select name="situationId">
+            {{#each situations as |row|}}
+            <option value="{{row.id}}" {{#if (eq row.id ../situation)}}selected{{/if}}>{{row.label}}</option>
+            {{/each}}
+          </select>
+        </label>
+        <button type="button" data-action="setSituation">Set situation</button>
+        <button type="button" data-action="randomEvent">Random event</button>
+        {{/if}}
         {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
         <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
         <label>Battle Effects
@@ -313,7 +328,7 @@
             {{#if stunt.mastered}}<span class="mastered">Mastered</span>{{/if}}
           </div>
           {{#unless stunt.mastered}}
-          <button type="button" data-action="stuntAttempt" data-item-id="{{item.id}}" data-stunt="{{stunt.index}}">Mark attempt (−100 Karma)</button>
+          <button type="button" data-action="stuntAttempt" data-item-id="{{item.id}}" data-stunt="{{stunt.index}}">Try stunt (−100 Karma)</button>
           {{/unless}}
         </div>
         {{/each}}
@@ -370,6 +385,7 @@
         </div>
         {{#unless item.acquired}}
         <button type="button" data-action="contactAssist" data-item-id="{{item.id}}">Assistance (−100 Karma)</button>
+        <button type="button" data-action="askContact" data-item-id="{{item.id}}">Ask</button>
         {{/unless}}
       </article>
       {{/each}}

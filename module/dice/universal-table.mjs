@@ -21,6 +21,7 @@ import {
   soakAmount,
   spoilBlindside
 } from "../battle-results.mjs";
+import { shiftDamageAmount, situationProblem, splashMiss } from "../situation.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -65,7 +66,10 @@ export async function rollFeat({
   lure = false,
   shieldRank = "",
   skipCondition = false,
-  resultOf = null
+  resultOf = null,
+  damageCs = 0,
+  lineCheck = false,
+  whisperGM = false
 } = {}) {
   const columnIdEarly = resolveBattleColumn(effectsColumn);
   if (!skipCondition && actor && !isCheckColumn(columnIdEarly) && conditionBlock(actor)) {
@@ -133,6 +137,7 @@ export async function rollFeat({
     });
     combat = combatFlags({ actor, item, target, columnId, effect });
   }
+  if (damageCs && combat.damageAmount) combat.damageAmount = shiftDamageAmount(combat.damageAmount, damageCs);
   if (blindside) combat.checkColumn = "";
   const shieldValue = shieldRank ? rankValue(shieldRank) : 0;
   let healthNote = "";
@@ -221,7 +226,7 @@ export async function rollFeat({
     showButtons: showCombatButtons()
   });
 
-  const message = await ChatMessage.create({
+  const messageData = {
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
     rolls: [roll],
@@ -249,9 +254,14 @@ export async function rollFeat({
         effectBlocked
       }
     }
-  });
+  };
+  if (whisperGM) messageData.whisper = (game.users?.filter((user) => user.isGM) ?? []).map((user) => user.id);
+  const message = await ChatMessage.create(messageData);
   if (isCheckColumn(columnId)) {
     await applyCheckResult({ actor, color, columnId, resultOf });
+  }
+  if (!lineCheck && color === "white" && target) {
+    await splashMiss({ actor, target, columnId, rankId: effectiveId, label, item });
   }
   return message;
 }
@@ -278,7 +288,8 @@ export async function promptFeatRoll({
   defaultIntensity = "",
   holdPending = false,
   karmaMode = "normal",
-  resultOf = null
+  resultOf = null,
+  whisperGM = false
 } = {}) {
   if (actor && !isCheckColumn(defaultColumn) && conditionBlock(actor)) {
     ui.notifications?.warn(conditionBlock(actor));
@@ -391,6 +402,11 @@ export async function promptFeatRoll({
   const picked = form.querySelector('[name="target"]')?.value || "";
   const target = actorFromRef(picked) || combatTarget(actor?.id);
   if (target && effectsColumn) {
+    const situationBlock = situationProblem(actor, target, effectsColumn);
+    if (situationBlock) {
+      ui.notifications?.warn(`${label}: ${situationBlock}`);
+      return null;
+    }
     const blocked = attackOutOfRange(actor, target, effectsColumn, item);
     if (blocked) {
       ui.notifications?.warn(`${label}: ${blocked}`);
@@ -421,12 +437,14 @@ export async function promptFeatRoll({
     shiftNotes: plan.note,
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming,
+    damageCs: plan.damageCs || 0,
     holdPending,
     allowKarma: karmaMode !== "none" && (karmaMode !== "resources" || invention),
     blindside: !!form.querySelector('[name="blindside"]')?.checked,
     lure: !!form.querySelector('[name="lure"]')?.checked,
     shieldRank: form.querySelector('[name="shield"]')?.value || "",
-    resultOf
+    resultOf,
+    whisperGM
   });
 }
 
