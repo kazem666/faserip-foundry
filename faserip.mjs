@@ -6,6 +6,7 @@ import { buildActorSheetClass } from "./module/sheets/actor-sheet.mjs";
 import { buildItemSheetClass } from "./module/sheets/item-sheet.mjs";
 import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded, initiativeModifier } from "./module/config.mjs";
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
+import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-table-app.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
@@ -13,7 +14,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.18";
+const VERSION = "1.17.19";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -266,6 +267,7 @@ Hooks.once("init", () => {
       rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, writeGeneratedItem, persistGenerationStats, reapplyRolledStats,
       ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS,
       rankLabel, shiftRank, intensityNeeded, initiativeModifier,
+      toggleUniversalTable, openUniversalTable: showRollOnTable,
       ensureCatalogPacks, fillWorldDefinitions, seedRollTables, buildCatalogItemData, describeCatalogItem,
       ActorSheet: FaseripActorSheet, ItemSheet: FaseripItemSheet
     };
@@ -310,9 +312,43 @@ Hooks.on("getActorContextOptions", (_app, options) => {
   } catch {}
 });
 
+function attachUniversalTableButton() {
+  try {
+    const hotbar = document.querySelector("#hotbar");
+    if (!hotbar || hotbar.querySelector(".faserip-utable-btn")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "faserip-utable-btn";
+    btn.title = "Show or hide the Universal Table";
+    btn.innerHTML = '<i class="fa-solid fa-table-cells"></i>';
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      toggleUniversalTable();
+    });
+    hotbar.prepend(btn);
+  } catch (err) {
+    console.warn("FASERIP | universal table button", err);
+  }
+}
+
+Hooks.on("createChatMessage", (message) => {
+  const rankId = message.getFlag?.("faserip", "rankId") ?? message.flags?.faserip?.rankId;
+  const roll = message.getFlag?.("faserip", "roll") ?? message.flags?.faserip?.roll;
+  const color = message.getFlag?.("faserip", "color") ?? message.flags?.faserip?.color;
+  if (!rankId || roll == null || !color) return;
+  const label = message.getFlag?.("faserip", "label") ?? message.flags?.faserip?.label ?? "FEAT";
+  const actorName = message.getFlag?.("faserip", "actorName") ?? message.flags?.faserip?.actorName ?? message.speaker?.alias ?? "";
+  showRollOnTable({ rankId, roll, color, label, actorName }).catch((err) => {
+    console.warn("FASERIP | universal table", err);
+  });
+});
+
+Hooks.on("renderHotbar", () => attachUniversalTableButton());
+
 Hooks.once("ready", () => {
   console.log("FASERIP | Ready", game.version, "system", VERSION);
   injectScrollableWindowStyles();
+  attachUniversalTableButton();
   attachGenerateButton(ui.actors?.element);
   document.querySelectorAll("#actors, .actors-sidebar, [id='actors']").forEach(attachGenerateButton);
   pinDefaultSheets().catch(() => {});

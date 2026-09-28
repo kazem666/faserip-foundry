@@ -13,6 +13,7 @@ import {
   THROW_RANGE
 } from "../config.mjs";
 import { promptFeatRoll } from "../dice/universal-table.mjs";
+import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
@@ -220,7 +221,6 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   activateListeners(html) {
     super.activateListeners(html);
-    if (!this.isEditable) return;
     const root = html instanceof HTMLElement ? html : html?.[0] ?? this.element?.[0] ?? this.element;
     const on = (action, fn) => {
       const bound = fn.bind(this);
@@ -230,6 +230,8 @@ export class FaseripActorSheet extends ActorSheetBase {
       }
       root?.querySelectorAll?.(`[data-action='${action}']`)?.forEach((el) => el.addEventListener("click", bound));
     };
+    on("toggleTable", this._onToggleTable);
+    if (!this.isEditable) return;
     on("generate", this._onGenerate);
     on("rollAbility", this._onRollAbility);
     on("rollItem", this._onRollItem);
@@ -393,6 +395,11 @@ export class FaseripActorSheet extends ActorSheetBase {
   async _onResetKarma(event) {
     event.preventDefault();
     await this.actor.update({ "system.karma.value": this.actor.system.karma.max });
+  }
+
+  _onToggleTable(event) {
+    event.preventDefault();
+    return toggleUniversalTable();
   }
 
   async _onUniversal(event) {

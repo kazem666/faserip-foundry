@@ -107,6 +107,8 @@ export async function rollFeat({
         color,
         rankId: effectiveId,
         roll: adjusted,
+        label,
+        actorName: actor?.name ?? "",
         intensityId: intensityId || null,
         intensityPass,
         effectsColumn: columnId || null,
