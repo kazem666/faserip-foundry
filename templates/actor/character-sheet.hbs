@@ -36,6 +36,7 @@
 
   <nav class="sheet-tabs tabs" data-group="primary">
     <a class="item" data-action="sheetTab" data-tab="record">Record</a>
+    <a class="item" data-action="sheetTab" data-tab="actions">Actions</a>
     <a class="item" data-action="sheetTab" data-tab="identity">Identity</a>
     <a class="item" data-action="sheetTab" data-tab="powers">Powers</a>
     <a class="item" data-action="sheetTab" data-tab="stunts">Stunts</a>
@@ -146,6 +147,7 @@
         <button type="button" data-action="toggleTable">Universal Table</button>
         {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
         {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
+        <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
         <label>Battle Effects
           <select name="combatColumn">
             {{#each combatColumns as |c|}}<option value="{{c.id}}">{{c.label}}</option>{{/each}}
@@ -153,6 +155,23 @@
         </label>
         <button type="button" data-action="combatFeat">Combat FEAT</button>
       </section>
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="actions">
+      <p class="hint">Click a button to roll. Shift-click to spend Karma or change the column. Target a token before a hit so Health is subtracted.</p>
+      {{#each actionGroups as |group|}}
+      <section class="action-group group-{{group.id}}">
+        <h2>{{group.label}}</h2>
+        <div class="action-grid">
+          {{#each group.actions as |act|}}
+          <button type="button" class="action-card" data-action="rollSheetAction" data-standard="{{act.standard}}" data-item-id="{{act.itemId}}" title="{{act.title}}">
+            <span class="action-name">{{act.name}}</span>
+            <span class="action-detail">{{act.detail}}</span>
+          </button>
+          {{/each}}
+        </div>
+      </section>
+      {{/each}}
     </div>
 
     <div class="tab" data-group="primary" data-tab="identity">

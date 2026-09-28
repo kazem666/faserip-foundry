@@ -1,4 +1,4 @@
-import { BATTLE_EFFECTS, rankValue } from "./config.mjs";
+import { BATTLE_EFFECTS, rankLabel, rankValue } from "./config.mjs";
 import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combatTarget } from "./play-rules.mjs";
 import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
 
@@ -18,7 +18,7 @@ const COLUMN_ALIAS = {
   blasting: "energy"
 };
 
-export function canonicalColumn(columnId) {
+function canonicalColumn(columnId) {
   const raw = String(columnId || "").trim();
   if (!raw) return "";
   if (BATTLE_EFFECTS[raw]) return raw;
@@ -170,8 +170,83 @@ export function powerDamage(item) {
   return rankValue(item?.system?.rank || "typical");
 }
 
-export function targetedActor(excludeId = "") {
-  return combatTarget(excludeId);
+const ABILITY_NAMES = {
+  fighting: "Fighting",
+  agility: "Agility",
+  strength: "Strength",
+  endurance: "Endurance",
+  reason: "Reason",
+  intuition: "Intuition",
+  psyche: "Psyche"
+};
+
+function abilityName(key) {
+  return ABILITY_NAMES[key] || "Reason";
+}
+
+export const STANDARD_ACTIONS = [
+  { group: "strikes", id: "slugfest", label: "Slugfest", detail: "Unarmed · Fighting", column: "blunt", ability: "fighting" },
+  { group: "strikes", id: "edged", label: "Edged Attack", detail: "Fighting", column: "edged", ability: "fighting" },
+  { group: "strikes", id: "charging", label: "Charging", detail: "Endurance", column: "charging", ability: "endurance" },
+  { group: "ranged", id: "shooting", label: "Shooting", detail: "Agility", column: "shooting", ability: "agility" },
+  { group: "ranged", id: "throwEdged", label: "Thrown Weapon", detail: "Agility", column: "throwEdged", ability: "agility" },
+  { group: "ranged", id: "throwBlunt", label: "Thrown Object", detail: "Agility", column: "throwBlunt", ability: "agility" },
+  { group: "ranged", id: "energy", label: "Energy Attack", detail: "Agility", column: "energy", ability: "agility" },
+  { group: "ranged", id: "force", label: "Force Attack", detail: "Agility", column: "force", ability: "agility" },
+  { group: "holds", id: "grappling", label: "Grappling", detail: "Strength", column: "grappling", ability: "strength" },
+  { group: "holds", id: "grabbing", label: "Grabbing", detail: "Strength", column: "grabbing", ability: "strength" },
+  { group: "holds", id: "escaping", label: "Escaping", detail: "Strength", column: "escaping", ability: "strength" },
+  { group: "defense", id: "dodging", label: "Dodging", detail: "Agility · column shift", column: "dodging", ability: "agility" },
+  { group: "defense", id: "evading", label: "Evading", detail: "Fighting · column shift", column: "evading", ability: "fighting" },
+  { group: "defense", id: "blocking", label: "Blocking", detail: "Strength · armor shift", column: "blocking", ability: "strength" },
+  { group: "defense", id: "catching", label: "Catching", detail: "Agility", column: "catching", ability: "agility" }
+];
+
+const ACTION_GROUPS = [
+  { id: "strikes", label: "Strikes" },
+  { id: "ranged", label: "Ranged" },
+  { id: "holds", label: "Holds" },
+  { id: "defense", label: "Defense" }
+];
+
+function actionCard(entry) {
+  return {
+    name: entry.label,
+    detail: entry.detail,
+    title: "Roll against the targeted token. Shift-click to set Karma or a column shift.",
+    itemId: entry.itemId || "",
+    standard: entry.standard || entry.id || ""
+  };
+}
+
+export function sheetActionGroups(items = []) {
+  const groups = ACTION_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    actions: STANDARD_ACTIONS.filter((entry) => entry.group === group.id).map((entry) => actionCard({ ...entry, standard: entry.id, itemId: "" }))
+  }));
+  const powers = [];
+  const weapons = [];
+  const talents = [];
+  for (const item of items) {
+    if (!item || (item.type !== "power" && item.type !== "weapon" && item.type !== "talent")) continue;
+    const spec = describeItemAction(item);
+    const rank = item.system?.rank ? rankLabel(item.system.rank) : "";
+    const card = actionCard({
+      label: item.name,
+      detail: `${spec.label} · ${abilityName(spec.ability)}${rank ? ` · ${rank}` : ""}`,
+      itemId: item.id,
+      standard: ""
+    });
+    card.title = spec.title;
+    if (item.type === "power") powers.push(card);
+    else if (item.type === "weapon") weapons.push(card);
+    else if (spec.column || /martial arts [hl]/i.test(item.name || "")) talents.push(card);
+  }
+  if (powers.length) groups.push({ id: "powers", label: "Powers", actions: powers });
+  if (weapons.length) groups.push({ id: "weapons", label: "Weapons", actions: weapons });
+  if (talents.length) groups.push({ id: "talents", label: "Talents", actions: talents });
+  return groups;
 }
 
 export function defenseChoices(actor) {
@@ -187,8 +262,8 @@ export function defenseChoices(actor) {
   return choices;
 }
 
-export async function rollItemAction(actor, item, { dialog = false } = {}) {
-  const spec = describeItemAction(item);
+export async function rollAction(actor, spec, { dialog = false, item = null, label = "" } = {}) {
+  const name = label || item?.name || spec?.label || "FEAT";
   const { promptFeatRoll, rollFeat } = await import("./dice/universal-table.mjs");
   const fast = workflowActive("autoRollAttack") && (game.user?.isGM || workflowOn("playersFastForward"));
   if (dialog || !fast) {
@@ -197,24 +272,24 @@ export async function rollItemAction(actor, item, { dialog = false } = {}) {
       item,
       ability: spec.ability,
       rankId: rankIdForAction(actor, item, spec),
-      label: item.name,
+      label: name,
       defaultColumn: spec.column
     });
   }
   const needsTarget = spec.kind === "attack" && ATTACK_COLUMNS.has(spec.column);
   const damaging = DAMAGE_COLUMNS.has(spec.column);
-  const target = needsTarget ? targetedActor(actor?.id) : null;
+  const target = needsTarget ? combatTarget(actor?.id) : null;
   if (damaging && !target) {
-    ui.notifications?.warn(`Target a token before ${item.name} so damage can land.`);
+    ui.notifications?.warn(`Target a token before ${name} so damage can land.`);
     if (workflowActive("requireTarget")) return null;
   }
-  const reactionCs = target && damaging ? await offerDefenseReaction(target, item.name) : 0;
+  const reactionCs = target && damaging ? await offerDefenseReaction(target, name) : 0;
   const plan = shiftPlan(actor, { ability: spec.ability, effectsColumn: spec.column, target });
   const message = await rollFeat({
     actor,
     item,
     rankId: rankIdForAction(actor, item, spec),
-    label: item.name,
+    label: name,
     cs: plan.cs + reactionCs,
     effectsColumn: spec.column,
     targetId: target?.id || "",
@@ -225,4 +300,16 @@ export async function rollItemAction(actor, item, { dialog = false } = {}) {
   });
   if (needsTarget) clearUserTargets();
   return message;
+}
+
+export function rollItemAction(actor, item, opts = {}) {
+  if (!item) return null;
+  return rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
+}
+
+export function rollStandardAction(actor, id, opts = {}) {
+  const entry = STANDARD_ACTIONS.find((action) => action.id === id);
+  if (!entry || !actor) return null;
+  const spec = action({ kind: "attack", column: entry.column, ability: entry.ability, rankFrom: "ability" });
+  return rollAction(actor, spec, { ...opts, label: entry.label });
 }

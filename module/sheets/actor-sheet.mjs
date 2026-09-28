@@ -15,7 +15,7 @@ import { promptFeatRoll } from "../dice/universal-table.mjs";
 import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
 import { promptJudgeAward } from "../play.mjs";
 import { formatPending, readPending } from "../play-rules.mjs";
-import { describeItemAction, rollItemAction } from "../item-actions.mjs";
+import { describeItemAction, rollItemAction, rollStandardAction, sheetActionGroups } from "../item-actions.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
@@ -126,7 +126,9 @@ export class FaseripActorSheet extends ActorSheetBase {
         : 0;
       const items = actor.items.contents;
       const pips = (n = 0) => Array.from({ length: 10 }, (_, i) => ({ n: i + 1, on: i < Number(n || 0) }));
-      const decorate = (collection) => collection.map((item) => ({
+      const decorate = (collection) => collection.map((item) => {
+        const spec = describeItemAction(item);
+        return {
         id: item.id,
         name: item.name,
         img: item.img,
@@ -149,19 +151,21 @@ export class FaseripActorSheet extends ActorSheetBase {
         tie: item.system.tie ?? "",
         practicality: item.system.practicality ?? "",
         acquired: !!item.system.acquired,
-        actionLabel: describeItemAction(item).label,
-        actionTitle: describeItemAction(item).title,
+        actionLabel: spec.label,
+        actionTitle: spec.title,
         pips: pips(item.system.assistance),
         stunts: (item.system.stunts ?? []).map((s, index) => ({
           ...s,
           index,
           pips: pips(s.attempts)
         }))
-      }));
+      };
+      });
       context.powers = decorate(items.filter((i) => i.type === "power"));
       context.talents = decorate(items.filter((i) => i.type === "talent"));
       context.contacts = decorate(items.filter((i) => i.type === "contact"));
       context.gear = decorate(items.filter((i) => i.type === "equipment" || i.type === "weapon"));
+      context.actionGroups = sheetActionGroups(items);
       try {
         const TextEditor = getTextEditor();
         context.enrichedBiography = await TextEditor.enrichHTML(actor.system.biography ?? "", { secrets: actor.isOwner });
@@ -234,6 +238,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     on("generate", this._onGenerate);
     on("rollAbility", this._onRollAbility);
     on("rollItem", this._onRollItem);
+    on("rollSheetAction", this._onRollSheetAction);
     on("itemEdit", this._onItemEdit);
     on("itemDelete", this._onItemDelete);
     on("itemCreate", this._onItemCreate);
@@ -271,6 +276,15 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   async _onRollItem(event) {
     event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    return rollItemAction(this.actor, item, { dialog: !!event.shiftKey });
+  }
+
+  async _onRollSheetAction(event) {
+    event.preventDefault();
+    const standard = event.currentTarget?.dataset?.standard;
+    if (standard) return rollStandardAction(this.actor, standard, { dialog: !!event.shiftKey });
     const item = this.actor.items.get(itemIdFrom(event));
     if (!item) return;
     return rollItemAction(this.actor, item, { dialog: !!event.shiftKey });
