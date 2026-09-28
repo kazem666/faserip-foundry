@@ -122,13 +122,18 @@
 
       <section class="derived-row">
         <div>Init +{{initMod}} <span class="hint">(1 stays 1)</span></div>
-        <div>Move {{movement}} areas</div>
-        <div>Throw {{throwRange}} areas</div>
+        <div>Move {{movementText}}</div>
+        {{#each movementModes as |mode|}}
+        <div>{{mode.label}} {{mode.text}}</div>
+        {{/each}}
+        <div>Throw {{throwText}}</div>
         <div>Heal {{healRate}} / hour</div>
         <div>Armor {{bodyArmor}}</div>
         <div>Field {{forceField}}</div>
         <div>Power slots {{powerSlotsUsed}}{{#if generation}} / {{generation.powerNeed}}{{/if}}</div>
       </section>
+
+      <p class="hint">1 area = {{feetPerArea}} ft ({{squaresPerArea}} squares). The map grid stays 5 feet.</p>
 
       <section class="toolbox">
         <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>

@@ -10,6 +10,7 @@ import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-t
 import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.mjs";
 import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./module/workflow.mjs";
 import { registerComicSocket } from "./module/comic-hit.mjs";
+import { registerMovement } from "./module/movement.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
@@ -17,7 +18,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.25";
+const VERSION = "1.17.26";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -240,6 +241,7 @@ Hooks.once("init", () => {
     const FaseripActorSheet = buildActorSheetClass();
     const FaseripItemSheet = buildItemSheetClass();
     registerSheets(FaseripActorSheet, FaseripItemSheet);
+    registerMovement();
     try {
       Handlebars.registerHelper("eq", (a, b) => a === b);
       Handlebars.registerHelper("gt", (a, b) => Number(a) > Number(b));
