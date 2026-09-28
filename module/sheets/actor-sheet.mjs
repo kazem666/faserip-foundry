@@ -221,6 +221,13 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.powerSlotsUsed = context.powers.reduce((sum, p) => sum + Math.max(0, Number(p.slotsTaken || 1)), 0);
       context.cssClass = context.cssClass || "editable";
       context.editable = this.isEditable;
+      const battle = actor.getFlag("faserip", "battle");
+      const { describeCondition } = await import("../battle-results.mjs");
+      context.conditionText = describeCondition(actor);
+      context.conditionDying = battle?.state === "dying";
+      context.conditionHours = battle?.state === "unconscious" && battle?.unit === "hours";
+      context.groupMember = !!actor.getFlag("faserip", "groupMember");
+      try { context.groupKarma = game.settings.get("faserip", "groupKarma") || 0; } catch { context.groupKarma = 0; }
     } catch (err) {
       console.error("FASERIP | actor sheet getData failed", err);
       ui.notifications?.error(`FASERIP sheet data error: ${err.message}`);
@@ -267,6 +274,24 @@ export class FaseripActorSheet extends ActorSheetBase {
     on("rollCalling", this._onRollCalling);
     on("rollQuirk", this._onRollQuirk);
     on("rollLife", this._onRollLife);
+    on("rollPopularity", this._onRollPopularity);
+    on("fallImpact", this._onFall);
+    on("catchFall", this._onCatch);
+    on("holdOn", this._onHoldOn);
+    on("dyingFeat", this._onDyingFeat);
+    on("aidDying", this._onAid);
+    on("hourPasses", this._onHour);
+    on("clearCondition", this._onClearCondition);
+    on("tickCondition", this._onTickCondition);
+    on("bankKarma", this._onBankKarma);
+    on("toggleGroup", this._onToggleGroup);
+    on("advanceAbility", this._onAdvanceAbility);
+    on("advancePower", this._onAdvancePower);
+    on("advanceResources", this._onAdvanceResources);
+    on("advancePopularity", this._onAdvancePopularity);
+    on("addPower", this._onAddPower);
+    on("addTalent", this._onAddTalent);
+    on("addContact", this._onAddContact);
   }
 
   async _onGenerate(event) {
@@ -409,6 +434,10 @@ export class FaseripActorSheet extends ActorSheetBase {
       const taken = await this.actor.applyDamage(amount, { energy, useForceField });
       ui.notifications.info(this.actor.name + " takes " + taken + " after armor/fields.");
       playComicHit({ targetUuid: this.actor.uuid, taken, effect: "Hit" });
+      if (Number(this.actor.system?.health?.value) === 0) {
+        const { collapseAtZero } = await import("../battle-results.mjs");
+        await collapseAtZero(this.actor);
+      }
     }
   }
 
@@ -476,8 +505,123 @@ export class FaseripActorSheet extends ActorSheetBase {
     return promptFeatRoll({
       actor: this.actor,
       rankId: this.actor.system.resources?.rank ?? "typical",
-      label: "Resources"
+      label: "Resources",
+      karmaMode: "resources"
     });
+  }
+
+  async _onRollPopularity(event) {
+    event.preventDefault();
+    const { rankFromNumber } = await import("../config.mjs");
+    const score = Number(this.actor.system?.popularity?.value || 0);
+    return promptFeatRoll({
+      actor: this.actor,
+      rankId: rankFromNumber(Math.max(0, score)),
+      label: "Popularity",
+      karmaMode: "none"
+    });
+  }
+
+  async _onFall(event) {
+    event.preventDefault();
+    const { promptFall } = await import("../battle-results.mjs");
+    return promptFall(this.actor);
+  }
+
+  async _onCatch(event) {
+    event.preventDefault();
+    const { promptCatch } = await import("../battle-results.mjs");
+    return promptCatch(this.actor);
+  }
+
+  async _onHoldOn(event) {
+    event.preventDefault();
+    const { holdOn } = await import("../battle-results.mjs");
+    return holdOn(this.actor);
+  }
+
+  async _onDyingFeat(event) {
+    event.preventDefault();
+    const { buyEnduranceFeat } = await import("../battle-results.mjs");
+    return buyEnduranceFeat(this.actor);
+  }
+
+  async _onAid(event) {
+    event.preventDefault();
+    const { aidDying } = await import("../battle-results.mjs");
+    return aidDying(this.actor);
+  }
+
+  async _onHour(event) {
+    event.preventDefault();
+    const { hourPasses } = await import("../battle-results.mjs");
+    return hourPasses(this.actor);
+  }
+
+  async _onClearCondition(event) {
+    event.preventDefault();
+    const { clearCondition } = await import("../battle-results.mjs");
+    return clearCondition(this.actor);
+  }
+
+  async _onTickCondition(event) {
+    event.preventDefault();
+    const { tickOne } = await import("../battle-results.mjs");
+    return tickOne(this.actor, { force: true });
+  }
+
+  async _onBankKarma(event) {
+    event.preventDefault();
+    const { bankKarma } = await import("../advancement.mjs");
+    return bankKarma(this.actor);
+  }
+
+  async _onToggleGroup(event) {
+    event.preventDefault();
+    const { toggleGroupMember } = await import("../advancement.mjs");
+    return toggleGroupMember(this.actor);
+  }
+
+  async _onAdvanceAbility(event) {
+    event.preventDefault();
+    const { promptAbilityAdvance } = await import("../advancement.mjs");
+    return promptAbilityAdvance(this.actor);
+  }
+
+  async _onAdvancePower(event) {
+    event.preventDefault();
+    const { promptPowerAdvance } = await import("../advancement.mjs");
+    return promptPowerAdvance(this.actor);
+  }
+
+  async _onAdvanceResources(event) {
+    event.preventDefault();
+    const { promptResourceAdvance } = await import("../advancement.mjs");
+    return promptResourceAdvance(this.actor);
+  }
+
+  async _onAdvancePopularity(event) {
+    event.preventDefault();
+    const { promptPopularityAdvance } = await import("../advancement.mjs");
+    return promptPopularityAdvance(this.actor);
+  }
+
+  async _onAddPower(event) {
+    event.preventDefault();
+    const { promptPowerAdd } = await import("../advancement.mjs");
+    return promptPowerAdd(this.actor);
+  }
+
+  async _onAddTalent(event) {
+    event.preventDefault();
+    const { promptTalentAdd } = await import("../advancement.mjs");
+    return promptTalentAdd(this.actor);
+  }
+
+  async _onAddContact(event) {
+    event.preventDefault();
+    const { promptContactAdd } = await import("../advancement.mjs");
+    return promptContactAdd(this.actor);
   }
 
   async _onEditImage(event) {

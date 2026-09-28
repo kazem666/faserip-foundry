@@ -270,6 +270,11 @@ export function defenseChoices(actor) {
 }
 
 export async function rollAction(actor, spec, { dialog = false, item = null, label = "" } = {}) {
+  const { conditionBlock, isCheckColumn } = await import("./battle-results.mjs");
+  if (actor && !isCheckColumn(spec?.column) && conditionBlock(actor)) {
+    ui.notifications?.warn(conditionBlock(actor));
+    return null;
+  }
   const name = label || item?.name || spec?.label || "FEAT";
   const { promptFeatRoll, rollFeat } = await import("./dice/universal-table.mjs");
   const fast = workflowActive("autoRollAttack") && (game.user?.isGM || workflowOn("playersFastForward"));
@@ -317,6 +322,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     targetId: target?.id || "",
     targetUuid: target?.uuid || "",
     shiftNotes: plan.note,
+    skipCondition: true,
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming && !reactionCs
   });

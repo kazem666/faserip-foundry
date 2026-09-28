@@ -18,7 +18,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.29";
+const VERSION = "1.17.30";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -453,7 +453,7 @@ Hooks.on("preUpdateActor", (actor, changes, options) => {
       console.warn("FASERIP | protectRecentHealth", err);
     }
   }
-  if (options?.faseripApplyRolls || options?.faseripReapply || options?.faseripDamage) return;
+  if (options?.faseripApplyRolls || options?.faseripReapply || options?.faseripDamage || options?.faseripAdvance) return;
   if (changes) {
     for (const key of Object.keys(changes)) {
       const match = String(key).match(/^system\.abilities\.([^.]+)\.(rank|number)$/);
@@ -490,7 +490,7 @@ async function tryReapplyRolledStats(actor) {
 }
 
 Hooks.on("updateActor", (actor, _changes, options) => {
-  if (options?.faseripApplyRolls || options?.faseripReapply) return;
+  if (options?.faseripApplyRolls || options?.faseripReapply || options?.faseripAdvance) return;
   tryReapplyRolledStats(actor).catch(() => {});
 });
 
@@ -508,6 +508,13 @@ Hooks.on("renderApplicationV2", (app) => {
   const actor = app?.actor ?? app?.document;
   if (!actor || actor.documentName !== "Actor") return;
   tryReapplyRolledStats(actor).catch(() => {});
+});
+
+Hooks.on("updateCombat", (combat, changes) => {
+  if (changes?.round == null) return;
+  import("./module/battle-results.mjs")
+    .then((mod) => mod.tickCombatConditions(combat))
+    .catch((err) => console.warn("FASERIP | condition clock", err));
 });
 
 Hooks.on("createActor", async (actor, _options, userId) => {

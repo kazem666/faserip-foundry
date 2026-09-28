@@ -115,6 +115,7 @@
                 <label>Hero <input type="number" name="system.popularity.value" value="{{system.popularity.value}}" /></label>
                 <label>Secret <input type="number" name="system.popularity.secret" value="{{system.popularity.secret}}" /></label>
               </div>
+              <button type="button" data-action="rollPopularity">FEAT</button>
             </div>
           </div>
         </section>
@@ -134,11 +135,26 @@
       </section>
 
       <p class="hint">1 area = {{feetPerArea}} ft ({{squaresPerArea}} squares). The map grid stays 5 feet.</p>
+      {{#if conditionText}}
+      <p class="condition-banner">{{conditionText}}</p>
+      <div class="advancement-actions">
+        {{#if conditionDying}}
+        <button type="button" data-action="holdOn">Hold on (50 Karma)</button>
+        <button type="button" data-action="dyingFeat">Endurance FEAT (200 Karma)</button>
+        <button type="button" data-action="aidDying">Aid received</button>
+        {{/if}}
+        {{#if conditionHours}}
+        <button type="button" data-action="hourPasses">An hour passes</button>
+        {{/if}}
+        <button type="button" data-action="tickCondition">Count one round</button>
+        <button type="button" data-action="clearCondition">Clear condition</button>
+      </div>
+      {{/if}}
 
       <section class="toolbox">
         <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>
         <label class="check"><input type="checkbox" name="energyAttack" /> Energy (−20 armor)</label>
-        <label class="check"><input type="checkbox" name="useForceField" /> Use Force Field</label>
+        <label class="check"><input type="checkbox" name="useForceField" /> Use Force Field (instead of armor)</label>
         <button type="button" data-action="applyDamage">Apply Damage</button>
         <button type="button" data-action="heal">Heal</button>
         <button type="button" data-action="recover">Recovery</button>
@@ -150,6 +166,8 @@
         </label>
         <button type="button" data-action="universal">Roll FEAT</button>
         <button type="button" data-action="toggleTable">Universal Table</button>
+        <button type="button" data-action="fallImpact">Fall</button>
+        <button type="button" data-action="catchFall">Catch</button>
         {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
         {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
         <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
@@ -376,7 +394,19 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="karma">
-      <p class="hint">Track Karma spent on advancement. Popular awards go into current Karma on the Record tab. Pool is shared / banked Karma.</p>
+      <p class="hint">Current Karma changes a die. The fund is set aside between scenes. One ability number costs 10 times the current number, plus 400 when the rank changes. A power number costs 20 times the new number, plus 500 to change rank. Resources cost 10 times the rank number plus 200. Popularity costs 10 times the current score. A new power is 3000 plus 40 times its starting number. A talent is 1000 with a teacher, or 2000 without. A contact is 500 plus 10 times that contact's Resources.</p>
+      <p class="hint">Group pool: {{groupKarma}}. {{#if groupMember}}This hero shares it.{{else}}This hero does not share it.{{/if}}</p>
+      <div class="advancement-actions">
+        <button type="button" data-action="bankKarma">Bank current Karma</button>
+        <button type="button" data-action="toggleGroup">{{#if groupMember}}Leave group pool{{else}}Share group pool{{/if}}</button>
+        <button type="button" data-action="advanceAbility">Raise ability</button>
+        <button type="button" data-action="advancePower">Raise power</button>
+        <button type="button" data-action="advanceResources">Raise Resources</button>
+        <button type="button" data-action="advancePopularity">Raise Popularity</button>
+        <button type="button" data-action="addPower">Add power</button>
+        <button type="button" data-action="addTalent">Add talent</button>
+        <button type="button" data-action="addContact">Add contact</button>
+      </div>
       <div class="id-grid">
         <label>FASE <input type="number" name="system.karmaBank.fase" value="{{system.karmaBank.fase}}" min="0" /></label>
         <label>RIP <input type="number" name="system.karmaBank.rip" value="{{system.karmaBank.rip}}" min="0" /></label>

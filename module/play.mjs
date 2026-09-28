@@ -4,6 +4,7 @@ import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pe
 import { powerDamage } from "./item-actions.mjs";
 import { workflowActive, workflowOn } from "./workflow.mjs";
 import { playComicHit } from "./comic-hit.mjs";
+import { effectGetsThrough, soakAmount } from "./battle-results.mjs";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -29,11 +30,19 @@ export async function openCombatChain(message) {
   if (!target) return;
   const energyDefault = !!(message.getFlag?.("faserip", "damageEnergy") ?? message.flags?.faserip?.damageEnergy);
 
+  const blocked = !!(message.getFlag?.("faserip", "effectBlocked") ?? message.flags?.faserip?.effectBlocked);
+  let through = !blocked;
   if (damageAmount != null && workflowActive("autoApplyDamage") && !alreadyApplied) {
     if (target.isOwner || game.user.isGM) {
       const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;
-      const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault, useForceField });
-      try { await message.setFlag("faserip", "damageApplied", true); } catch {}
+      const bonusArmor = Number(message.getFlag?.("faserip", "bonusArmor") ?? message.flags?.faserip?.bonusArmor ?? 0);
+      const protection = soakAmount(target, { energy: energyDefault, useForceField, bonusArmor: useForceField ? 0 : bonusArmor });
+      const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault, useForceField, protection });
+      through = effectGetsThrough(Number(damageAmount) || 0, protection, taken);
+      try {
+        await message.setFlag("faserip", "damageApplied", true);
+        if (!through) await message.setFlag("faserip", "effectBlocked", true);
+      } catch {}
       ui.notifications.info(`${target.name} loses ${taken} Health.`);
       playComicHit({
         targetUuid: target.uuid,
@@ -42,19 +51,29 @@ export async function openCombatChain(message) {
         effect: message.getFlag?.("faserip", "effect") ?? message.flags?.faserip?.effect,
         taken
       });
+      if (Number(target.system?.health?.value) === 0 && through && checkColumn !== "stunCheck" && checkColumn !== "killCheck") {
+        const { collapseAtZero } = await import("./battle-results.mjs");
+        await collapseAtZero(target);
+      }
     } else {
       ui.notifications.warn(`Only the Judge can apply damage to ${target.name}. Use the button on the chat card.`);
     }
   }
 
-  if (checkColumn && workflowActive("autoEnduranceCheck") && BATTLE_EFFECTS[checkColumn]) {
+  if (through && checkColumn && workflowActive("autoEnduranceCheck") && BATTLE_EFFECTS[checkColumn]) {
     const { rollFeat } = await import("./dice/universal-table.mjs");
     await rollFeat({
       actor: target,
       rankId: target.getAbilityRank("endurance"),
       label: BATTLE_EFFECTS[checkColumn].label,
       effectsColumn: checkColumn,
-      holdPending: true
+      holdPending: true,
+      skipCondition: true,
+      resultOf: {
+        attackerId: message.getFlag?.("faserip", "attackerId") ?? message.flags?.faserip?.attackerId ?? "",
+        strengthRank: message.getFlag?.("faserip", "strengthRank") ?? message.flags?.faserip?.strengthRank ?? "",
+        sourceColumn: message.getFlag?.("faserip", "effectsColumn") ?? message.flags?.faserip?.effectsColumn ?? ""
+      }
     });
   }
 }
@@ -74,8 +93,14 @@ export async function applyDamageFromChat(message) {
   }
   const amount = Number(message.getFlag("faserip", "damageAmount") || 0);
   const energy = !!message.getFlag("faserip", "damageEnergy");
-  const taken = await target.applyDamage(amount, { energy });
-  try { await message.setFlag("faserip", "damageApplied", true); } catch {}
+  const bonusArmor = Number(message.getFlag("faserip", "bonusArmor") || 0);
+  const protection = soakAmount(target, { energy, bonusArmor });
+  const taken = await target.applyDamage(amount, { energy, protection });
+  const through = effectGetsThrough(amount, protection, taken);
+  try {
+    await message.setFlag("faserip", "damageApplied", true);
+    if (!through) await message.setFlag("faserip", "effectBlocked", true);
+  } catch {}
   ui.notifications.info(`${target.name} loses ${taken} Health.`);
   playComicHit({
     targetUuid: target.uuid,
@@ -84,9 +109,18 @@ export async function applyDamageFromChat(message) {
     effect: message.getFlag?.("faserip", "effect"),
     taken
   });
+  const checkColumn = message.getFlag("faserip", "checkColumn");
+  if (through && Number(target.system?.health?.value) === 0 && checkColumn !== "stunCheck" && checkColumn !== "killCheck") {
+    const { collapseAtZero } = await import("./battle-results.mjs");
+    await collapseAtZero(target);
+  }
 }
 
 export async function checkFromChat(message) {
+  if (message.getFlag?.("faserip", "effectBlocked")) {
+    ui.notifications?.info("The hit did not get through. No Slam, Stun, or Kill check.");
+    return;
+  }
   const target = actorFromRef(message.getFlag?.("faserip", "targetUuid") || message.getFlag?.("faserip", "targetId"));
   const checkColumn = message.getFlag?.("faserip", "checkColumn");
   if (!target || !BATTLE_EFFECTS[checkColumn]) return;
@@ -96,7 +130,12 @@ export async function checkFromChat(message) {
     rankId: target.getAbilityRank("endurance"),
     label: BATTLE_EFFECTS[checkColumn].label,
     defaultColumn: checkColumn,
-    holdPending: true
+    holdPending: true,
+    resultOf: {
+      attackerId: message.getFlag?.("faserip", "attackerId") || "",
+      strengthRank: message.getFlag?.("faserip", "strengthRank") || "",
+      sourceColumn: message.getFlag?.("faserip", "effectsColumn") || ""
+    }
   });
 }
 

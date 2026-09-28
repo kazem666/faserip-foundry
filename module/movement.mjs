@@ -237,6 +237,54 @@ export function chargeStop(attackerCells, targetCells, blocked = []) {
   return best;
 }
 
+export function knockbackLanding(targetCells, attackerCells, squares, blocked = []) {
+  const steps = Math.max(0, Math.floor(Number(squares) || 0));
+  if (!targetCells?.length || steps <= 0) return null;
+  const origin = anchorOffset(targetCells);
+  const from = attackerCells?.length ? anchorOffset(attackerCells) : null;
+  let di = 0;
+  let dj = 1;
+  if (from) {
+    const rawI = origin.i - from.i;
+    const rawJ = origin.j - from.j;
+    if (rawI || rawJ) {
+      di = Math.sign(rawI);
+      dj = Math.sign(rawJ);
+    }
+  }
+  const footprint = targetCells.map((cell) => ({ di: cell.i - origin.i, dj: cell.j - origin.j }));
+  const blockedSet = new Set(blocked.map(cellKey));
+  let landed = null;
+  for (let step = 1; step <= steps; step++) {
+    const dest = { i: origin.i + di * step, j: origin.j + dj * step };
+    const placed = footprint.map((piece) => ({ i: dest.i + piece.di, j: dest.j + piece.dj }));
+    if (placed.some((cell) => blockedSet.has(cellKey(cell)))) {
+      return landed
+        ? { ...landed, stopped: true }
+        : { i: origin.i, j: origin.j, squares: 0, stopped: true };
+    }
+    landed = { i: dest.i, j: dest.j, squares: step, stopped: false };
+  }
+  return landed;
+}
+
+export async function shoveActor(actor, awayFrom, squares) {
+  const token = sceneToken(actor);
+  const fromToken = awayFrom ? sceneToken(awayFrom) : null;
+  if (!token) return { moved: false, squares: 0, stopped: false };
+  const landing = knockbackLanding(
+    occupiedOffsets(token),
+    fromToken ? occupiedOffsets(fromToken) : [],
+    squares,
+    occupiedByOthers(token, fromToken)
+  );
+  if (!landing || landing.squares <= 0) return { moved: false, squares: 0, stopped: !!landing?.stopped };
+  const point = gridTopLeft(landing);
+  if (!point) return { moved: false, squares: landing.squares, stopped: landing.stopped };
+  const moved = await slideToken(token, point.x, point.y);
+  return { moved, squares: landing.squares, stopped: landing.stopped };
+}
+
 export function gridSeparation(tokenA, tokenB) {
   const a = occupiedOffsets(tokenA);
   const b = occupiedOffsets(tokenB);

@@ -56,6 +56,24 @@ export const WORKFLOW_SETTINGS = [
     default: true
   },
   {
+    key: "autoBattleResults",
+    name: "Workflow: Apply Slam, Stun, and Kill results",
+    hint: "A Slam check moves the target. A Stun check sets stunned or unconscious rounds. A Kill check starts Endurance loss. These run when the hit gets through, or when it lands exactly on the protection.",
+    default: true
+  },
+  {
+    key: "autoDyingClock",
+    name: "Workflow: Count stun, unconsciousness, and dying each round",
+    hint: "When the combat round advances, stunned and unconscious heroes count down. A dying hero loses one Endurance rank unless they spent Karma to hold on.",
+    default: true
+  },
+  {
+    key: "autoKarmaOnKill",
+    name: "Workflow: A kill clears the attacker's current Karma",
+    hint: "When Endurance reaches Shift 0 from a Kill result, the attacker's current Karma drops to 0. Banked advancement Karma stays. A hero in the group pool also wipes that pool.",
+    default: true
+  },
+  {
     key: "showWorkflowButtons",
     name: "Workflow: Keep Apply and Check on the chat card",
     hint: "Shows the manual buttons even when Health and Endurance checks run on their own. They stay visible if automation is off.",
@@ -102,6 +120,15 @@ export function registerWorkflowSettings() {
       restricted: true
     });
   }
+  game.settings.register("faserip", "groupKarma", {
+    name: "Group Karma pool",
+    hint: "Shared Karma for a team. A member who reduces someone to Shift 0 Endurance drops this pool to 0 along with their own current Karma.",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 0,
+    restricted: true
+  });
 }
 
 export function workflowOn(key) {

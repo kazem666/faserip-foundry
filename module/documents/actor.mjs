@@ -121,18 +121,15 @@ export class FaseripActor extends Actor {
     return ff;
   }
 
-  async applyDamage(amount, { energy = false, ignoreArmor = false, useForceField = false } = {}) {
+  async applyDamage(amount, { energy = false, ignoreArmor = false, useForceField = false, bonusArmor = 0, protection = null } = {}) {
     let incoming = Number(amount || 0);
     if (!ignoreArmor) {
-      if (useForceField) {
-        const ff = this.getForceField();
-        const protection = energy ? ff : Math.max(0, ff - 10);
-        incoming = Math.max(0, incoming - protection);
-      } else {
-        let armor = this.getBodyArmor();
-        if (energy) armor = Math.max(0, armor - 20);
-        incoming = Math.max(0, incoming - armor);
+      let soak = Number.isFinite(protection) ? protection : null;
+      if (soak == null) {
+        const { soakAmount } = await import("../battle-results.mjs");
+        soak = soakAmount(this, { energy, useForceField, bonusArmor });
       }
+      incoming = Math.max(0, incoming - soak);
     }
     const value = Math.max(0, (this.system.health.value ?? 0) - incoming);
     const update = {

@@ -295,6 +295,29 @@
 }
 .faserip-sheet .toolbox button:hover,
 .faserip-sheet button.create:hover { background: #facc15; }
+.faserip-sheet .condition-banner {
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: #3d1515;
+  color: #fff;
+  border-radius: 4px;
+}
+.faserip-sheet .advancement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.faserip-sheet .advancement-actions button {
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  border: 2px solid var(--rule);
+  background: var(--gold);
+  color: var(--ink);
+  height: 26px;
+  line-height: 22px;
+  cursor: pointer;
+}
 .faserip-sheet .action-group { margin: 0 0 14px; }
 .faserip-sheet .action-group h2 {
   margin: 0 0 6px;

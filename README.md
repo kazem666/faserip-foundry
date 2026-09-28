@@ -25,7 +25,10 @@ Version **1.14.0**. Built for Foundry VTT **v14** (`compatibility.minimum` / `ve
 - **Battle Effects Table** columns (Slugfest, Shooting, Wrestling, Charging, Slam/Stun/Kill checks, etc.)
 - Column Shift and Karma spend (minimum 10 to modify a roll)
 - Initiative `1d10 + Intuition modifier`
-- Body Armor / Force Field damage reduction (Energy −20 vs armor; Field −10 vs non-energy)
+- Body Armor / Force Field damage reduction (Energy −20 vs armor; Field −10 vs non-energy; a personal field replaces armor)
+- Slam knockback, Stun rounds, Kill Endurance loss, and Health 0, each with a workflow toggle
+- Falling impact, catching, blindside, lure, and shield maneuvers
+- Advancement spends for abilities, powers, Resources, Popularity, talents, and contacts
 - Recovery (Endurance number, once per day) and hourly Healing
 - Generated-hero dialog (origins, Random Ranks columns, special-ability counts)
 - Optional Judge world setting **Use Ultimate Powers Book (MA3)**: physical form, origin of power, expanded power-class lists, UPB count table, and stimulus/effect/duration weaknesses. Off by default.
