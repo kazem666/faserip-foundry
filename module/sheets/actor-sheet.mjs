@@ -8,12 +8,13 @@ import {
   CONTACT_TYPES,
   rankLabel,
   abilityNumber,
-  initiativeModifier,
   MOVEMENT_AREAS,
   THROW_RANGE
 } from "../config.mjs";
 import { promptFeatRoll } from "../dice/universal-table.mjs";
 import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
+import { promptJudgeAward } from "../play.mjs";
+import { formatPending, readPending } from "../play-rules.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
@@ -95,7 +96,9 @@ export class FaseripActorSheet extends ActorSheetBase {
         ...UPB_ORIGINS_OF_POWER.map((o) => o.label),
         ...UPB_PHYSICAL_FORMS.map((o) => o.label)
       ];
-      context.initMod = initiativeModifier(actor.getAbilityNumber("intuition"));
+      context.initMod = actor.getInitiativeMod();
+      context.pendingText = formatPending(readPending(actor));
+      context.isGM = !!game.user?.isGM;
       context.movement = MOVEMENT_AREAS[actor.getAbilityRank("endurance")] ?? 2;
       context.throwRange = THROW_RANGE[actor.getAbilityRank("strength")] ?? 1;
       context.bodyArmor = actor.getBodyArmor();
@@ -231,6 +234,7 @@ export class FaseripActorSheet extends ActorSheetBase {
       root?.querySelectorAll?.(`[data-action='${action}']`)?.forEach((el) => el.addEventListener("click", bound));
     };
     on("toggleTable", this._onToggleTable);
+    on("award", this._onAward);
     if (!this.isEditable) return;
     on("generate", this._onGenerate);
     on("rollAbility", this._onRollAbility);
@@ -264,6 +268,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     const ability = event.currentTarget.dataset.ability;
     return promptFeatRoll({
       actor: this.actor,
+      ability,
       rankId: this.actor.getAbilityRank(ability),
       label: game.i18n.localize(`FASERIP.Ability.${ability}`)
     });
@@ -402,6 +407,11 @@ export class FaseripActorSheet extends ActorSheetBase {
     return toggleUniversalTable();
   }
 
+  _onAward(event) {
+    event.preventDefault();
+    return promptJudgeAward([this.actor.id]);
+  }
+
   async _onUniversal(event) {
     event.preventDefault();
     const rankId = this._formEl("universalRank")?.value || "typical";
@@ -415,6 +425,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     if (!def) return;
     return promptFeatRoll({
       actor: this.actor,
+      ability: def.ability,
       rankId: this.actor.getAbilityRank(def.ability),
       label: def.label,
       defaultColumn: column

@@ -1,0 +1,226 @@
+import { BATTLE_EFFECTS } from "./config.mjs";
+import { promptForm, formValue } from "./foundry-api.mjs";
+import {
+  attackDamageNumber,
+  checkForEffect,
+  effectDealsDamage,
+  pendingFromDefense,
+  readPending,
+  writePending
+} from "./play-rules.mjs";
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[ch]));
+}
+
+function chainClient(message) {
+  const gm = game.users.find((user) => user.active && user.isGM);
+  if (gm) return game.user.id === gm.id;
+  return message.author?.id === game.user.id;
+}
+
+export async function openCombatChain(message) {
+  if (!chainClient(message)) return;
+  const targetId = message.getFlag?.("faserip", "targetId") ?? message.flags?.faserip?.targetId;
+  const damageAmount = message.getFlag?.("faserip", "damageAmount") ?? message.flags?.faserip?.damageAmount;
+  const checkColumn = message.getFlag?.("faserip", "checkColumn") ?? message.flags?.faserip?.checkColumn;
+  if (!targetId || (damageAmount == null && !checkColumn)) return;
+  const target = game.actors.get(targetId);
+  if (!target) return;
+  const effect = message.getFlag?.("faserip", "effect") ?? message.flags?.faserip?.effect ?? "";
+  const attacker = message.getFlag?.("faserip", "actorName") ?? message.flags?.faserip?.actorName ?? "";
+  const energyDefault = !!(message.getFlag?.("faserip", "damageEnergy") ?? message.flags?.faserip?.damageEnergy);
+
+  if (damageAmount != null && !message.getFlag?.("faserip", "damageApplied")) {
+    const form = await promptForm({
+      title: `${target.name} — damage`,
+      okLabel: "Apply damage",
+      content: `
+        <p><strong>${esc(attacker || "Attack")}</strong> — ${esc(effect || "Hit")} against <strong>${esc(target.name)}</strong>.</p>
+        <p class="hint">This number is before Body Armor or a Force Field. Armor on the target is ${target.getBodyArmor?.() ?? 0}.</p>
+        <div class="form-group"><label>Health loss<input type="number" name="amount" value="${Number(damageAmount) || 0}" min="0" /></label></div>
+        <label class="check"><input type="checkbox" name="energy" ${energyDefault ? "checked" : ""}/> Energy (−20 armor)</label>
+        <label class="check"><input type="checkbox" name="field" /> Use Force Field</label>
+      `
+    });
+    if (!form) return;
+    const amount = Number(formValue(form, "amount") || 0);
+    const energy = !!form.querySelector('[name="energy"]')?.checked;
+    const useForceField = !!form.querySelector('[name="field"]')?.checked;
+    if (target.isOwner || game.user.isGM) {
+      const taken = await target.applyDamage(amount, { energy, useForceField });
+      ui.notifications.info(`${target.name} loses ${taken} Health.`);
+      try { await message.setFlag("faserip", "damageApplied", true); } catch {}
+    } else {
+      ui.notifications.warn(`Only the Judge can apply damage to ${target.name}. Use the button on the chat card.`);
+    }
+  }
+
+  if (checkColumn && BATTLE_EFFECTS[checkColumn]) {
+    const { promptFeatRoll } = await import("./dice/universal-table.mjs");
+    await promptFeatRoll({
+      actor: target,
+      rankId: target.getAbilityRank("endurance"),
+      label: BATTLE_EFFECTS[checkColumn].label,
+      defaultColumn: checkColumn,
+      holdPending: true
+    });
+  }
+}
+
+export async function applyDamageFromChat(message) {
+  const targetId = message.getFlag?.("faserip", "targetId");
+  const target = game.actors.get(targetId);
+  if (!target) return;
+  if (!target.isOwner && !game.user.isGM) {
+    ui.notifications.warn("Only the Judge can apply this damage.");
+    return;
+  }
+  if (message.getFlag("faserip", "damageApplied")) {
+    ui.notifications.info(`Damage was already applied to ${target.name}.`);
+    return;
+  }
+  const amount = Number(message.getFlag("faserip", "damageAmount") || 0);
+  const energy = !!message.getFlag("faserip", "damageEnergy");
+  const taken = await target.applyDamage(amount, { energy });
+  try { await message.setFlag("faserip", "damageApplied", true); } catch {}
+  ui.notifications.info(`${target.name} loses ${taken} Health.`);
+}
+
+export async function checkFromChat(message) {
+  const target = game.actors.get(message.getFlag?.("faserip", "targetId"));
+  const checkColumn = message.getFlag?.("faserip", "checkColumn");
+  if (!target || !BATTLE_EFFECTS[checkColumn]) return;
+  const { promptFeatRoll } = await import("./dice/universal-table.mjs");
+  return promptFeatRoll({
+    actor: target,
+    rankId: target.getAbilityRank("endurance"),
+    label: BATTLE_EFFECTS[checkColumn].label,
+    defaultColumn: checkColumn,
+    holdPending: true
+  });
+}
+
+export function bindFeatChat(message, html) {
+  const root = html instanceof HTMLElement ? html : html?.[0];
+  if (!root?.querySelectorAll) return;
+  root.querySelector("[data-faserip-apply]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    applyDamageFromChat(message);
+  });
+  root.querySelector("[data-faserip-check]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    checkFromChat(message);
+  });
+}
+
+export function combatFlags({ actor, item, target, columnId, effect }) {
+  const flags = {};
+  if (target) {
+    flags.targetId = target.id;
+    flags.targetName = target.name;
+  }
+  const checkColumn = checkForEffect(effect);
+  if (checkColumn) flags.checkColumn = checkColumn;
+  if (effectDealsDamage(columnId, effect)) {
+    flags.damageAmount = attackDamageNumber(actor, item, columnId);
+    flags.damageEnergy = columnId === "energy";
+  }
+  return flags;
+}
+
+export async function settleShifts({ actor, target, columnId, effect, consumeOutgoing, consumeIncoming }) {
+  const defense = pendingFromDefense(columnId, effect);
+  const same = actor && target && actor.id === target.id;
+  if (target && consumeIncoming && !same) {
+    const pending = readPending(target);
+    await writePending(target, { ...pending, incomingCs: 0, incomingNote: "" });
+  }
+  if (!actor) return;
+  const pending = readPending(actor);
+  const next = { ...pending };
+  let changed = false;
+  if (consumeOutgoing) {
+    next.nextCs = 0;
+    next.nextNote = "";
+    changed = true;
+  }
+  if (same && consumeIncoming) {
+    next.incomingCs = 0;
+    next.incomingNote = "";
+    changed = true;
+  }
+  if (defense) {
+    Object.assign(next, defense);
+    changed = true;
+  }
+  if (changed) await writePending(actor, next);
+}
+
+function selectedActorIds() {
+  const ids = new Set();
+  for (const token of canvas?.tokens?.controlled ?? []) {
+    if (token.actor) ids.add(token.actor.id);
+  }
+  return ids;
+}
+
+export async function promptJudgeAward(preselect = []) {
+  if (!game.user.isGM) {
+    ui.notifications.warn("Only the Judge can award Karma and Popularity.");
+    return null;
+  }
+  const preferred = new Set([...preselect, ...selectedActorIds()]);
+  const actors = game.actors.filter((actor) => actor.type === "hero" || actor.type === "npc");
+  if (!actors.length) {
+    ui.notifications.warn("No heroes or NPCs to award.");
+    return null;
+  }
+  const checks = actors.map((actor) => `
+    <label class="check"><input type="checkbox" name="actor" value="${actor.id}" ${preferred.has(actor.id) ? "checked" : ""}/> ${esc(actor.name)}</label>
+  `).join("");
+  const form = await promptForm({
+    title: "Judge award",
+    okLabel: "Award",
+    width: 420,
+    content: `
+      <p class="hint">Selected tokens start checked. Use a negative number to reduce Karma or Popularity.</p>
+      <div class="form-group"><label>Karma<input type="number" name="karma" value="0" step="1" /></label></div>
+      <div class="form-group"><label>Hero Popularity<input type="number" name="popularity" value="0" step="1" /></label></div>
+      <div class="form-group"><label>Secret Popularity<input type="number" name="secret" value="0" step="1" /></label></div>
+      <div class="award-list">${checks}</div>
+    `
+  });
+  if (!form) return null;
+  const karma = Number(formValue(form, "karma") || 0);
+  const popularity = Number(formValue(form, "popularity") || 0);
+  const secret = Number(formValue(form, "secret") || 0);
+  const ids = [...form.querySelectorAll('[name="actor"]:checked')].map((el) => el.value);
+  if (!ids.length) {
+    ui.notifications.warn("Choose at least one character.");
+    return null;
+  }
+  const names = [];
+  for (const id of ids) {
+    const actor = game.actors.get(id);
+    if (!actor) continue;
+    const update = {};
+    if (karma) update["system.karma.value"] = Math.max(0, Number(actor.system.karma?.value || 0) + karma);
+    if (popularity) update["system.popularity.value"] = Number(actor.system.popularity?.value || 0) + popularity;
+    if (secret) update["system.popularity.secret"] = Number(actor.system.popularity?.secret || 0) + secret;
+    if (Object.keys(update).length) await actor.update(update);
+    names.push(actor.name);
+  }
+  const parts = [];
+  if (karma) parts.push(`${karma > 0 ? "+" : ""}${karma} Karma`);
+  if (popularity) parts.push(`${popularity > 0 ? "+" : ""}${popularity} Hero Popularity`);
+  if (secret) parts.push(`${secret > 0 ? "+" : ""}${secret} Secret Popularity`);
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker(),
+    content: `<div class="faserip-chat"><header><span class="feat-label">Judge award</span></header><p>${esc(parts.join(", ") || "No change")} — ${esc(names.join(", "))}</p></div>`
+  });
+  ui.notifications.info(`Awarded ${names.length} character${names.length === 1 ? "" : "s"}.`);
+  return names;
+}

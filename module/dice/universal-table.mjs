@@ -7,6 +7,7 @@ import {
   intensityNeeded,
   battleResult
 } from "../config.mjs";
+import { abilityForColumn, combinedShift, sceneActorChoices } from "../play-rules.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -39,7 +40,12 @@ export async function rollFeat({
   karma = 0,
   label = "FEAT",
   intensityId = "",
-  effectsColumn = ""
+  effectsColumn = "",
+  targetId = "",
+  shiftNotes = "",
+  consumeOutgoing = false,
+  consumeIncoming = false,
+  holdPending = false
 } = {}) {
   const effectiveId = shiftRank(rankId, Number(cs) || 0);
   let spend = Number(karma) || 0;
@@ -76,6 +82,20 @@ export async function rollFeat({
   const effect = columnId ? battleResult(columnId, color) : "";
   const effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
 
+  const target = targetId ? game.actors.get(targetId) : null;
+  let combat = {};
+  if (!holdPending) {
+    const { settleShifts, combatFlags } = await import("../play.mjs");
+    await settleShifts({
+      actor,
+      target,
+      columnId,
+      effect,
+      consumeOutgoing,
+      consumeIncoming
+    });
+    combat = combatFlags({ actor, item, target, columnId, effect });
+  }
   const content = await foundry.applications.handlebars.renderTemplate("systems/faserip/templates/chat/feat-roll.hbs", {
     actorName: actor?.name ?? "",
     itemName: item?.name ?? "",
@@ -95,7 +115,14 @@ export async function rollFeat({
     intensityNeed: intensityId ? intensity.label : "",
     intensityPass,
     effect,
-    effectLabel
+    effectLabel,
+    shiftNotes,
+    targetName: combat.targetName || target?.name || "",
+    damageAmount: combat.damageAmount ?? null,
+    canDamage: combat.damageAmount != null,
+    damageEnergy: !!combat.damageEnergy,
+    checkColumn: combat.checkColumn || "",
+    checkLabel: combat.checkColumn ? (BATTLE_EFFECTS[combat.checkColumn]?.label ?? "") : ""
   });
 
   return ChatMessage.create({
@@ -112,7 +139,13 @@ export async function rollFeat({
         intensityId: intensityId || null,
         intensityPass,
         effectsColumn: columnId || null,
-        effect
+        effect,
+        targetId: combat.targetId || null,
+        targetName: combat.targetName || target?.name || "",
+        damageAmount: combat.damageAmount ?? null,
+        damageEnergy: !!combat.damageEnergy,
+        checkColumn: combat.checkColumn || null,
+        attackerId: actor?.id || null
       }
     }
   });
@@ -124,29 +157,45 @@ function optionList(entries, selected = "") {
     .join("");
 }
 
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[ch]));
+}
+
 export async function promptFeatRoll({
   actor,
   item = null,
   rankId,
   label,
+  ability = "",
   defaultColumn = "",
-  defaultIntensity = ""
+  defaultIntensity = "",
+  holdPending = false
 } = {}) {
   const ranks = (game.faserip?.ranks ?? []).map((r) => [r.id, r.label]);
   const columns = [["", "— none (plain FEAT) —"], ...Object.entries(BATTLE_EFFECTS).map(([id, col]) => [id, col.label])];
   const intensityOpts = [["", "— no Intensity —"], ...ranks];
+  const targets = sceneActorChoices().filter((choice) => choice.id !== actor?.id);
+  const targetOptions = [["", "— no target —"], ...targets.map((choice) => [choice.id, choice.name])];
+  const preselected = targets.find((choice) => choice.targeted)?.id || "";
   const weaponHint = item?.type === "weapon"
-    ? `<p class="hint">${item.system.weaponType || "Weapon"} · ${item.system.range || "touch"} · damage ${item.system.damage || "by Strength / material"} · column ${BATTLE_EFFECTS[item.system.effectsColumn]?.label || item.system.effectsColumn || "none"}</p>`
+    ? `<p class="hint">${esc(item.system.weaponType || "Weapon")} · ${esc(item.system.range || "touch")} · damage ${esc(item.system.damage || "by Strength / material")} · column ${esc(BATTLE_EFFECTS[item.system.effectsColumn]?.label || item.system.effectsColumn || "none")}</p>`
     : "";
 
   const content = `
     <div class="faserip-dialog-scroll">
-    <form class="faserip-feat-dialog">
-      <p><strong>${label}</strong> — ${rankLabel(rankId)}</p>
+    <form class="faserip-feat-dialog" data-ability="${esc(ability)}">
+      <p><strong>${esc(label)}</strong> — ${esc(rankLabel(rankId))}</p>
       ${weaponHint}
+      <div class="form-group">
+        <label>Target</label>
+        <select name="target">${optionList(targetOptions, preselected)}</select>
+      </div>
       <div class="form-group">
         <label>Column Shift (+ right / easier, − left / harder)</label>
         <input type="number" name="cs" value="0" step="1" />
+        <p class="hint shift-hint"></p>
       </div>
       <div class="form-group">
         <label>Spend Karma (minimum 10 to modify the d100)</label>
@@ -164,6 +213,33 @@ export async function promptFeatRoll({
     </form>
     </div>
   `;
+
+  const refreshShift = (root) => {
+    if (!root || holdPending) return;
+    const column = root.querySelector('[name="column"]')?.value || "";
+    const target = game.actors.get(root.querySelector('[name="target"]')?.value || "");
+    const plan = combinedShift(actor, {
+      ability: abilityForColumn(column, ability),
+      effectsColumn: column,
+      target
+    });
+    const input = root.querySelector('[name="cs"]');
+    const hint = root.querySelector(".shift-hint");
+    if (input && !input.dataset.edited) input.value = plan.cs;
+    if (hint) hint.textContent = plan.note || "Talents and saved defense shifts land here. Edit the number to override this roll.";
+  };
+
+  Hooks.once("renderDialogV2", (app) => {
+    const root = app?.element ?? app?.window?.element;
+    const form = root?.querySelector?.(".faserip-feat-dialog") || document.querySelector(".faserip-feat-dialog");
+    if (!form) return;
+    refreshShift(form);
+    form.querySelector('[name="column"]')?.addEventListener("change", () => refreshShift(form));
+    form.querySelector('[name="target"]')?.addEventListener("change", () => refreshShift(form));
+    form.querySelector('[name="cs"]')?.addEventListener("input", (event) => {
+      event.currentTarget.dataset.edited = "1";
+    });
+  });
 
   const DialogV2 = foundry.applications.api.DialogV2;
   const form = await DialogV2.wait({
@@ -183,11 +259,34 @@ export async function promptFeatRoll({
     rejectClose: false
   });
   if (!form || form === "cancel") return null;
-  const cs = Number(form.querySelector('[name="cs"]')?.value || 0);
+  const csInput = form.querySelector('[name="cs"]');
+  const typedCs = Number(csInput?.value || 0);
   const karma = Number(form.querySelector('[name="karma"]')?.value || 0);
   const intensityId = form.querySelector('[name="intensity"]')?.value || "";
   const effectsColumn = form.querySelector('[name="column"]')?.value || "";
-  return rollFeat({ actor, item, rankId, label, cs, karma, intensityId, effectsColumn });
+  const targetId = form.querySelector('[name="target"]')?.value || "";
+  const target = targetId ? game.actors.get(targetId) : null;
+  const plan = holdPending ? { note: "", consumeOutgoing: false, consumeIncoming: false } : combinedShift(actor, {
+    ability: abilityForColumn(effectsColumn, ability),
+    effectsColumn,
+    target
+  });
+  const cs = csInput?.dataset.edited ? typedCs : plan.cs;
+  return rollFeat({
+    actor,
+    item,
+    rankId,
+    label,
+    cs,
+    karma,
+    intensityId,
+    effectsColumn,
+    targetId,
+    shiftNotes: plan.note,
+    consumeOutgoing: plan.consumeOutgoing,
+    consumeIncoming: plan.consumeIncoming,
+    holdPending
+  });
 }
 
 export { COLOR_HEX };

@@ -350,6 +350,28 @@
 .faserip-chat .result-banner.green { background: #22c55e; color: #052e16; }
 .faserip-chat .result-banner.yellow { background: #facc15; color: #111; }
 .faserip-chat .result-banner.red { background: #dc2626; color: white; }
+.faserip-chat .feat-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+.faserip-chat .feat-actions:empty { display: none; }
+.faserip-chat .feat-actions button {
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  border: 2px solid #111;
+  background: #facc15;
+  cursor: pointer;
+}
+button.faserip-award {
+  flex: 0 0 auto;
+  margin: 4px;
+  font-weight: 700;
+  font-family: Oswald, sans-serif;
+  text-transform: uppercase;
+  background: #fff;
+  color: #111;
+  border: 2px solid #111;
+  cursor: pointer;
+}
+.faserip-sheet .pending-shift { margin: 4px 0 0; font-weight: 700; }
+.award-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow: auto; }
 .faserip-sheet .derived-row {
   display: flex;
   flex-wrap: wrap;

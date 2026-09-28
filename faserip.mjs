@@ -7,6 +7,7 @@ import { buildItemSheetClass } from "./module/sheets/item-sheet.mjs";
 import { RANKS, ABILITIES, BATTLE_EFFECTS, rankLabel, shiftRank, intensityNeeded, initiativeModifier } from "./module/config.mjs";
 import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-table-app.mjs";
+import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
 import { createActorWizard } from "./module/wizard.mjs";
@@ -14,7 +15,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.19";
+const VERSION = "1.17.20";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -224,6 +225,16 @@ Hooks.once("init", () => {
       power: PowerData, talent: TalentData, contact: ContactData, equipment: EquipmentData, weapon: WeaponData
     };
     CONFIG.Combat.initiative = { formula: "1d10 + @initMod", decimals: 0 };
+    const BaseCombatant = CONFIG.Combatant?.documentClass;
+    if (typeof BaseCombatant === "function") {
+      class FaseripCombatant extends BaseCombatant {
+        getInitiativeRoll(formula) {
+          if (typeof this.actor?.getInitiativeRoll === "function") return this.actor.getInitiativeRoll(formula);
+          return super.getInitiativeRoll(formula);
+        }
+      }
+      CONFIG.Combatant.documentClass = FaseripCombatant;
+    }
     const FaseripActorSheet = buildActorSheetClass();
     const FaseripItemSheet = buildItemSheetClass();
     registerSheets(FaseripActorSheet, FaseripItemSheet);
@@ -282,12 +293,19 @@ Hooks.once("init", () => {
   }
 });
 
-Hooks.on("renderActorDirectory", (_app, html) => attachGenerateButton(html ?? _app?.element ?? _app));
+Hooks.on("renderActorDirectory", (_app, html) => {
+  attachGenerateButton(html ?? _app?.element ?? _app);
+  attachAwardButton(html ?? _app?.element ?? _app);
+});
 Hooks.on("renderSidebarTab", (app, html) => {
-  if (isActorDirectory(app, html)) attachGenerateButton(html ?? app?.element ?? app);
+  if (!isActorDirectory(app, html)) return;
+  attachGenerateButton(html ?? app?.element ?? app);
+  attachAwardButton(html ?? app?.element ?? app);
 });
 Hooks.on("renderApplicationV2", (app, element) => {
-  if (isActorDirectory(app, element)) attachGenerateButton(element ?? app?.element ?? app);
+  if (!isActorDirectory(app, element)) return;
+  attachGenerateButton(element ?? app?.element ?? app);
+  attachAwardButton(element ?? app?.element ?? app);
 });
 Hooks.on("renderSettings", (_app, html) => {
   try {
@@ -341,7 +359,52 @@ Hooks.on("createChatMessage", (message) => {
   showRollOnTable({ rankId, roll, color, label, actorName }).catch((err) => {
     console.warn("FASERIP | universal table", err);
   });
+  const damageAmount = message.getFlag?.("faserip", "damageAmount") ?? message.flags?.faserip?.damageAmount;
+  const checkColumn = message.getFlag?.("faserip", "checkColumn") ?? message.flags?.faserip?.checkColumn;
+  if (damageAmount == null && !checkColumn) return;
+  openCombatChain(message).catch((err) => console.warn("FASERIP | combat chain", err));
 });
+
+function bindFeatMessage(message, html) {
+  try { bindFeatChat(message, html); } catch (err) { console.warn("FASERIP | feat chat", err); }
+}
+
+Hooks.on("renderChatMessage", bindFeatMessage);
+Hooks.on("renderChatMessageHTML", bindFeatMessage);
+
+function attachAwardButton(root) {
+  try {
+    if (!game.user?.isGM) return;
+    const el = root instanceof HTMLElement
+      ? root
+      : root?.[0] instanceof HTMLElement
+        ? root[0]
+        : root?.element instanceof HTMLElement
+          ? root.element
+          : null;
+    if (!el?.querySelector) return;
+    const scope = el.id === "actors" || el.classList?.contains("actors-sidebar")
+      ? el
+      : (el.querySelector?.("#actors, .actors-sidebar, [data-tab='actors']") || el);
+    if (scope.querySelector?.(".faserip-award")) return;
+    const header = scope.querySelector(".header-actions")
+      || scope.querySelector(".directory-header")
+      || scope.querySelector("header")
+      || el;
+    if (!header || header.querySelector?.(".faserip-award")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "faserip-award";
+    btn.innerHTML = '<i class="fa-solid fa-award"></i> Award';
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      promptJudgeAward();
+    });
+    header.appendChild(btn);
+  } catch (err) {
+    console.warn("FASERIP | award button", err);
+  }
+}
 
 Hooks.on("renderHotbar", () => attachUniversalTableButton());
 
@@ -350,6 +413,7 @@ Hooks.once("ready", () => {
   injectScrollableWindowStyles();
   attachUniversalTableButton();
   attachGenerateButton(ui.actors?.element);
+  attachAwardButton(ui.actors?.element);
   document.querySelectorAll("#actors, .actors-sidebar, [id='actors']").forEach(attachGenerateButton);
   pinDefaultSheets().catch(() => {});
   Promise.resolve()

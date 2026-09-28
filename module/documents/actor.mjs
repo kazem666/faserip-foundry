@@ -1,6 +1,7 @@
 import { rankValue, ABILITIES, abilityNumber, initiativeModifier } from "../config.mjs";
 import { rollFeat } from "../dice/universal-table.mjs";
 import { createActorWizard } from "../wizard.mjs";
+import { initiativeTalentBonus, initiativeTotal, readPending, shiftedArmor, writePending } from "../play-rules.mjs";
 
 function rolledStatsStamp(actor) {
   return actor.getFlag?.("faserip", "rolledStats") || actor.flags?.faserip?.rolledStats || null;
@@ -106,7 +107,7 @@ export class FaseripActor extends Actor {
       const n = Number(item.system.number || 0) || rankValue(item.system.rank);
       if (n > armor) armor = n;
     }
-    return armor;
+    return shiftedArmor(armor, readPending(this).armorCs);
   }
 
   getForceField() {
@@ -140,6 +141,7 @@ export class FaseripActor extends Actor {
     };
     if (value === 0) update["system.condition.unconscious"] = true;
     await this.update(update);
+    if (readPending(this).armorCs) await writePending(this, { armorCs: 0, armorNote: "" });
     return incoming;
   }
 
@@ -185,13 +187,21 @@ export class FaseripActor extends Actor {
   }
 
   getInitiativeMod() {
-    return initiativeModifier(this.getAbilityNumber("intuition"));
+    return initiativeModifier(this.getAbilityNumber("intuition")) + initiativeTalentBonus(this);
   }
 
-  async getInitiativeRoll(formula) {
+  async getInitiativeRoll() {
     const mod = this.getInitiativeMod();
-    const f = formula || `1d10 + ${mod}`;
-    return new Roll(f, this.getRollData());
+    const roll = new Roll("1d10", this.getRollData());
+    const evaluate = roll.evaluate.bind(roll);
+    roll.evaluate = async (options = {}) => {
+      await evaluate({ ...options, allowInteractive: false });
+      const term = roll.terms?.find((part) => part.faces === 10);
+      const face = Number(term?.results?.[0]?.result ?? term?.total ?? roll.total);
+      roll._total = initiativeTotal(face, mod);
+      return roll;
+    };
+    return roll;
   }
 
   async rollInitiative({ createCombatants = false, rerollInitiative = false } = {}) {

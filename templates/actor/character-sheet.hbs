@@ -120,7 +120,7 @@
       </div>
 
       <section class="derived-row">
-        <div>Init +{{initMod}}</div>
+        <div>Init +{{initMod}} <span class="hint">(1 stays 1)</span></div>
         <div>Move {{movement}} areas</div>
         <div>Throw {{throwRange}} areas</div>
         <div>Heal {{healRate}} / hour</div>
@@ -144,6 +144,8 @@
         </label>
         <button type="button" data-action="universal">Roll FEAT</button>
         <button type="button" data-action="toggleTable">Universal Table</button>
+        {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
+        {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
         <label>Battle Effects
           <select name="combatColumn">
             {{#each combatColumns as |c|}}<option value="{{c.id}}">{{c.label}}</option>{{/each}}
