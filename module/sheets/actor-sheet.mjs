@@ -15,6 +15,7 @@ import { promptFeatRoll } from "../dice/universal-table.mjs";
 import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
 import { promptJudgeAward } from "../play.mjs";
 import { formatPending, readPending } from "../play-rules.mjs";
+import { describeItemAction, rollItemAction } from "../item-actions.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
@@ -29,15 +30,6 @@ function itemIdFrom(event) {
 
 function optionList(list) {
   return list.map((n) => "<option value='" + String(n) + "'>" + n + "</option>").join("");
-}
-
-function featRankForItem(actor, item) {
-  const column = item.system?.effectsColumn || "";
-  const ability = BATTLE_EFFECTS[column]?.ability;
-  if ((item.type === "weapon" || item.type === "equipment") && ability) {
-    return actor.getAbilityRank(ability);
-  }
-  return item.system?.rank ?? "typical";
 }
 
 export class FaseripActorSheet extends ActorSheetBase {
@@ -156,6 +148,8 @@ export class FaseripActorSheet extends ActorSheetBase {
         tie: item.system.tie ?? "",
         practicality: item.system.practicality ?? "",
         acquired: !!item.system.acquired,
+        actionLabel: describeItemAction(item).label,
+        actionTitle: describeItemAction(item).title,
         pips: pips(item.system.assistance),
         stunts: (item.system.stunts ?? []).map((s, index) => ({
           ...s,
@@ -278,13 +272,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     event.preventDefault();
     const item = this.actor.items.get(itemIdFrom(event));
     if (!item) return;
-    return promptFeatRoll({
-      actor: this.actor,
-      item,
-      rankId: featRankForItem(this.actor, item),
-      label: item.name,
-      defaultColumn: item.system.effectsColumn ?? ""
-    });
+    return rollItemAction(this.actor, item, { dialog: !!event.shiftKey });
   }
 
   _onItemEdit(event) {

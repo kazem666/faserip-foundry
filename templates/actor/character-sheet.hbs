@@ -216,9 +216,7 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="powers">
-      {{#if generation}}
-      <p class="hint">Generation granted {{generation.powerNeed}} power slot(s) (max {{generation.powerMax}}). Two-slot powers spend 2. Slots used now: {{powerSlotsUsed}}.</p>
-      {{/if}}
+      <p class="hint">Click Attack or FEAT. Target a token first so a hit applies Health. Shift-click to spend Karma or change the column.{{#if generation}} Slots {{powerSlotsUsed}} / {{generation.powerNeed}}.{{/if}}</p>
       {{#each powers as |item|}}
       <article class="record-card power-card item" data-item-id="{{item.id}}">
         <header>
@@ -226,7 +224,7 @@
           <strong>{{item.name}}</strong>
           <span class="item-rank">{{item.rankLabel}}</span>
           <span class="slots">Slots {{item.slotsTaken}}</span>
-          <button type="button" data-action="rollItem">FEAT</button>
+          <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
           <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </header>
@@ -271,12 +269,13 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="talents">
-      {{#if generation}}<p class="hint">Rolled {{generation.talentNeed}} talent(s).</p>{{/if}}
+      {{#if generation}}<p class="hint">Rolled {{generation.talentNeed}} talent(s). Click the button to use that talent. Shift-click to spend Karma.</p>{{else}}<p class="hint">Click the button to use that talent. Shift-click to spend Karma.</p>{{/if}}
       {{#each talents as |item|}}
       <article class="record-card item" data-item-id="{{item.id}}">
         <header>
           <strong>{{item.name}}</strong>
           <span>{{item.category}}</span>
+          <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
           <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </header>
@@ -328,7 +327,7 @@
           <img src="{{item.img}}" alt="" />
           <span class="item-name">{{item.name}}</span>
           <span class="item-rank">{{item.rankLabel}}</span>
-          <button type="button" data-action="rollItem">FEAT</button>
+          <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
           <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </li>

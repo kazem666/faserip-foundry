@@ -1,13 +1,7 @@
 import { BATTLE_EFFECTS } from "./config.mjs";
 import { promptForm, formValue } from "./foundry-api.mjs";
-import {
-  attackDamageNumber,
-  checkForEffect,
-  effectDealsDamage,
-  pendingFromDefense,
-  readPending,
-  writePending
-} from "./play-rules.mjs";
+import { attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
+import { powerDamage } from "./item-actions.mjs";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -29,42 +23,25 @@ export async function openCombatChain(message) {
   if (!targetId || (damageAmount == null && !checkColumn)) return;
   const target = game.actors.get(targetId);
   if (!target) return;
-  const effect = message.getFlag?.("faserip", "effect") ?? message.flags?.faserip?.effect ?? "";
-  const attacker = message.getFlag?.("faserip", "actorName") ?? message.flags?.faserip?.actorName ?? "";
   const energyDefault = !!(message.getFlag?.("faserip", "damageEnergy") ?? message.flags?.faserip?.damageEnergy);
 
   if (damageAmount != null && !message.getFlag?.("faserip", "damageApplied")) {
-    const form = await promptForm({
-      title: `${target.name} — damage`,
-      okLabel: "Apply damage",
-      content: `
-        <p><strong>${esc(attacker || "Attack")}</strong> — ${esc(effect || "Hit")} against <strong>${esc(target.name)}</strong>.</p>
-        <p class="hint">This number is before Body Armor or a Force Field. Armor on the target is ${target.getBodyArmor?.() ?? 0}.</p>
-        <div class="form-group"><label>Health loss<input type="number" name="amount" value="${Number(damageAmount) || 0}" min="0" /></label></div>
-        <label class="check"><input type="checkbox" name="energy" ${energyDefault ? "checked" : ""}/> Energy (−20 armor)</label>
-        <label class="check"><input type="checkbox" name="field" /> Use Force Field</label>
-      `
-    });
-    if (!form) return;
-    const amount = Number(formValue(form, "amount") || 0);
-    const energy = !!form.querySelector('[name="energy"]')?.checked;
-    const useForceField = !!form.querySelector('[name="field"]')?.checked;
     if (target.isOwner || game.user.isGM) {
-      const taken = await target.applyDamage(amount, { energy, useForceField });
-      ui.notifications.info(`${target.name} loses ${taken} Health.`);
+      const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault });
       try { await message.setFlag("faserip", "damageApplied", true); } catch {}
+      ui.notifications.info(`${target.name} loses ${taken} Health.`);
     } else {
       ui.notifications.warn(`Only the Judge can apply damage to ${target.name}. Use the button on the chat card.`);
     }
   }
 
   if (checkColumn && BATTLE_EFFECTS[checkColumn]) {
-    const { promptFeatRoll } = await import("./dice/universal-table.mjs");
-    await promptFeatRoll({
+    const { rollFeat } = await import("./dice/universal-table.mjs");
+    await rollFeat({
       actor: target,
       rankId: target.getAbilityRank("endurance"),
       label: BATTLE_EFFECTS[checkColumn].label,
-      defaultColumn: checkColumn,
+      effectsColumn: checkColumn,
       holdPending: true
     });
   }
@@ -125,7 +102,7 @@ export function combatFlags({ actor, item, target, columnId, effect }) {
   const checkColumn = checkForEffect(effect);
   if (checkColumn) flags.checkColumn = checkColumn;
   if (effectDealsDamage(columnId, effect)) {
-    flags.damageAmount = attackDamageNumber(actor, item, columnId);
+    flags.damageAmount = item?.type === "power" ? powerDamage(item) : attackDamageNumber(actor, item, columnId);
     flags.damageEnergy = columnId === "energy";
   }
   return flags;
