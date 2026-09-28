@@ -10,7 +10,7 @@ import {
 import { abilityForColumn, actorFromRef, combatTarget, sceneActorChoices } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
-import { attackOutOfRange } from "../movement.mjs";
+import { attackOutOfRange, closeCharge } from "../movement.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -315,6 +315,10 @@ export async function promptFeatRoll({
       ui.notifications?.warn(`${label}: ${blocked}`);
       return null;
     }
+  }
+  if (target && effectsColumn === "charging") {
+    const arrived = await closeCharge(actor, target);
+    if (!arrived) return null;
   }
   const plan = holdPending ? { note: "", consumeOutgoing: false, consumeIncoming: false } : shiftPlan(actor, {
     ability: abilityForColumn(effectsColumn, ability),

@@ -173,6 +173,70 @@ export function rangePhrase(actor, column, item = null) {
   return `${formatAreaCount(areas)} (${max} squares)`;
 }
 
+function cellKey(offset) {
+  return `${offset.i},${offset.j}`;
+}
+
+function cellGap(left, right) {
+  let best = Infinity;
+  for (const a of left) {
+    for (const b of right) {
+      best = Math.min(best, Math.max(Math.abs(a.i - b.i), Math.abs(a.j - b.j)));
+    }
+  }
+  return best;
+}
+
+function anchorOffset(cells) {
+  return cells.reduce((best, cell) => ({
+    i: Math.min(best.i, cell.i),
+    j: Math.min(best.j, cell.j)
+  }), { i: Infinity, j: Infinity });
+}
+
+function neighborCells(cells) {
+  const inside = new Set(cells.map(cellKey));
+  const found = [];
+  const seen = new Set();
+  for (const cell of cells) {
+    for (let di = -1; di <= 1; di++) {
+      for (let dj = -1; dj <= 1; dj++) {
+        if (!di && !dj) continue;
+        const next = { i: cell.i + di, j: cell.j + dj };
+        const key = cellKey(next);
+        if (inside.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        found.push(next);
+      }
+    }
+  }
+  return found;
+}
+
+export function chargeStop(attackerCells, targetCells, blocked = []) {
+  if (!attackerCells?.length || !targetCells?.length) return null;
+  const origin = anchorOffset(attackerCells);
+  if (cellGap(attackerCells, targetCells) <= 1) return { i: origin.i, j: origin.j, squares: 0 };
+  const footprint = attackerCells.map((cell) => ({ di: cell.i - origin.i, dj: cell.j - origin.j }));
+  const targetSet = new Set(targetCells.map(cellKey));
+  const blockedSet = new Set(blocked.map(cellKey));
+  let best = null;
+  for (const neighbor of neighborCells(targetCells)) {
+    for (const part of footprint) {
+      const dest = { i: neighbor.i - part.di, j: neighbor.j - part.dj };
+      const placed = footprint.map((piece) => ({ i: dest.i + piece.di, j: dest.j + piece.dj }));
+      if (placed.some((cell) => targetSet.has(cellKey(cell)) || blockedSet.has(cellKey(cell)))) continue;
+      if (cellGap(placed, targetCells) > 1) continue;
+      const squares = Math.max(Math.abs(dest.i - origin.i), Math.abs(dest.j - origin.j));
+      const manhattan = Math.abs(dest.i - origin.i) + Math.abs(dest.j - origin.j);
+      if (!best || squares < best.squares || (squares === best.squares && manhattan < best.manhattan)) {
+        best = { i: dest.i, j: dest.j, squares, manhattan };
+      }
+    }
+  }
+  return best;
+}
+
 export function gridSeparation(tokenA, tokenB) {
   const a = occupiedOffsets(tokenA);
   const b = occupiedOffsets(tokenB);
@@ -217,6 +281,86 @@ function sceneToken(actor, { targeted = false, controlled = false } = {}) {
   if (controlled) return matches.find((token) => token.controlled) || matches[0] || null;
   if (targeted) return matches.find((token) => token.isTargeted || token.targeted) || matches[0] || null;
   return matches[0] || null;
+}
+
+function occupiedByOthers(attacker, target) {
+  const tokens = globalThis.canvas?.tokens?.placeables ?? [];
+  const cells = [];
+  for (const token of tokens) {
+    if (token === attacker || token === target) continue;
+    cells.push(...occupiedOffsets(token));
+  }
+  return cells;
+}
+
+function gridTopLeft(offset) {
+  const grid = globalThis.canvas?.grid;
+  if (typeof grid?.getTopLeftPoint !== "function") return null;
+  try {
+    return grid.getTopLeftPoint(offset);
+  } catch {
+    return null;
+  }
+}
+
+async function slideToken(token, x, y) {
+  const doc = token?.document;
+  if (!doc) return false;
+  if (Math.abs(Number(doc.x) - x) < 1 && Math.abs(Number(doc.y) - y) < 1) return true;
+  const waypoint = { x, y, action: "walk", snapped: true, explicit: true };
+  if (typeof doc.move === "function") {
+    try {
+      const moved = await doc.move([waypoint], { showRuler: true, autoRotate: true });
+      return moved !== false;
+    } catch (err) {
+      console.warn("FASERIP | charge move", err);
+    }
+  }
+  try {
+    await doc.update({ x, y });
+    return true;
+  } catch (err) {
+    console.warn("FASERIP | charge update", err);
+    return false;
+  }
+}
+
+export async function closeCharge(actor, target) {
+  const from = sceneToken(actor, { controlled: true });
+  const to = sceneToken(target, { targeted: true });
+  if (!from || !to) {
+    ui.notifications?.warn("Charging needs both tokens on the map.");
+    return false;
+  }
+  const max = maxRangeSquares(actor, "charging");
+  const gap = gridSeparation(from, to);
+  if (!Number.isFinite(gap)) {
+    ui.notifications?.warn("Could not measure the charge on the grid.");
+    return false;
+  }
+  if (gap > max) {
+    ui.notifications?.warn(`${target.name} is ${gap} squares away. Charging reaches ${rangePhrase(actor, "charging")}.`);
+    return false;
+  }
+  const stop = chargeStop(occupiedOffsets(from), occupiedOffsets(to), occupiedByOthers(from, to));
+  if (!stop || stop.squares > max) {
+    ui.notifications?.warn(`No open square beside ${target.name} within the charge.`);
+    return false;
+  }
+  if (stop.squares === 0) return true;
+  const point = gridTopLeft(stop);
+  if (!point) return false;
+  const moved = await slideToken(from, point.x, point.y);
+  if (!moved) {
+    ui.notifications?.warn("Could not move the charging token.");
+    return false;
+  }
+  const after = gridSeparation(from, to);
+  if (after > 1) {
+    ui.notifications?.warn("The charge stopped before it reached the target.");
+    return false;
+  }
+  return true;
 }
 
 export function attackOutOfRange(actor, target, column, item = null) {

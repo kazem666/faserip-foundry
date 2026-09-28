@@ -1,7 +1,7 @@
 import { BATTLE_EFFECTS, rankLabel, rankValue } from "./config.mjs";
 import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combatTarget } from "./play-rules.mjs";
 import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
-import { attackOutOfRange, rangePhrase } from "./movement.mjs";
+import { attackOutOfRange, closeCharge, rangePhrase } from "./movement.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -226,7 +226,7 @@ export function sheetActionGroups(items = [], actor = null) {
     label: group.label,
     actions: STANDARD_ACTIONS.filter((entry) => entry.group === group.id).map((entry) => {
       const reach = actor ? rangePhrase(actor, entry.column) : "";
-      const base = entry.id === "slugfest" ? "Unarmed" : abilityName(entry.ability);
+      const base = entry.id === "slugfest" ? "Unarmed" : entry.id === "charging" ? "Moves in" : abilityName(entry.ability);
       const detail = reach ? `${base} · ${reach}` : entry.detail;
       return actionCard({ ...entry, detail, standard: entry.id, itemId: "" });
     })
@@ -292,6 +292,14 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
       ui.notifications?.warn(`${name}: ${blocked}`);
       return null;
     }
+  }
+  if (spec.column === "charging" && !target) {
+    ui.notifications?.warn("Target a token to charge.");
+    return null;
+  }
+  if (spec.column === "charging") {
+    const arrived = await closeCharge(actor, target);
+    if (!arrived) return null;
   }
   if (damaging && !target) {
     ui.notifications?.warn(`Target a token before ${name} so damage can land.`);
