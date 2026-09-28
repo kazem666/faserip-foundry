@@ -16,7 +16,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.22";
+const VERSION = "1.17.23";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -373,7 +373,6 @@ function bindFeatMessage(message, html) {
   try { bindFeatChat(message, html); } catch (err) { console.warn("FASERIP | feat chat", err); }
 }
 
-Hooks.on("renderChatMessage", bindFeatMessage);
 Hooks.on("renderChatMessageHTML", bindFeatMessage);
 
 function attachAwardButton(root) {
@@ -432,8 +431,25 @@ Hooks.once("ready", () => {
   ui.notifications.info(`FASERIP ${VERSION} loaded. Generate Hero: Create Actor, Actors tab button, or Game Settings.`);
 });
 
+function protectRecentHealth(actor, changes) {
+  const lock = actor.getFlag?.("faserip", "healthLock") || actor.flags?.faserip?.healthLock;
+  if (!lock || Date.now() - Number(lock.at || 0) > 2500) return;
+  const locked = Number(lock.value);
+  if (!Number.isFinite(locked)) return;
+  const nested = changes?.system?.health;
+  if (nested && nested.value != null && Number(nested.value) > locked) nested.value = locked;
+  if (changes && changes["system.health.value"] != null && Number(changes["system.health.value"]) > locked) {
+    changes["system.health.value"] = locked;
+  }
+}
+
 Hooks.on("preUpdateActor", (actor, changes, options) => {
-  if (options?.faseripApplyRolls || options?.faseripReapply) return;
+  if (!options?.faseripDamage && !options?.faseripHeal && !options?.faseripApplyRolls) {
+    try { protectRecentHealth(actor, changes); } catch (err) {
+      console.warn("FASERIP | protectRecentHealth", err);
+    }
+  }
+  if (options?.faseripApplyRolls || options?.faseripReapply || options?.faseripDamage) return;
   if (changes) {
     for (const key of Object.keys(changes)) {
       const match = String(key).match(/^system\.abilities\.([^.]+)\.(rank|number)$/);

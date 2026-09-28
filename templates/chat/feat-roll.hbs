@@ -22,6 +22,7 @@
     {{#if targetName}}<dt>Target</dt><dd>{{targetName}}</dd>{{/if}}
   </dl>
   {{#if shiftNotes}}<p class="hint">{{shiftNotes}}</p>{{/if}}
+  {{#if healthNote}}<p class="effect-banner">{{healthNote}}</p>{{/if}}
   <div class="feat-actions">
     {{#if showButtons}}
     {{#if canDamage}}<button type="button" data-faserip-apply>Apply {{damageAmount}} to {{targetName}}</button>{{/if}}

@@ -7,8 +7,8 @@ import {
   intensityNeeded,
   battleResult
 } from "../config.mjs";
-import { abilityForColumn, sceneActorChoices } from "../play-rules.mjs";
-import { shiftPlan, showCombatButtons } from "../workflow.mjs";
+import { abilityForColumn, actorFromRef, combatTarget, sceneActorChoices } from "../play-rules.mjs";
+import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -43,6 +43,7 @@ export async function rollFeat({
   intensityId = "",
   effectsColumn = "",
   targetId = "",
+  targetUuid = "",
   shiftNotes = "",
   consumeOutgoing = false,
   consumeIncoming = false,
@@ -83,7 +84,7 @@ export async function rollFeat({
   const effect = columnId ? battleResult(columnId, color) : "";
   const effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
 
-  const target = targetId ? game.actors.get(targetId) : null;
+  const target = actorFromRef(targetUuid || targetId);
   let combat = {};
   if (!holdPending) {
     const { settleShifts, combatFlags } = await import("../play.mjs");
@@ -96,6 +97,31 @@ export async function rollFeat({
       consumeIncoming
     });
     combat = combatFlags({ actor, item, target, columnId, effect });
+  }
+  let healthNote = "";
+  let damageApplied = false;
+  if (target && combat.damageAmount != null && workflowActive("autoApplyDamage")) {
+    if (target.isOwner || game.user?.isGM) {
+      const before = Number(target.system?.health?.value ?? 0);
+      const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;
+      try {
+        const taken = await target.applyDamage(Number(combat.damageAmount) || 0, {
+          energy: !!combat.damageEnergy,
+          useForceField
+        });
+        const after = Number(target.system?.health?.value ?? before);
+        damageApplied = true;
+        const amount = Number(combat.damageAmount) || 0;
+        healthNote = taken > 0
+          ? `${target.name} Health ${before} → ${after} (−${taken})`
+          : amount > 0
+            ? `${target.name} loses no Health. Armor or a force field stopped ${amount}.`
+            : `${target.name} takes no Health from this hit.`;
+        ui.notifications?.info(healthNote);
+      } catch (err) {
+        console.warn("FASERIP | apply damage", err);
+      }
+    }
   }
   const content = await foundry.applications.handlebars.renderTemplate("systems/faserip/templates/chat/feat-roll.hbs", {
     actorName: actor?.name ?? "",
@@ -119,6 +145,7 @@ export async function rollFeat({
     effectLabel,
     shiftNotes,
     targetName: combat.targetName || target?.name || "",
+    healthNote,
     damageAmount: combat.damageAmount ?? null,
     canDamage: combat.damageAmount != null,
     damageEnergy: !!combat.damageEnergy,
@@ -142,10 +169,12 @@ export async function rollFeat({
         intensityPass,
         effectsColumn: columnId || null,
         effect,
-        targetId: combat.targetId || null,
+        targetId: combat.targetId || target?.id || null,
+        targetUuid: combat.targetUuid || target?.uuid || null,
         targetName: combat.targetName || target?.name || "",
         damageAmount: combat.damageAmount ?? null,
         damageEnergy: !!combat.damageEnergy,
+        damageApplied,
         checkColumn: combat.checkColumn || null,
         attackerId: actor?.id || null
       }
@@ -178,7 +207,7 @@ export async function promptFeatRoll({
   const ranks = (game.faserip?.ranks ?? []).map((r) => [r.id, r.label]);
   const columns = [["", "— none (plain FEAT) —"], ...Object.entries(BATTLE_EFFECTS).map(([id, col]) => [id, col.label])];
   const intensityOpts = [["", "— no Intensity —"], ...ranks];
-  const targets = sceneActorChoices().filter((choice) => choice.id !== actor?.id);
+  const targets = sceneActorChoices().filter((choice) => choice.id !== actor?.uuid && choice.id !== actor?.id);
   const targetOptions = [["", "— no target —"], ...targets.map((choice) => [choice.id, choice.name])];
   const preselected = targets.find((choice) => choice.targeted)?.id || "";
   const weaponHint = item?.type === "weapon"
@@ -219,7 +248,7 @@ export async function promptFeatRoll({
   const refreshShift = (root) => {
     if (!root || holdPending) return;
     const column = root.querySelector('[name="column"]')?.value || "";
-    const target = game.actors.get(root.querySelector('[name="target"]')?.value || "");
+    const target = actorFromRef(root.querySelector('[name="target"]')?.value || "");
     const plan = shiftPlan(actor, {
       ability: abilityForColumn(column, ability),
       effectsColumn: column,
@@ -266,8 +295,8 @@ export async function promptFeatRoll({
   const karma = Number(form.querySelector('[name="karma"]')?.value || 0);
   const intensityId = form.querySelector('[name="intensity"]')?.value || "";
   const effectsColumn = form.querySelector('[name="column"]')?.value || "";
-  const targetId = form.querySelector('[name="target"]')?.value || "";
-  const target = targetId ? game.actors.get(targetId) : null;
+  const picked = form.querySelector('[name="target"]')?.value || "";
+  const target = actorFromRef(picked) || combatTarget(actor?.id);
   const plan = holdPending ? { note: "", consumeOutgoing: false, consumeIncoming: false } : shiftPlan(actor, {
     ability: abilityForColumn(effectsColumn, ability),
     effectsColumn,
@@ -283,7 +312,8 @@ export async function promptFeatRoll({
     karma,
     intensityId,
     effectsColumn,
-    targetId,
+    targetId: target?.id || "",
+    targetUuid: target?.uuid || "",
     shiftNotes: plan.note,
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming,

@@ -142,26 +142,28 @@ export async function persistGenerationStats(actor, result = {}, extras = {}) {
     };
   }
   if (Object.keys(abilityBlock).length) update["system.abilities"] = abilityBlock;
-  if (result.resources) {
-    update["system.resources.rank"] = result.resources;
-    update["system.resources.number"] = rankMin(result.resources);
-  }
   const phys = ["fighting", "agility", "strength", "endurance"].reduce((s, k) => s + Number(numbers[k] || 0), 0);
   const ment = ["reason", "intuition", "psyche"].reduce((s, k) => s + Number(numbers[k] || 0), 0);
-  if (phys) {
-    update["system.health.value"] = result.doubleHealth ? phys * 2 : phys;
-    update["system.health.max"] = result.doubleHealth ? phys * 2 : phys;
-  }
-  if (ment) {
-    update["system.karma.value"] = ment;
-    update["system.karma.max"] = ment;
-  }
-  if (result.origin?.label) update["system.identity.origin"] = extras.originLabel || result.originOfPower?.label || result.origin.label;
-  if (result.form?.label) update["system.identity.form"] = result.form.label;
-  if (result.originOfPower?.label) update["system.identity.originOfPower"] = result.originOfPower.label;
-  if (result.popularity != null) {
-    update["system.popularity.value"] = result.popularity;
-    update["system.popularity.secret"] = result.popularity;
+  if (!extras.abilitiesOnly) {
+    if (result.resources) {
+      update["system.resources.rank"] = result.resources;
+      update["system.resources.number"] = rankMin(result.resources);
+    }
+    if (phys) {
+      update["system.health.value"] = result.doubleHealth ? phys * 2 : phys;
+      update["system.health.max"] = result.doubleHealth ? phys * 2 : phys;
+    }
+    if (ment) {
+      update["system.karma.value"] = ment;
+      update["system.karma.max"] = ment;
+    }
+    if (result.origin?.label) update["system.identity.origin"] = extras.originLabel || result.originOfPower?.label || result.origin.label;
+    if (result.form?.label) update["system.identity.form"] = result.form.label;
+    if (result.originOfPower?.label) update["system.identity.originOfPower"] = result.originOfPower.label;
+    if (result.popularity != null) {
+      update["system.popularity.value"] = result.popularity;
+      update["system.popularity.secret"] = result.popularity;
+    }
   }
   const opts = { diff: false, render: false, faseripApplyRolls: true };
   try {
@@ -204,7 +206,7 @@ export async function reapplyRolledStats(actor) {
     origin: { label: stamped.originLabel },
     form: stamped.form ? { label: stamped.form } : null,
     originOfPower: stamped.originOfPower ? { label: stamped.originOfPower } : null
-  }, { originLabel: stamped.originLabel, quiet: true });
+  }, { originLabel: stamped.originLabel, quiet: true, abilitiesOnly: true });
   return true;
 }
 

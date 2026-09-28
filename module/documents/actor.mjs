@@ -138,10 +138,11 @@ export class FaseripActor extends Actor {
     const update = {
       "system.health.value": value,
       "system.condition.lastDamageRound": game.combat?.round ?? 0,
-      "system.condition.recoveredToday": false
+      "system.condition.recoveredToday": false,
+      "flags.faserip.healthLock": { value, at: Date.now() }
     };
     if (value === 0) update["system.condition.unconscious"] = true;
-    await this.update(update);
+    await this.update(update, { faseripDamage: true });
     if (readPending(this).armorCs) await writePending(this, { armorCs: 0, armorNote: "" });
     return incoming;
   }
@@ -151,7 +152,7 @@ export class FaseripActor extends Actor {
     const value = Math.min(max, (this.system.health.value ?? 0) + Number(amount || 0));
     const update = { "system.health.value": value };
     if (value > 0) update["system.condition.unconscious"] = false;
-    return this.update(update);
+    return this.update(update, { faseripHeal: true });
   }
 
   async recover() {

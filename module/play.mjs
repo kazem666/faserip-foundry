@@ -1,6 +1,6 @@
 import { BATTLE_EFFECTS } from "./config.mjs";
 import { promptForm, formValue } from "./foundry-api.mjs";
-import { attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
+import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
 import { powerDamage } from "./item-actions.mjs";
 import { workflowActive, workflowOn } from "./workflow.mjs";
 
@@ -19,14 +19,16 @@ function chainClient(message) {
 export async function openCombatChain(message) {
   if (!chainClient(message) || !workflowOn("workflowEnabled")) return;
   const targetId = message.getFlag?.("faserip", "targetId") ?? message.flags?.faserip?.targetId;
+  const targetUuid = message.getFlag?.("faserip", "targetUuid") ?? message.flags?.faserip?.targetUuid;
   const damageAmount = message.getFlag?.("faserip", "damageAmount") ?? message.flags?.faserip?.damageAmount;
   const checkColumn = message.getFlag?.("faserip", "checkColumn") ?? message.flags?.faserip?.checkColumn;
-  if (!targetId || (damageAmount == null && !checkColumn)) return;
-  const target = game.actors.get(targetId);
+  const alreadyApplied = !!(message.getFlag?.("faserip", "damageApplied") ?? message.flags?.faserip?.damageApplied);
+  if ((!targetId && !targetUuid) || (damageAmount == null && !checkColumn)) return;
+  const target = actorFromRef(targetUuid || targetId);
   if (!target) return;
   const energyDefault = !!(message.getFlag?.("faserip", "damageEnergy") ?? message.flags?.faserip?.damageEnergy);
 
-  if (damageAmount != null && workflowActive("autoApplyDamage") && !message.getFlag?.("faserip", "damageApplied")) {
+  if (damageAmount != null && workflowActive("autoApplyDamage") && !alreadyApplied) {
     if (target.isOwner || game.user.isGM) {
       const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;
       const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault, useForceField });
@@ -51,7 +53,8 @@ export async function openCombatChain(message) {
 
 export async function applyDamageFromChat(message) {
   const targetId = message.getFlag?.("faserip", "targetId");
-  const target = game.actors.get(targetId);
+  const targetUuid = message.getFlag?.("faserip", "targetUuid");
+  const target = actorFromRef(targetUuid || targetId);
   if (!target) return;
   if (!target.isOwner && !game.user.isGM) {
     ui.notifications.warn("Only the Judge can apply this damage.");
@@ -69,7 +72,7 @@ export async function applyDamageFromChat(message) {
 }
 
 export async function checkFromChat(message) {
-  const target = game.actors.get(message.getFlag?.("faserip", "targetId"));
+  const target = actorFromRef(message.getFlag?.("faserip", "targetUuid") || message.getFlag?.("faserip", "targetId"));
   const checkColumn = message.getFlag?.("faserip", "checkColumn");
   if (!target || !BATTLE_EFFECTS[checkColumn]) return;
   const { promptFeatRoll } = await import("./dice/universal-table.mjs");
@@ -99,6 +102,7 @@ export function combatFlags({ actor, item, target, columnId, effect }) {
   const flags = {};
   if (target) {
     flags.targetId = target.id;
+    flags.targetUuid = target.uuid || "";
     flags.targetName = target.name;
   }
   const checkColumn = checkForEffect(effect);

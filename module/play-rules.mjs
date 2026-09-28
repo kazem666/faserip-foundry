@@ -192,17 +192,63 @@ export function abilityForColumn(columnId, fallback = "") {
   return BATTLE_EFFECTS[columnId]?.ability || fallback || "";
 }
 
+export function actorFromRef(ref) {
+  if (!ref) return null;
+  if (typeof ref !== "string") return ref.documentName === "Actor" ? ref : (ref.actor || null);
+  if (ref.includes(".")) {
+    try {
+      const doc = globalThis.foundry?.utils?.fromUuidSync?.(ref);
+      if (doc?.documentName === "Actor") return doc;
+    } catch {
+      /* uuid not in this client yet */
+    }
+  }
+  for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+    const actor = token.actor;
+    if (actor && (actor.uuid === ref || actor.id === ref)) return actor;
+  }
+  return globalThis.game?.actors?.get?.(ref) ?? null;
+}
+
+export function combatTarget(excludeId = "") {
+  const ordered = [];
+  const seen = new Set();
+  const add = (token) => {
+    if (!token || seen.has(token)) return;
+    seen.add(token);
+    ordered.push(token);
+  };
+  try {
+    for (const token of globalThis.game?.user?.targets ?? []) add(token);
+  } catch {
+    /* targets may not be iterable until the canvas is ready */
+  }
+  for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+    if (token.isTargeted || token.targeted) add(token);
+  }
+  for (const token of globalThis.canvas?.tokens?.controlled ?? []) add(token);
+  for (const token of ordered) {
+    const actor = token.actor || token.document?.actor;
+    if (!actor) continue;
+    if (excludeId && (actor.id === excludeId || actor.uuid === excludeId)) continue;
+    return actor;
+  }
+  return null;
+}
+
 export function sceneActorChoices() {
   const tokens = globalThis.canvas?.tokens?.placeables ?? [];
   const choices = [];
   const seen = new Set();
   for (const token of tokens) {
     const actor = token.actor;
-    if (!actor || seen.has(actor.id)) continue;
+    const key = actor?.uuid || actor?.id;
+    if (!actor || !key || seen.has(key)) continue;
     if (actor.type !== "hero" && actor.type !== "npc") continue;
-    seen.add(actor.id);
-    const targeted = !!token.targeted || !!globalThis.game?.user?.targets?.has?.(token);
-    choices.push({ id: actor.id, name: token.name || actor.name, targeted });
+    seen.add(key);
+    let targeted = !!(token.isTargeted || token.targeted);
+    try { targeted = targeted || !!globalThis.game?.user?.targets?.has?.(token); } catch { /* ignore */ }
+    choices.push({ id: actor.uuid || actor.id, name: token.name || actor.name, targeted });
   }
   return choices;
 }

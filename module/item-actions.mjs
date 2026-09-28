@@ -1,5 +1,5 @@
 import { BATTLE_EFFECTS, rankValue } from "./config.mjs";
-import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn } from "./play-rules.mjs";
+import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combatTarget } from "./play-rules.mjs";
 import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
 
 function keyOf(name) {
@@ -171,17 +171,7 @@ export function powerDamage(item) {
 }
 
 export function targetedActor(excludeId = "") {
-  const pools = [
-    [...(globalThis.game?.user?.targets ?? [])],
-    globalThis.canvas?.tokens?.controlled ?? []
-  ];
-  for (const list of pools) {
-    for (const token of list) {
-      const actor = token?.actor;
-      if (actor && actor.id !== excludeId) return actor;
-    }
-  }
-  return null;
+  return combatTarget(excludeId);
 }
 
 export function defenseChoices(actor) {
@@ -228,6 +218,7 @@ export async function rollItemAction(actor, item, { dialog = false } = {}) {
     cs: plan.cs + reactionCs,
     effectsColumn: spec.column,
     targetId: target?.id || "",
+    targetUuid: target?.uuid || "",
     shiftNotes: plan.note,
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming && !reactionCs
