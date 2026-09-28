@@ -122,6 +122,9 @@ export class HeroData extends foundry.abstract.TypeDataModel {
       if (have !== want && (have === "typical" || !have)) {
         slot.rank = want;
         if (rolled.numbers?.[key] != null) slot.number = Number(rolled.numbers[key]);
+        // #region agent log
+        fetch('http://127.0.0.1:7675/ingest/e592db75-1f3d-4579-a49d-0597d6872c34',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'12e9d0'},body:JSON.stringify({sessionId:'12e9d0',runId:'pre-fix',hypothesisId:'D',location:'actor-data.mjs:prepareBaseData',message:'overlay typical with rolled rank',data:{actor:this.parent?.name,key,have,want,number:rolled.numbers?.[key]},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
       } else if (want && (slot.number == null || slot.number === 0) && rolled.numbers?.[key] != null && have === want) {
         slot.number = Number(rolled.numbers[key]);
       }

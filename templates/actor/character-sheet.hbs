@@ -59,8 +59,8 @@
                 <span class="name">{{ab.label}}</span>
               </button>
               <select name="system.abilities.{{ab.key}}.rank" title="{{ab.rankLabel}}">
-                {{#each ../ranks as |r|}}
-                <option value="{{r.id}}" {{#if (eq ab.rank r.id)}}selected{{/if}}>{{r.abbr}} {{r.min}}-{{r.max}}</option>
+                {{#each ab.options as |r|}}
+                <option value="{{r.id}}" {{#if r.selected}}selected{{/if}}>{{r.abbr}} {{r.min}}-{{r.max}}</option>
                 {{/each}}
               </select>
               <input type="number" name="system.abilities.{{ab.key}}.number" value="{{ab.number}}" min="0" title="Rank number (0 = use standard)" />

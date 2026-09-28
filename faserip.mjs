@@ -13,7 +13,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.14";
+const VERSION = "1.17.15";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -324,6 +324,15 @@ Hooks.once("ready", () => {
 
 Hooks.on("preUpdateActor", (actor, changes, options) => {
   if (options?.faseripApplyRolls || options?.faseripReapply) return;
+  if (changes) {
+    for (const key of Object.keys(changes)) {
+      const match = String(key).match(/^system\.abilities\.([^.]+)\.(rank|number)$/);
+      if (!match) continue;
+      changes.system = changes.system || {};
+      changes.system.abilities = { ...(changes.system.abilities || {}) };
+      changes.system.abilities[match[1]] = { ...(changes.system.abilities[match[1]] || {}), [match[2]]: changes[key] };
+    }
+  }
   const rolled = actor.getFlag("faserip", "rolledStats");
   if (!rolled?.abilities || !changes?.system?.abilities) return;
   const generating = !!actor.getFlag("faserip", "generating");
@@ -340,12 +349,14 @@ Hooks.on("preUpdateActor", (actor, changes, options) => {
 });
 
 async function tryReapplyRolledStats(actor) {
-  if (!actor || actor.getFlag("faserip", "generating")) return;
+  if (!actor || actor._faseripReapplyLock) return;
   if (!actor.getFlag("faserip", "rolledStats")) return;
+  actor._faseripReapplyLock = true;
   try {
     const mod = await import("./module/chargen.mjs");
     if (typeof mod.reapplyRolledStats === "function") await mod.reapplyRolledStats(actor);
   } catch {}
+  finally { actor._faseripReapplyLock = false; }
 }
 
 Hooks.on("updateActor", (actor, _changes, options) => {

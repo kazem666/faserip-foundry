@@ -5,6 +5,7 @@ import {
 import { deepClone } from "./foundry-api.mjs";
 import { rollD100, promptedD100, promptNextRoll } from "./dice/percentile.mjs";
 import { UPB_COUNT_TABLE } from "./data/upb.mjs";
+import { agentLog } from "./debug-log.mjs";
 
 function d100() { return Math.floor(Math.random() * 100) + 1; }
 
@@ -132,10 +133,16 @@ export async function persistGenerationStats(actor, result = {}, extras = {}) {
   const numbers = result.numbers || {};
   const update = { "flags.faserip.rolledStats": stamp };
   if (!extras.quiet) update["flags.faserip.generating"] = true;
+  const abilityBlock = {};
   for (const key of ABILITIES) {
-    if (abilities[key]) update[`system.abilities.${key}.rank`] = abilities[key];
-    if (numbers[key] != null) update[`system.abilities.${key}.number`] = Number(numbers[key]);
+    const current = actor.system?.abilities?.[key] || {};
+    if (!abilities[key] && numbers[key] == null) continue;
+    abilityBlock[key] = {
+      rank: abilities[key] || current.rank || "typical",
+      number: numbers[key] != null ? Number(numbers[key]) : Number(current.number || 0)
+    };
   }
+  if (Object.keys(abilityBlock).length) update["system.abilities"] = abilityBlock;
   if (result.resources) {
     update["system.resources.rank"] = result.resources;
     update["system.resources.number"] = rankMin(result.resources);
@@ -162,6 +169,23 @@ export async function persistGenerationStats(actor, result = {}, extras = {}) {
     if (Object.keys(update).length) {
       await actor.update(update, opts);
       console.log("FASERIP | persistGenerationStats", actor.name, abilities, numbers, { health: phys, karma: ment });
+      // #region agent log
+      const stored = {};
+      for (const k of ABILITIES) stored[k] = { rank: actor.system?.abilities?.[k]?.rank, number: actor.system?.abilities?.[k]?.number };
+      fetch('http://127.0.0.1:7675/ingest/e592db75-1f3d-4579-a49d-0597d6872c34',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'12e9d0'},body:JSON.stringify({sessionId:'12e9d0',runId:'pre-fix',hypothesisId:'C',location:'chargen.mjs:persistGenerationStats',message:'after persist update',data:{actor:actor.name,intended:abilities,intendedNumbers:numbers,stored,stamp:actor.getFlag?.('faserip','rolledStats')||actor.flags?.faserip?.rolledStats,generating:actor.getFlag?.('faserip','generating')||actor.flags?.faserip?.generating},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      const missed = ABILITIES.filter((key) => abilities[key] && stored[key]?.rank !== abilities[key]);
+      if (missed.length) {
+        const dotted = {};
+        for (const key of missed) {
+          dotted[`system.abilities.${key}.rank`] = abilities[key];
+          if (numbers[key] != null) dotted[`system.abilities.${key}.number`] = Number(numbers[key]);
+        }
+        await actor.update(dotted, opts);
+      }
+      const after = {};
+      for (const key of ABILITIES) after[key] = { rank: actor.system?.abilities?.[key]?.rank, number: actor.system?.abilities?.[key]?.number };
+      agentLog({ runId: "post-fix", hypothesisId: "C", location: "chargen.mjs:persistGenerationStats:verify", message: "stored ranks after nested write", data: { actor: actor.name, intended: abilities, after, missed } });
     }
   } catch (err) {
     console.warn("FASERIP | persistGenerationStats", err);

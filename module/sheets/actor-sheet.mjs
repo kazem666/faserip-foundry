@@ -16,6 +16,7 @@ import { promptFeatRoll } from "../dice/universal-table.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
 import { confirmDialog, promptForm, formValue, getActorSheetClass, getTextEditor } from "../foundry-api.mjs";
+import { agentLog } from "../debug-log.mjs";
 
 const ActorSheetBase = getActorSheetClass();
 
@@ -47,13 +48,48 @@ export class FaseripActorSheet extends ActorSheetBase {
       resizable: true,
       tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "record" }],
       dragDrop: [{ dragSelector: ".item, .record-card", dropSelector: null }],
-      submitOnChange: true
+      submitOnChange: true,
+      submitOnClose: false
     });
     return base;
   }
 
   get actor() {
     return this.document ?? super.actor;
+  }
+
+  async _updateObject(event, formData) {
+    const ranks = {};
+    for (const [k, v] of Object.entries(formData || {})) {
+      if (String(k).includes("system.abilities") && (String(k).endsWith(".rank") || String(k).endsWith(".number"))) ranks[k] = v;
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7675/ingest/e592db75-1f3d-4579-a49d-0597d6872c34',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'12e9d0'},body:JSON.stringify({sessionId:'12e9d0',runId:'pre-fix',hypothesisId:'A',location:'actor-sheet.mjs:_updateObject',message:'sheet form submit abilities',data:{actor:this.actor?.name,eventType:event?.type,ranks,stored:this.actor?.system?.abilities,rolled:this.actor?.getFlag?.('faserip','rolledStats')||this.actor?.flags?.faserip?.rolledStats,generating:this.actor?.getFlag?.('faserip','generating')||this.actor?.flags?.faserip?.generating},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    const rolled = this.actor?.getFlag?.("faserip", "rolledStats") || this.actor?.flags?.faserip?.rolledStats;
+    let restored = [];
+    if (rolled?.abilities && formData) {
+      const stale = ABILITIES.filter((key) => {
+        const rank = formData[`system.abilities.${key}.rank`] ?? formData.system?.abilities?.[key]?.rank;
+        return rank && rolled.abilities[key] && rank !== rolled.abilities[key];
+      });
+      if (stale.length >= 3) {
+        restored = stale;
+        for (const key of stale) {
+          const number = rolled.numbers?.[key];
+          if (formData[`system.abilities.${key}.rank`] != null || formData.system?.abilities?.[key] == null) {
+            formData[`system.abilities.${key}.rank`] = rolled.abilities[key];
+            if (number != null) formData[`system.abilities.${key}.number`] = Number(number);
+          }
+          if (formData.system?.abilities?.[key]) {
+            formData.system.abilities[key].rank = rolled.abilities[key];
+            if (number != null) formData.system.abilities[key].number = Number(number);
+          }
+        }
+      }
+    }
+    agentLog({ runId: "post-fix", hypothesisId: "A", location: "actor-sheet.mjs:_updateObject:restore", message: "form abilities after stamp restore", data: { actor: this.actor?.name, restored, ranks } });
+    return super._updateObject(event, formData);
   }
 
   async getData(options) {
@@ -75,16 +111,24 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.forceField = actor.getForceField();
       context.healRate = actor.getAbilityNumber("endurance");
       context.combatColumns = Object.entries(BATTLE_EFFECTS).map(([id, col]) => ({ id, label: col.label }));
+      const rolledStats = actor.getFlag?.("faserip", "rolledStats") || actor.flags?.faserip?.rolledStats;
       context.abilities = ABILITIES.map((key) => {
         const data = actor.system.abilities[key] ?? {};
-        const rank = data.rank ?? "typical";
+        let rank = data.rank ?? "typical";
+        let number = data.number;
+        if (rolledStats?.abilities?.[key] && rank !== rolledStats.abilities[key] && (rank === "typical" || !rank)) {
+          rank = rolledStats.abilities[key];
+          if (rolledStats.numbers?.[key] != null) number = Number(rolledStats.numbers[key]);
+        }
+        const shown = abilityNumber({ rank, number });
         return {
           key,
           label: game.i18n.localize(`FASERIP.Ability.${key}`),
           abbr: game.i18n.localize(`FASERIP.AbilityAbbr.${key}`),
           rank,
-          number: abilityNumber(data),
-          rankLabel: rankLabel(rank)
+          number: shown,
+          rankLabel: rankLabel(rank),
+          options: RANKS.map((r) => ({ ...r, selected: r.id === rank }))
         };
       });
       context.healthPct = actor.system.health.max
