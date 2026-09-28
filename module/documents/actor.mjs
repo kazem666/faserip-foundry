@@ -29,9 +29,6 @@ function nestFlatAbilityChanges(changed) {
  * started (all Typical / 6). Block that revert whenever we have a stamp.
  */
 function protectRolledAbilities(actor, changed, options = {}) {
-  // #region agent log
-  fetch('http://127.0.0.1:7675/ingest/e592db75-1f3d-4579-a49d-0597d6872c34',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'12e9d0'},body:JSON.stringify({sessionId:'12e9d0',runId:'pre-fix',hypothesisId:'B',location:'actor.mjs:protectRolledAbilities',message:'preUpdate changed shape',data:{actor:actor?.name,apply:isApplyingRolledStats(options),hasNested:!!changed?.system?.abilities,flatKeys:Object.keys(changed||{}).filter((k)=>String(k).includes('abilities')).slice(0,20),sysKeys:changed?.system?Object.keys(changed.system):[],generating:!!(actor.getFlag?.('faserip','generating')||actor.flags?.faserip?.generating),rolled:rolledStatsStamp(actor)?.abilities||null},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   if (isApplyingRolledStats(options)) return;
   nestFlatAbilityChanges(changed);
   const rolled = rolledStatsStamp(actor);
@@ -51,9 +48,6 @@ function protectRolledAbilities(actor, changed, options = {}) {
     return false;
   });
   const bulkRevert = touched.length >= 4 && stale.length >= 3;
-  // #region agent log
-  fetch('http://127.0.0.1:7675/ingest/e592db75-1f3d-4579-a49d-0597d6872c34',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'12e9d0'},body:JSON.stringify({sessionId:'12e9d0',runId:'pre-fix',hypothesisId:'A',location:'actor.mjs:protectRolledAbilities:gate',message:'stale submit gate',data:{actor:actor?.name,generating,bulkRevert,touched,stale,incoming,rolled:rolled.abilities,willBlock:!(!generating&&!bulkRevert)},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   if (!generating && !bulkRevert) return;
   for (const key of stale) {
     const want = rolled.abilities[key];

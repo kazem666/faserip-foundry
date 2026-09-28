@@ -47,14 +47,6 @@ export async function createActorWizard() {
   if (!actor) return null;
   if (extras.guided) await runFullGeneration(actor, extras);
   await actor.unsetFlag("faserip", "generating");
-  // #region agent log
-  {
-    const stored = {};
-    const AB = ["fighting","agility","strength","endurance","reason","intuition","psyche"];
-    for (const k of AB) stored[k] = { rank: actor.system?.abilities?.[k]?.rank, number: actor.system?.abilities?.[k]?.number };
-    fetch('http://127.0.0.1:7675/ingest/e592db75-1f3d-4579-a49d-0597d6872c34',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'12e9d0'},body:JSON.stringify({sessionId:'12e9d0',runId:'pre-fix',hypothesisId:'E',location:'wizard.mjs:afterUnsetGenerating',message:'generating cleared before sheet open',data:{actor:actor.name,stored,rolled:actor.getFlag?.('faserip','rolledStats')||actor.flags?.faserip?.rolledStats,generating:actor.getFlag?.('faserip','generating')||actor.flags?.faserip?.generating,sheetOpen:!!actor.sheet?.rendered},timestamp:Date.now()})}).catch(()=>{});
-  }
-  // #endregion
   try { actor.sheet?.render(true); } catch { actor.sheet?.render?.({ force: true }); }
   return actor;
 }
