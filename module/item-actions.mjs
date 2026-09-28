@@ -2,6 +2,7 @@ import { BATTLE_EFFECTS, rankLabel, rankValue } from "./config.mjs";
 import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combatTarget } from "./play-rules.mjs";
 import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
 import { attackOutOfRange, closeCharge, rangePhrase } from "./movement.mjs";
+import { ultimateSpec } from "./data/ultimate-list.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -49,6 +50,16 @@ function action(partial) {
 
 function powerAction(name) {
   const key = keyOf(name);
+  const listed = ultimateSpec(name);
+  if (listed?.column) {
+    return action({
+      kind: "attack",
+      column: listed.column,
+      rankFrom: "item",
+      ability: listed.ability || abilityForColumn(listed.column, "agility")
+    });
+  }
+  if (listed) return action({ kind: "feat", rankFrom: "item", ability: listed.ability || featAbility(key) });
   if (/force field|body armor|armor skin|body resistance|true invulnerability|resist|invulnerab|reflection|absorption power|energy sponge|regenerat|healing|life support|self-sustenance|waterbreath|water breath|immortal|recovery/.test(key)) {
     return action({ kind: "feat", rankFrom: "item", ability: featAbility(key) });
   }

@@ -6,6 +6,7 @@
 import { UPB_DEFINITIONS as UPB_BASE } from "./upb-descriptions.mjs";
 import { UPB_ADDENDA_DEFINITIONS } from "./upb-addenda-descriptions.mjs";
 import { GEAR_DEFINITIONS, describeGear } from "./gear-descriptions.mjs";
+import { ultimateSpec } from "./ultimate-list.mjs";
 
 const UPB_DEFINITIONS = { ...UPB_BASE, ...UPB_ADDENDA_DEFINITIONS };
 
@@ -46,17 +47,20 @@ const UPB_CLASS_HINT = {
 
 export function describePower(name, extra = {}) {
   const key = catalogKey(name);
+  const listed = ultimateSpec(name);
   const two = /counts as two/i.test(name) || extra.slotsTaken === 2;
   const stock = POWER_DEFINITIONS[key] || UPB_DEFINITIONS[key];
   const definition = stock
+    || listed?.definition
     || extra.definition
     || `${String(name).replace(/\s*\(counts as two[^)]*\)/gi, "").trim()} is a FASERIP Power. Use this rank for FEATs. The Judge sets range, duration, and Intensity from your rulebook.`;
   const out = {
     definition,
     slotsTaken: two ? 2 : Number(extra.slotsTaken || 1) || 1,
     category: extra.category || "",
-    bodyArmor: !!extra.bodyArmor || /body armor|armor skin|body resistance/i.test(key),
-    forceField: !!extra.forceField || /force field/i.test(key)
+    bodyArmor: !!extra.bodyArmor || !!listed?.bodyArmor || /body armor|armor skin|body resistance/i.test(key),
+    forceField: !!extra.forceField || !!listed?.forceField || /force field/i.test(key),
+    effectsColumn: listed?.column || extra.effectsColumn || ""
   };
   if (/invulnerability|true invulnerability|immortality|teleport|dimensional|dimension travel|gateway|time travel|time control|precognition|possession|mind control|emotion control|image generation|probability|nullifying|health-drain|cosmic awareness|combat sense/i.test(key)) {
     out.slotsTaken = Math.max(out.slotsTaken, two ? 2 : out.slotsTaken);
@@ -110,6 +114,7 @@ export function buildCatalogItemData(type, rawName, extra = {}) {
     system.slotsTaken = info.slotsTaken;
     system.bodyArmor = info.bodyArmor;
     system.forceField = info.forceField;
+    if (info.effectsColumn) system.effectsColumn = info.effectsColumn;
     if (extra.range || info.range) system.range = extra.range || info.range;
   } else if (resolvedType === "talent") {
     system.rank = extra.rank || "typical";

@@ -1,5 +1,6 @@
 import { POWER_CATALOG, TALENT_CATALOG } from "./config-catalogs.mjs";
 import { upbCatalogGroups } from "./data/upb.mjs";
+import { ULTIMATE_GROUPS } from "./data/ultimate-list.mjs";
 import { buildCatalogItemData, catalogKey, describeCatalogItem, isGenericDefinition, POWER_DEFINITIONS, upbHint } from "./data/descriptions.mjs";
 import {
   WEAPON_CATALOG, AMMO_CATALOG, VEHICLE_CATALOG, PLACE_CATALOG,
@@ -60,6 +61,15 @@ export function listPowerCatalogEntries() {
   for (const [id, list] of Object.entries(POWER_CATALOG)) {
     for (const raw of list) {
       rows.push({ raw, category: CAT_LABEL[id] || id, source: "Advanced Set" });
+    }
+  }
+  for (const group of ULTIMATE_GROUPS) {
+    for (const item of group.items) {
+      rows.push({
+        raw: item.name,
+        category: group.label,
+        source: "Ultimate Powers"
+      });
     }
   }
   for (const group of upbCatalogGroups()) {

@@ -21,6 +21,8 @@ import { formatMovement, movementLines } from "../movement.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
+import { ultimateCatalog } from "../data/ultimate-list.mjs";
+import { buildCatalogItemData } from "../data/descriptions.mjs";
 import { confirmDialog, promptForm, formValue, getActorSheetClass, getTextEditor } from "../foundry-api.mjs";
 
 const ActorSheetBase = getActorSheetClass();
@@ -380,7 +382,7 @@ export class FaseripActorSheet extends ActorSheetBase {
     event.preventDefault();
     const type = event.currentTarget.dataset.type;
     if (type === "power") {
-      const catalog = { ...POWER_CATALOG };
+      const catalog = { ...POWER_CATALOG, ...ultimateCatalog() };
       if (isUpbEnabled() || this.actor.getFlag("faserip", "generation")?.upb) {
         for (const group of upbCatalogGroups()) catalog["UPB " + group.label] = group.items;
       }
@@ -413,10 +415,11 @@ export class FaseripActorSheet extends ActorSheetBase {
     });
     if (!form) return;
     const name = formValue(form, "pick") || formValue(form, "custom") || ("New " + type);
-    const extra = { name, type, system: {} };
-    if (type === "power" && /body armor/i.test(name)) extra.system.bodyArmor = true;
-    if (type === "power" && /force field/i.test(name)) extra.system.forceField = true;
-    await this.actor.createEmbeddedDocuments("Item", [extra]);
+    if (type === "power" || type === "talent") {
+      await this.actor.createEmbeddedDocuments("Item", [buildCatalogItemData(type, name)]);
+      return;
+    }
+    await this.actor.createEmbeddedDocuments("Item", [{ name, type, system: {} }]);
   }
 
   async createContact() {
