@@ -116,6 +116,12 @@ export const WORKFLOW_SETTINGS = [
     default: true
   },
   {
+    key: "jb2aVfx",
+    name: "Workflow: JB2A attack animations",
+    hint: "When Sequencer and JB2A are enabled, a roll plays a matching animation: melee swings, shots, beams, and a cast on powers that are not attacks. A miss still shows the action, faded. The comic burst stays.",
+    default: true
+  },
+  {
     key: "autoFalling",
     name: "Workflow: Mark a token as falling when it is up in the air",
     hint: "A token above the ground that is not using Fly is marked Falling. Drop, on the combat tracker, brings it down and applies falling impact. Turn this off if the marker gets in the way. The Drop button still works.",

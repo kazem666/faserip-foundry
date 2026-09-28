@@ -11,6 +11,7 @@ import {
 import { abilityForColumn, actorFromRef, combatTarget, sceneActorChoices } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
+import { playFeatVfx } from "../vfx.mjs";
 import { attackOutOfRange, closeCharge } from "../movement.mjs";
 import {
   applyCheckResult,
@@ -124,6 +125,9 @@ export async function rollFeat({
   const effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
 
   const target = actorFromRef(targetUuid || targetId);
+  if (!whisperGM && !lineCheck && !isCheckColumn(columnId)) {
+    playFeatVfx({ actor, target, item, columnId, color, label });
+  }
   let combat = {};
   if (!holdPending) {
     const { settleShifts, combatFlags } = await import("../play.mjs");
