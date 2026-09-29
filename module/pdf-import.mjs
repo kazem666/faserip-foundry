@@ -37,11 +37,32 @@ async function readFileText(file) {
 
 async function confirmHero(hero) {
   const DialogV2 = foundry.applications?.api?.DialogV2;
-  const body = `<div class="faserip-dialog-scroll"><p>Create a character sheet from this PDF.</p><pre>${escapeHtml(heroSummary(hero))}</pre></div>`;
-  if (!DialogV2?.wait) return true;
+  const body = `<div class="faserip-dialog-scroll">
+    <label class="faserip-import-name">Name <input type="text" name="heroName" value="${escapeHtml(hero.name)}"></label>
+    <p>Create a character sheet from the ranks below.</p>
+    <pre>${escapeHtml(heroSummary(hero))}</pre>
+  </div>`;
+  if (DialogV2?.input) {
+    try {
+      const result = await DialogV2.input({
+        classes: ["faserip-dialog"],
+        window: { title: "Import character", icon: "fa-solid fa-file-pdf" },
+        position: { width: 520 },
+        content: body,
+        ok: { label: "Create character", icon: "fa-solid fa-user" }
+      });
+      if (!result) return null;
+      const typed = String(result.heroName || "").trim();
+      if (typed) hero.name = typed.slice(0, 80);
+      return hero;
+    } catch (err) {
+      console.warn("FASERIP | import confirm", err);
+    }
+  }
+  if (!DialogV2?.wait) return hero;
   const choice = await DialogV2.wait({
     classes: ["faserip-dialog"],
-    window: { title: "Import character PDF", icon: "fa-solid fa-file-pdf" },
+    window: { title: "Import character", icon: "fa-solid fa-file-pdf" },
     position: { width: 520 },
     content: body,
     buttons: [
@@ -50,7 +71,20 @@ async function confirmHero(hero) {
     ],
     rejectClose: false
   });
-  return choice === "create";
+  return choice === "create" ? hero : null;
+}
+
+export async function importHeroFromText(text, filename, { mechanicsOnly = false } = {}) {
+  const hero = parseCharacterText(text, { filename, mechanicsOnly });
+  if (!hero.found && !hero.powers.length && !hero.talents.length) return { hero, actor: null, empty: true };
+  if (hero.found < 4) {
+    ui.notifications?.warn(`Found ${hero.found} of 7 abilities. The sheet will still be created from what could be read.`);
+  }
+  const accepted = await confirmHero(hero);
+  if (!accepted) return { hero, actor: null, empty: false };
+  const actor = await createHero(accepted, filename);
+  ui.notifications?.info(`${actor.name} is ready on the character sheet.`);
+  return { hero: accepted, actor, empty: false };
 }
 
 async function createHero(hero, filename) {
@@ -115,17 +149,10 @@ export async function promptPdfImport() {
     ui.notifications?.error("That PDF could not be read.");
     return null;
   }
-  const hero = parseCharacterText(text, { filename: file.name });
-  if (!hero.found && !hero.powers.length && !hero.talents.length) {
+  const imported = await importHeroFromText(text, file.name);
+  if (imported.empty) {
     ui.notifications?.warn("No character text in that PDF. A typed sheet or a filled form works. A scanned picture of a page does not.");
     return null;
   }
-  if (hero.found < 4) {
-    ui.notifications?.warn(`Found ${hero.found} of 7 abilities. The sheet will still be created from what the PDF contained.`);
-  }
-  const ok = await confirmHero(hero);
-  if (!ok) return null;
-  const actor = await createHero(hero, file.name);
-  ui.notifications?.info(`${actor.name} is ready on the character sheet.`);
-  return actor;
+  return imported.actor;
 }

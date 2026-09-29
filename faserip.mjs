@@ -22,7 +22,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.43";
+const VERSION = "1.17.44";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -66,6 +66,92 @@ function launchPdfImport(event) {
     console.error("FASERIP | pdf import failed", err);
     ui.notifications?.error(`PDF import failed: ${err.message}`);
   });
+}
+
+function launchJournalImport(journal, page, root) {
+  return import("./module/journal-import.mjs").then((mod) => mod.promptJournalImport({
+    journal,
+    page,
+    pageNumber: mod.viewerPageNumber(root),
+    snapshot: mod.viewerSnapshot(root)
+  })).catch((err) => {
+    console.error("FASERIP | journal import failed", err);
+    ui.notifications?.error(`Journal import failed: ${err.message}`);
+  });
+}
+
+function journalPages(journal) {
+  const pages = journal?.pages;
+  if (!pages) return [];
+  if (typeof pages.values === "function") return [...pages.values()];
+  return pages.contents || [];
+}
+
+function journalFromApp(app) {
+  const doc = app?.document || app?.page || null;
+  if (doc?.documentName === "JournalEntryPage") return { journal: doc.parent, page: doc };
+  if (doc?.documentName === "JournalEntry") return { journal: doc, page: null };
+  return { journal: null, page: null };
+}
+
+function attachJournalImport(app, element) {
+  try {
+    const el = element instanceof HTMLElement ? element : element?.[0] || app?.element;
+    if (!el?.querySelector || el.querySelector(":scope > .faserip-journal-import-bar, .window-content > .faserip-journal-import-bar")) return;
+    const found = journalFromApp(app);
+    const pages = journalPages(found.journal);
+    const readable = pages.some((entry) => (entry.type === "pdf" || entry.type === "image") && entry.src);
+    if (!readable && found.page?.type !== "pdf") return;
+    const host = el.querySelector(".window-content") || el;
+    if (host.querySelector(".faserip-import-journal")) return;
+    const bar = document.createElement("div");
+    bar.className = "faserip-journal-import-bar";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "faserip-import-pdf faserip-import-journal";
+    btn.innerHTML = '<i class="fa-solid fa-book-open"></i> Import this page';
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const current = found.page?.type === "pdf" ? found.page : pages.find((entry) => entry.type === "pdf" && entry.src) || null;
+      launchJournalImport(found.journal, current, el);
+    });
+    bar.appendChild(btn);
+    host.prepend(bar);
+  } catch (err) {
+    console.warn("FASERIP | journal import button", err);
+  }
+}
+
+function attachJournalDirectoryButton(root) {
+  try {
+    const el = root instanceof HTMLElement ? root : root?.[0] || root?.element;
+    if (!el?.querySelector || el.querySelector(".faserip-import-journal")) return;
+    const header = el.querySelector(".header-actions")
+      || el.querySelector(".directory-header")
+      || el.querySelector("header")
+      || el;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "faserip-import-pdf faserip-import-journal";
+    btn.innerHTML = '<i class="fa-solid fa-book-open"></i> Import page';
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      launchJournalImport(null, null, null);
+    });
+    header.appendChild(btn);
+  } catch (err) {
+    console.warn("FASERIP | journal directory button", err);
+  }
+}
+
+function isJournalDirectory(app, element) {
+  const name = String(app?.constructor?.name || "");
+  if (name === "JournalDirectory") return true;
+  const id = String(app?.id || app?.tabName || "");
+  if (id === "journal") return true;
+  const el = element instanceof HTMLElement ? element : element?.[0];
+  return el?.id === "journal";
 }
 
 function launchWizard(event) {
@@ -350,7 +436,7 @@ Hooks.once("init", () => {
     } catch (err) { console.warn("FASERIP | catalog menu skipped", err); }
     game.faserip = {
       version: VERSION,
-      rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, promptPdfImport: launchPdfImport, writeGeneratedItem, persistGenerationStats, reapplyRolledStats,
+      rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, promptPdfImport: launchPdfImport, promptJournalImport: launchJournalImport, writeGeneratedItem, persistGenerationStats, reapplyRolledStats,
       ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS,
       rankLabel, shiftRank, intensityNeeded, initiativeModifier,
       toggleUniversalTable, openUniversalTable: showRollOnTable,
@@ -373,6 +459,7 @@ Hooks.on("renderActorDirectory", (_app, html) => {
   attachAwardButton(html ?? _app?.element ?? _app);
 });
 Hooks.on("renderSidebarTab", (app, html) => {
+  if (isJournalDirectory(app, html)) attachJournalDirectoryButton(html ?? app?.element);
   if (!isActorDirectory(app, html)) return;
   attachGenerateButton(html ?? app?.element ?? app);
   attachAwardButton(html ?? app?.element ?? app);
@@ -399,6 +486,38 @@ Hooks.on("renderSettings", (_app, html) => {
     pdf.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Import PDF';
     pdf.addEventListener("click", launchPdfImport);
     btn.after(pdf);
+  } catch {}
+});
+Hooks.on("renderJournalDirectory", (app, html) => attachJournalDirectoryButton(html ?? app?.element));
+Hooks.on("renderJournalEntrySheet", (app, html) => attachJournalImport(app, html ?? app?.element));
+Hooks.on("renderJournalEntryPagePDFSheet", (app, html) => attachJournalImport(app, html ?? app?.element));
+Hooks.on("renderApplicationV2", (app, element) => {
+  if (isJournalDirectory(app, element)) {
+    attachJournalDirectoryButton(element ?? app?.element);
+    return;
+  }
+  const name = String(app?.constructor?.name || "");
+  if (/JournalEntry/.test(name) && !/Directory/.test(name)) attachJournalImport(app, element ?? app?.element);
+});
+Hooks.on("getJournalEntryContextOptions", (_app, options) => {
+  try {
+    options.unshift({
+      name: "Import character page",
+      label: "Import character page",
+      icon: '<i class="fa-solid fa-book-open"></i>',
+      condition: (li) => {
+        const id = li?.dataset?.documentId || li?.dataset?.entryId;
+        return journalPages(game.journal?.get?.(id)).some((page) => (page.type === "pdf" || page.type === "image") && page.src);
+      },
+      callback: (li) => {
+        const id = li?.dataset?.documentId || li?.dataset?.entryId;
+        launchJournalImport(game.journal?.get?.(id), null, null);
+      },
+      onClick: (li) => {
+        const id = li?.dataset?.documentId || li?.dataset?.entryId;
+        launchJournalImport(game.journal?.get?.(id), null, null);
+      }
+    });
   } catch {}
 });
 Hooks.on("getActorContextOptions", (_app, options) => {

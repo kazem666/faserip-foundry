@@ -60,8 +60,13 @@ const SECTION_FOR = {
   gear: "equipment",
   weakness: "weakness",
   weaknesses: "weakness",
+  limitation: "weakness",
+  limitations: "weakness",
+  "known powers": "powers",
+  "special powers": "powers",
   history: "history",
   biography: "history",
+  background: "history",
   notes: "notes",
   note: "notes"
 };
@@ -133,6 +138,42 @@ function abilityFromLabels(text) {
   return found;
 }
 
+function abilityFromRankLine(text) {
+  for (const line of String(text || "").split("\n")) {
+    const tokens = line.trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
+    if (tokens.length < 7) continue;
+    const ranks = [];
+    let index = 0;
+    while (index < tokens.length && ranks.length < 7) {
+      const hit = readRankAt(tokens, index, true);
+      if (!hit) break;
+      const after = tokens[index + hit.used];
+      const numbered = /^\d+$/.test(after || "");
+      ranks.push({ id: hit.id, number: numbered ? numberFor(hit.id, after) : rankValue(hit.id) });
+      index += hit.used + (numbered ? 1 : 0);
+    }
+    if (ranks.length === 7 && index === tokens.length) return ranks;
+  }
+  return null;
+}
+
+function titleName(text) {
+  for (const line of String(text || "").split("\n")) {
+    const trimmed = line.trim().replace(/\s+/g, " ");
+    if (trimmed.length < 2 || trimmed.length > 48) continue;
+    const letters = trimmed.replace(/[^A-Za-z]/g, "");
+    if (letters.length < 2 || letters.length < trimmed.length * 0.5) continue;
+    if (sectionHeader(trimmed)) continue;
+    if (/^(health|karma|resources|popularity|faserip|known|powers|talents|contacts|weapons|equipment|weakness|history|background|character|sheet|hero|page|abilities|ability|statistics|stats|limitation|limitations)\b/i.test(trimmed)) continue;
+    if (ABILITIES.some((key) => new RegExp(`^${ABILITY_LABEL[key]}\\b`, "i").test(trimmed))) continue;
+    const tokens = trimmed.split(/[^A-Za-z0-9]+/).filter(Boolean);
+    if (tokens.length && tokens.every((token) => rankFromPhrase(token) || /^\d+$/.test(token))) continue;
+    if (tokens.length === 7 && tokens.every((token, index) => token.toLowerCase() === ["f", "a", "s", "e", "r", "i", "p"][index])) continue;
+    return trimmed;
+  }
+  return "";
+}
+
 function abilityFromRow(text) {
   const tokens = text.split(/\s+/).filter(Boolean);
   for (let i = 0; i < tokens.length; i++) {
@@ -178,17 +219,21 @@ function cleanName(raw) {
 }
 
 function entryFromLine(line) {
-  const text = String(line || "").replace(/^[\s•*\-–—\d.)]+/, "").trim();
-  if (!text || text.length < 2 || text.length > 80) return null;
-  if (/^(page|sheet|player|campaign|faserip|health|karma|resources|popularity|abilities|height|weight|name|origin|hair|eyes|group|calling|occupation|identity)\b/i.test(text)) return null;
+  const raw = String(line || "").replace(/^[\s•*\-–—\d.)]+/, "").trim();
+  if (!raw || raw.length < 2) return null;
+  const text = raw.length > 180 ? raw.slice(0, 180) : raw;
+  if (/^(page|sheet|player|campaign|faserip|health|karma|resources|popularity|abilities|height|weight|name|origin|hair|eyes|group|calling|occupation|identity|known|limitation|limitations|background)\b/i.test(text)) return null;
   if (ABILITIES.some((key) => new RegExp(`^${ABILITY_LABEL[key]}\\b`, "i").test(text))) return null;
   const parsed = parseRankChunk(text);
   let name = text;
   if (parsed) {
-    const without = text.replace(new RegExp(parsed.word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ");
-    name = cleanName(without);
+    const at = text.toLowerCase().indexOf(String(parsed.word).toLowerCase());
+    name = cleanName(at > 0 ? text.slice(0, at) : text);
+  } else {
+    name = cleanName(text.split(/[.:]/)[0]);
+    if (name.split(/\s+/).filter(Boolean).length > 5) return null;
   }
-  if (!name) return null;
+  if (!name || name.length < 2 || name.length > 48) return null;
   return {
     name,
     rank: parsed?.id || "typical",
@@ -241,22 +286,26 @@ function absorb(buckets, section, line) {
   }
 }
 
-export function parseCharacterText(text, { filename = "" } = {}) {
+export function parseCharacterText(text, { filename = "", mechanicsOnly = false } = {}) {
   const source = loosen(text);
   const labeled = abilityFromLabels(source);
   const row = abilityFromRow(source);
+  const lineRanks = abilityFromRankLine(source);
   const abilities = {};
   ABILITIES.forEach((key, index) => {
-    abilities[key] = labeled[key] || (row ? { id: row[index].id, number: row[index].number } : null);
+    const fromRow = row ? { id: row[index].id, number: row[index].number } : null;
+    const fromLine = lineRanks ? { id: lineRanks[index].id, number: lineRanks[index].number } : null;
+    abilities[key] = labeled[key] || fromRow || fromLine;
   });
   const found = ABILITIES.filter((key) => abilities[key]).length;
   const sections = readSections(source);
   const named = field(source, /\b(?:hero name|character name|name)\b\s*[:\-]\s*([^\n]+)/i);
-  const fileName = String(filename || "").replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim();
+  const fileName = mechanicsOnly ? "" : String(filename || "").replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim();
   const resources = parseRankChunk(field(source, /\bresources\b\s*[:\-]\s*([^\n]+)/i) || "");
-  const popularityMatch = /\bpopularity\b\s*[:\-]\s*(-?\d+)/i.exec(source);
+  const popularityMatch = /\b(?:popularity|pop)\b\s*[:\-]\s*(-?\d+)/i.exec(source);
+  const weakness = sections.weakness.join(" ");
   return {
-    name: (named || fileName || "Imported Hero").slice(0, 80),
+    name: (named || titleName(source) || fileName || "Imported Hero").slice(0, 80),
     abilities,
     found,
     resources: resources?.id || "",
@@ -281,9 +330,9 @@ export function parseCharacterText(text, { filename = "" } = {}) {
     contacts: sections.contacts,
     weapons: sections.weapons,
     equipment: sections.equipment,
-    weakness: sections.weakness.join(" "),
-    history: sections.history.join(" "),
-    notes: sections.notes.join(" ")
+    weakness: mechanicsOnly && weakness.length > 90 ? "" : weakness,
+    history: mechanicsOnly ? "" : sections.history.join(" "),
+    notes: mechanicsOnly ? "" : sections.notes.join(" ")
   };
 }
 
