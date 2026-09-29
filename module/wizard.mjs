@@ -1,12 +1,12 @@
-import { ORIGINS, ABILITIES, rankLabel } from "./config.mjs";
-import { generateHero, applyGeneration } from "./chargen.mjs";
+import { ABILITIES, rankLabel } from "./config.mjs";
+import { applyGeneration } from "./chargen.mjs";
 import { rollHeroDice } from "./roll-hero-dice.mjs";
 import { dialog, collect, pickPowers, pickTalents, pickContacts, pickWeakness } from "./wizard-picks.mjs";
-import { isUpbEnabled, wantUpb } from "./data/upb.mjs";
-import { isRomEnabled, wantRom } from "./data/rom.mjs";
-import { isUltimateTalentsEnabled, wantUltimateTalents } from "./data/ultimate-talents.mjs";
+import { wantUpb } from "./data/upb.mjs";
+import { wantRom } from "./data/rom.mjs";
+import { wantUltimateTalents } from "./data/ultimate-talents.mjs";
 import {
-  ARCHETYPE_CHOICES, archetypeSetup, tuneArchetypeResult, promptArchetypeExtras,
+  ARCHETYPE_CHOICES, tuneArchetypeResult, promptArchetypeExtras,
   packagePowers, pickMartialPowers, pickImplants, vampireWeakness,
   writeHeightWeight, writeCalling, writeQuirk, writeLifeDetails
 } from "./life.mjs";
@@ -19,63 +19,8 @@ function abilityRows(result) {
 }
 
 export async function createActorWizard() {
-  const originOpts = ORIGINS.map((o) => `<option value="${o.id}">${o.label}</option>`).join("");
-  const choice = await dialog("Create FASERIP Hero - Identity", `
-      <p>Generation: Origin, abilities, powers, talents, contacts, then a starting gear shop.</p>
-      <div class="form-group"><label>Hero name</label><input name="heroName" type="text" value="New Hero" autofocus /></div>
-      <div class="form-group"><label>Public identity</label><input name="publicId" type="text" /></div>
-      <div class="form-group"><label>Secret identity</label><input name="secretName" type="text" /></div>
-      <div class="form-group"><label>Actor type</label><select name="actorType"><option value="hero">Hero</option><option value="npc">NPC</option></select></div>
-      <div class="form-group"><label>Origin</label><select name="origin">${originOpts}</select></div>
-      <div class="form-group"><label><input type="checkbox" name="rollOrigin" checked /> Roll Advanced Set origin</label></div>
-      <div class="form-group"><label><input type="checkbox" name="secretId" /> Secret identity</label></div>
-      <div class="form-group"><label><input type="checkbox" name="guided" checked /> Run full generation now</label></div>
-      <div class="form-group"><label><input type="checkbox" name="useUpb" ${isUpbEnabled() ? "checked" : ""} /> Use Ultimate Powers Book (MA3) tables</label></div>
-      <div class="form-group"><label><input type="checkbox" name="useUltimateTalents" ${isUltimateTalentsEnabled() ? "checked" : ""} /> Use Ultimate Talents list</label></div>
-      <div class="form-group"><label><input type="checkbox" name="useRom" ${isRomEnabled() ? "checked" : ""} /> Use Realms of Magic (MHAC-9) magical-character path</label></div>
-      <div class="form-group"><label>Archetype</label><select name="archetype">${ARCHETYPE_CHOICES.map((row) => `<option value="${row.id}">${row.label}</option>`).join("")}</select></div>
-      <div class="form-group"><label><input type="checkbox" name="lifeHeight" checked /> Roll height and weight from Strength</label></div>
-      <div class="form-group"><label><input type="checkbox" name="lifeCalling" checked /> Roll a calling</label></div>
-      <div class="form-group"><label><input type="checkbox" name="lifeQuirk" checked /> Roll one helpful quirk and one drawback</label></div>
-      <div class="form-group"><label><input type="checkbox" name="lifeDetails" /> Roll ordinary-life details</label></div>`, [
-    { action: "create", label: "Continue", icon: "fa-solid fa-dice", default: true, callback: (_e, b) => ({ action: "create", ...collect(b) }) },
-    { action: "cancel", label: "Cancel" }
-  ]);
-  if (!choice || choice === "cancel") return null;
-  const extras = {
-    name: choice.heroName || "New Hero", type: choice.actorType || "hero",
-    publicId: choice.publicId || "", secretName: choice.secretName || "",
-    originId: choice.origin || "altered", rollOrigin: !!choice.rollOrigin,
-    secretId: !!choice.secretId,
-    guided: choice.guided !== false && choice.guided !== "false",
-    useUpb: wantUpb(choice.useUpb),
-    useUltimateTalents: wantUltimateTalents(choice.useUltimateTalents),
-    useRom: wantRom(choice.useRom),
-    archetype: choice.archetype || "",
-    lifeHeight: !!choice.lifeHeight,
-    lifeCalling: !!choice.lifeCalling,
-    lifeQuirk: !!choice.lifeQuirk,
-    lifeDetails: !!choice.lifeDetails
-  };
-  const setup = archetypeSetup(extras.archetype);
-  if (setup) {
-    extras.originId = setup.originId;
-    extras.rollOrigin = false;
-    extras.originLabel = setup.originLabel;
-    extras.rankFor = setup.rankFor || null;
-    extras.fixedAbilities = setup.fixedAbilities || null;
-    extras.useUpb = false;
-  }
-  const actor = await CONFIG.Actor.documentClass.create({
-    name: extras.name, type: extras.type,
-    system: { identity: { public: extras.publicId, secret: extras.secretName, origin: "", secretId: extras.secretId } },
-    flags: { faserip: { generating: true } }
-  }, { renderSheet: false, render: false });
-  if (!actor) return null;
-  if (extras.guided) await runFullGeneration(actor, extras);
-  await actor.unsetFlag("faserip", "generating");
-  try { actor.sheet?.render(true); } catch { actor.sheet?.render?.({ force: true }); }
-  return actor;
+  const { openCreator } = await import("./apps/creator-app.mjs");
+  return openCreator();
 }
 
 export async function runFullGeneration(actor, extras = {}) {
@@ -83,6 +28,11 @@ export async function runFullGeneration(actor, extras = {}) {
   extras.useUltimateTalents = wantUltimateTalents(extras.useUltimateTalents);
   extras.useRom = wantRom(extras.useRom);
   try { await actor.sheet?.close?.({ submit: false }); } catch {}
+  if (extras.rolled) {
+    const result = extras.rolled;
+    result.useUltimateTalents = !!extras.useUltimateTalents;
+    return finishRolledGeneration(actor, result, extras);
+  }
   let prelude = null;
   if (extras.useUpb && !extras.archetype) {
     const { pickUpbPrelude } = await import("./wizard-upb.mjs");
@@ -116,7 +66,10 @@ export async function runFullGeneration(actor, extras = {}) {
   result = abilitiesOk.result;
   result.useUltimateTalents = !!extras.useUltimateTalents;
   extras.raise = abilitiesOk.raise;
+  return finishRolledGeneration(actor, result, extras);
+}
 
+async function finishRolledGeneration(actor, result, extras) {
   let selectedPowers = [];
   let selectedTalents = [];
   let romPrelude = null;

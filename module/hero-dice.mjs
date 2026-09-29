@@ -1,59 +1,6 @@
-import {
-  ABILITIES, ORIGINS, ORIGIN_TABLE, SPECIAL_COUNT_TABLE, ABILITY_MODIFIER_TABLE,
-  rankMin, shiftRank, lookupTable, rollOnColumn, originById
-} from "./config.mjs";
-import { rollD100, promptedD100, promptNextRoll } from "./dice/percentile.mjs";
-import { UPB_COUNT_TABLE } from "./data/upb.mjs";
-import { clampCounts, persistGenerationStats } from "./chargen.mjs";
-
 export async function promptGeneration(actor) {
-  const { isUpbEnabled } = await import("./data/upb.mjs");
-  let romOn = false;
-  try {
-    const { isRomEnabled } = await import("./data/rom.mjs");
-    romOn = isRomEnabled();
-  } catch {}
-  const upbOn = isUpbEnabled();
-  let talentsOn = false;
-  try {
-    const { isUltimateTalentsEnabled } = await import("./data/ultimate-talents.mjs");
-    talentsOn = isUltimateTalentsEnabled();
-  } catch {}
-  const originOptions = ORIGINS.map((o) => `<option value="${o.id}">${o.label}</option>`).join("");
-  const DialogV2 = foundry.applications.api.DialogV2;
-  const form = await DialogV2.wait({
-    classes: ["faserip-dialog"],
-    window: { title: "Generate Hero", icon: "fa-solid fa-dice", resizable: true },
-    content: `
-    <div class="faserip-dialog-scroll">
-    <form class="faserip-feat-dialog">
-      <div class="form-group"><label><input type="checkbox" name="useUpb" ${upbOn ? "checked" : ""} /> Use Ultimate Powers Book (MA3)</label></div>
-      <div class="form-group"><label><input type="checkbox" name="useUltimateTalents" ${talentsOn ? "checked" : ""} /> Use Ultimate Talents list</label></div>
-      <div class="form-group"><label><input type="checkbox" name="useRom" ${romOn ? "checked" : ""} /> Use Realms of Magic (MHAC-9)</label></div>
-      <div class="form-group"><label>Advanced Set origin (ignored if UPB is on)</label><select name="origin">${originOptions}</select></div>
-      <div class="form-group"><label><input type="checkbox" name="rollOrigin" ${upbOn ? "" : "checked"} /> Roll Advanced Set origin</label></div>
-      <div class="form-group"><label><input type="checkbox" name="secretId" /> Secret identity</label></div>
-    </form>
-    </div>`,
-    buttons: [
-      { action: "generate", label: "Generate", icon: "fa-solid fa-dice", default: true, callback: (_e, b) => b.form },
-      { action: "cancel", label: "Cancel" }
-    ],
-    rejectClose: false
-  });
-  if (!form || form === "cancel") return null;
-  const { runFullGeneration } = await import("./wizard.mjs");
-  await runFullGeneration(actor, {
-    originId: form.querySelector('[name="origin"]')?.value,
-    rollOrigin: !!form.querySelector('[name="rollOrigin"]')?.checked,
-    secretId: !!form.querySelector('[name="secretId"]')?.checked,
-    useUpb: !!form.querySelector('[name="useUpb"]')?.checked,
-    useUltimateTalents: !!form.querySelector('[name="useUltimateTalents"]')?.checked,
-    useRom: !!form.querySelector('[name="useRom"]')?.checked,
-    publicId: actor.system.identity?.public,
-    secretName: actor.system.identity?.secret
-  });
-  return true;
+  const { openCreator } = await import("./apps/creator-app.mjs");
+  return openCreator({ actor });
 }
 
 export { rollHeroDice } from "./roll-hero-dice.mjs";

@@ -835,3 +835,225 @@ button.faserip-generate,
   text-transform: uppercase;
   cursor: pointer;
 }
+
+.application.faserip-creator { max-height: 94vh; }
+.application.faserip-creator .window-content {
+  background: #140e0a;
+  color: #f6f1e4;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.faserip-creator .creator {
+  --ink: #1a120c;
+  --paper: #f4ead7;
+  --gold: #e2b657;
+  --line: rgba(226, 182, 87, 0.45);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: "Source Sans 3", sans-serif;
+}
+.faserip-creator .creator-rail {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px 0;
+  overflow-x: auto;
+}
+.faserip-creator .creator-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #b5a48d;
+  font-family: Oswald, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.faserip-creator .creator-step span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  font-size: 12px;
+}
+.faserip-creator .creator-step.is-on {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+.faserip-creator .creator-step.is-done { color: #f6f1e4; }
+.faserip-creator .creator-step:disabled { opacity: 0.35; cursor: default; }
+.faserip-creator .creator-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 16px 12px;
+}
+.faserip-creator .creator-kicker {
+  margin: 0;
+  color: var(--gold);
+  font-family: Oswald, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.faserip-creator h2, .faserip-creator h3 {
+  font-family: Oswald, sans-serif;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: #fff8ea;
+}
+.faserip-creator .creator-lead, .faserip-creator .creator-fine { color: #d9cbb6; margin: 0 0 10px; }
+.faserip-creator .creator-hero, .faserip-creator .creator-fields {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 18px;
+}
+.faserip-creator .creator-fields { grid-template-columns: 1fr 1fr; align-content: start; }
+.faserip-creator label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #e7dcc8;
+  margin-bottom: 8px;
+}
+.faserip-creator label.check { flex-direction: row; align-items: center; gap: 8px; }
+.faserip-creator input[type="text"], .faserip-creator select {
+  background: #2a2118;
+  color: #fff8ea;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.faserip-creator .choice-grid, .faserip-creator .power-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.faserip-creator .choice-card, .faserip-creator .power-card {
+  text-align: left;
+  background: #241910;
+  color: #f6f1e4;
+  border: 1px solid #3a2d22;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.faserip-creator .choice-card strong, .faserip-creator .power-card strong { font-size: 15px; }
+.faserip-creator .choice-card em, .faserip-creator .power-card em { color: var(--gold); font-style: normal; font-size: 12px; }
+.faserip-creator .choice-card span { color: #cbbba6; font-size: 12px; }
+.faserip-creator .choice-card.is-on, .faserip-creator .power-card.is-on {
+  border-color: var(--gold);
+  background: #3a2a16;
+}
+.faserip-creator .power-card.is-locked { opacity: 0.45; }
+.faserip-creator .power-card b {
+  align-self: flex-start;
+  background: #7f1d1d;
+  color: white;
+  border-radius: 99px;
+  padding: 1px 7px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.faserip-creator .creator-split {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 12px;
+  min-height: 100%;
+}
+.faserip-creator .power-detail {
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 14px;
+  align-self: start;
+}
+.faserip-creator .power-detail h3 { color: var(--ink); }
+.faserip-creator .power-detail .play { font-weight: 600; }
+.faserip-creator .power-detail.empty { color: #6b5c4c; }
+.faserip-creator .creator-block-head, .faserip-creator .btn-row, .faserip-creator .creator-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.faserip-creator .roll-btn, .faserip-creator .text-btn {
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-family: Oswald, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.faserip-creator .roll-btn {
+  background: var(--gold);
+  color: #1a120c;
+  border: none;
+}
+.faserip-creator .roll-btn.big { font-size: 18px; padding: 12px 18px; }
+.faserip-creator .text-btn { background: transparent; color: #f6f1e4; border: 1px solid var(--line); }
+.faserip-creator .creator-bar {
+  padding: 10px 16px 14px;
+  border-top: 1px solid #3a2d22;
+}
+.faserip-creator .ability-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+.faserip-creator .ability-card {
+  background: #241910;
+  border: 1px solid #3a2d22;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.faserip-creator .ability-card strong { font-family: Oswald, sans-serif; font-size: 16px; color: var(--gold); }
+.faserip-creator .ability-card em { font-style: normal; font-size: 18px; }
+.faserip-creator .ability-card small { color: #b5a48d; }
+.faserip-creator .stat-pills, .faserip-creator .tray, .faserip-creator .chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.faserip-creator .stat-pills span, .faserip-creator .tray-chip, .faserip-creator .mini-chip, .faserip-creator .roll-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #241910;
+  color: #f6f1e4;
+}
+.faserip-creator .mini-chip.is-on { border-color: var(--gold); color: var(--gold); }
+.faserip-creator .creator-notice {
+  margin: 0 16px;
+  color: var(--gold);
+}
+.faserip-creator .review-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.faserip-creator .picked-list { list-style: none; padding: 0; }
+.faserip-creator .picked-list li { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.faserip-creator .creator-empty { padding: 24px 8px; }
+@media (max-width: 860px) {
+  .faserip-creator .creator-hero, .faserip-creator .creator-split, .faserip-creator .ability-row, .faserip-creator .review-cols {
+    grid-template-columns: 1fr;
+  }
+}
