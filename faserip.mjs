@@ -22,7 +22,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.42";
+const VERSION = "1.17.43";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -57,6 +57,15 @@ function injectScrollableWindowStyles() {
     button.faserip-generate { margin: 4px; font-weight: 700; white-space: nowrap; }
   `;
   document.head.appendChild(style);
+}
+
+function launchPdfImport(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  return import("./module/pdf-import.mjs").then((mod) => mod.promptPdfImport()).catch((err) => {
+    console.error("FASERIP | pdf import failed", err);
+    ui.notifications?.error(`PDF import failed: ${err.message}`);
+  });
 }
 
 function launchWizard(event) {
@@ -96,8 +105,26 @@ function attachGenerateButton(root) {
     btn.addEventListener("click", launchWizard);
     if (header.prepend) header.prepend(btn);
     else header.appendChild(btn);
+    attachImportButton(scope, header);
   } catch (err) {
     console.warn("FASERIP | attachGenerateButton", err);
+  }
+}
+
+function attachImportButton(scope, header) {
+  try {
+    const host = header || scope;
+    if (!host || host.querySelector?.(".faserip-import-pdf") || scope?.querySelector?.(".faserip-import-pdf")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "faserip-import-pdf";
+    btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Import PDF';
+    btn.addEventListener("click", launchPdfImport);
+    const generate = host.querySelector?.(".faserip-generate");
+    if (generate?.after) generate.after(btn);
+    else host.appendChild(btn);
+  } catch (err) {
+    console.warn("FASERIP | attachImportButton", err);
   }
 }
 
@@ -132,6 +159,35 @@ function makeCatalogMenu() {
         console.error("FASERIP | catalog rebuild", err);
         ui.notifications?.error(err.message);
       }
+      try { await this.close?.(); } catch {}
+      return this;
+    }
+  };
+}
+
+function makePdfImportMenu() {
+  const AppV2 = foundry.applications?.api?.ApplicationV2;
+  const Base = AppV2 ?? class {
+    constructor() {}
+    async render() { return this; }
+    async close() { return this; }
+  };
+  return class FaseripPdfImportMenu extends Base {
+    static DEFAULT_OPTIONS = {
+      id: "faserip-pdf-import-menu",
+      window: { title: "Import character PDF", icon: "fa-solid fa-file-pdf" },
+      position: { width: 200, height: 80 }
+    };
+    async _renderHTML() {
+      const div = document.createElement("div");
+      div.textContent = "Choose a PDF…";
+      return div;
+    }
+    async _replaceHTML(result, content) {
+      if (content && result) content.replaceChildren(result);
+    }
+    async render() {
+      launchPdfImport();
       try { await this.close?.(); } catch {}
       return this;
     }
@@ -279,6 +335,11 @@ Hooks.once("init", () => {
         hint: "Runs the sequential 1d100 FASERIP generation wizard.",
         icon: "fas fa-dice", type: makeGenerateHeroMenu(), restricted: false
       });
+      game.settings.registerMenu("faserip", "importPdf", {
+        name: "Import Character PDF", label: "Choose PDF",
+        hint: "Reads a typed or fillable character PDF and creates a hero sheet. A scanned picture of a page has no text to read.",
+        icon: "fas fa-file-pdf", type: makePdfImportMenu(), restricted: false
+      });
     } catch (err) { console.warn("FASERIP | settings menu skipped", err); }
     try {
       game.settings.registerMenu("faserip", "rebuildCatalogs", {
@@ -289,7 +350,7 @@ Hooks.once("init", () => {
     } catch (err) { console.warn("FASERIP | catalog menu skipped", err); }
     game.faserip = {
       version: VERSION,
-      rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, writeGeneratedItem, persistGenerationStats, reapplyRolledStats,
+      rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, promptPdfImport: launchPdfImport, writeGeneratedItem, persistGenerationStats, reapplyRolledStats,
       ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS,
       rankLabel, shiftRank, intensityNeeded, initiativeModifier,
       toggleUniversalTable, openUniversalTable: showRollOnTable,
@@ -332,6 +393,12 @@ Hooks.on("renderSettings", (_app, html) => {
     btn.innerHTML = '<i class="fa-solid fa-dice"></i> Generate Hero';
     btn.addEventListener("click", launchWizard);
     section.prepend(btn);
+    const pdf = document.createElement("button");
+    pdf.type = "button";
+    pdf.className = "faserip-import-pdf";
+    pdf.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Import PDF';
+    pdf.addEventListener("click", launchPdfImport);
+    btn.after(pdf);
   } catch {}
 });
 Hooks.on("getActorContextOptions", (_app, options) => {
@@ -340,6 +407,11 @@ Hooks.on("getActorContextOptions", (_app, options) => {
       name: "Generate Hero", label: "Generate Hero",
       icon: '<i class="fa-solid fa-dice"></i>',
       callback: () => launchWizard(), onClick: () => launchWizard()
+    });
+    options.unshift({
+      name: "Import PDF", label: "Import PDF",
+      icon: '<i class="fa-solid fa-file-pdf"></i>',
+      callback: () => launchPdfImport(), onClick: () => launchPdfImport()
     });
   } catch {}
 });

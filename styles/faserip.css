@@ -633,6 +633,19 @@ button.faserip-generate,
   border: 2px solid #111;
   cursor: pointer;
 }
+button.faserip-import-pdf,
+.directory-header button.faserip-import-pdf,
+.header-actions button.faserip-import-pdf {
+  flex: 0 0 auto;
+  margin: 4px;
+  font-weight: 700;
+  font-family: Oswald, sans-serif;
+  text-transform: uppercase;
+  background: #1a120c;
+  color: #eab308;
+  border: 2px solid #eab308;
+  cursor: pointer;
+}
 .faserip-sheet .sheet-tabs a.item { text-decoration: none; color: inherit; }
 
 #hotbar > .faserip-utable-btn {
