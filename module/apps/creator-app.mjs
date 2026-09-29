@@ -9,6 +9,7 @@ import { describeItemAction } from "../item-actions.mjs";
 import { rollD100 } from "../dice/percentile.mjs";
 import { clampCounts, persistGenerationStats, applyGeneration } from "../chargen.mjs";
 import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES } from "../life.mjs";
+import { CALLINGS, QUIRKS, band } from "../data/archetypes.mjs";
 import { isUpbEnabled } from "../data/upb.mjs";
 import { isRomEnabled } from "../data/rom.mjs";
 import { isUltimateTalentsEnabled } from "../data/ultimate-talents.mjs";
@@ -107,8 +108,18 @@ function CreatorApp() {
       this.useRom = false;
       this.archetype = "";
       this.lifeHeight = true;
-      this.lifeCalling = true;
-      this.lifeQuirk = true;
+      this.lifeCalling = false;
+      this.lifeQuirk = false;
+      this.calling = null;
+      this.quirkPair = null;
+      this.socialPositive = null;
+      this.socialNegative = null;
+      this.abilityRolls = {};
+      this.abilities = {};
+      this.numbers = {};
+      this.resources = null;
+      this.resourceMod = null;
+      this.resourceModRoll = null;
       this.originId = "altered";
       this.originRoll = null;
       this.upbForm = null;
@@ -142,6 +153,9 @@ function CreatorApp() {
 
     async close(options) {
       const out = await super.close(options);
+      this.#hideTip();
+      this._tip?.remove();
+      this._tip = null;
       this._done?.(this.actor || null);
       this._done = null;
       if (creatorApp === this) creatorApp = null;
@@ -149,6 +163,7 @@ function CreatorApp() {
     }
 
     async _renderHTML() {
+      this.#hideTip();
       const root = document.createElement("div");
       root.className = "creator";
       root.innerHTML = this.#html();
@@ -160,6 +175,46 @@ function CreatorApp() {
       result.addEventListener("click", (event) => this.#onClick(event));
       result.addEventListener("input", (event) => this.#onInput(event));
       result.addEventListener("change", (event) => this.#onInput(event));
+      result.addEventListener("pointerover", (event) => this.#onHover(event));
+      result.addEventListener("pointerout", (event) => this.#onHoverOut(event));
+    }
+
+    #tipEl() {
+      if (!this._tip) {
+        this._tip = document.createElement("div");
+        this._tip.className = "creator-tip";
+        this._tip.hidden = true;
+        document.body.appendChild(this._tip);
+      }
+      return this._tip;
+    }
+
+    #hideTip() {
+      if (this._tip) this._tip.hidden = true;
+    }
+
+    #onHover(event) {
+      const card = event.target.closest?.("[data-blurb]");
+      if (!card || !card.dataset.blurb) return this.#hideTip();
+      const tip = this.#tipEl();
+      tip.innerHTML = `<strong>${esc(card.dataset.title || "")}</strong><p>${esc(card.dataset.blurb)}</p>`;
+      tip.hidden = false;
+      const box = card.getBoundingClientRect();
+      const width = Math.min(380, window.innerWidth - 24);
+      let left = box.right + 14;
+      if (left + width > window.innerWidth - 12) left = Math.max(12, box.left - width - 14);
+      let top = Math.max(12, Math.min(box.top, window.innerHeight - 220));
+      tip.style.width = `${width}px`;
+      tip.style.left = `${left}px`;
+      tip.style.top = `${top}px`;
+    }
+
+    #onHoverOut(event) {
+      const card = event.target.closest?.("[data-blurb]");
+      if (!card) return;
+      const next = event.relatedTarget?.closest?.("[data-blurb]");
+      if (next === card) return;
+      this.#hideTip();
     }
 
     #stepIndex(id = this.step) {
@@ -188,30 +243,45 @@ function CreatorApp() {
       return this.#review();
     }
 
+    #lifeDie(action, label, value, blurb) {
+      return `<article class="life-die" data-title="${esc(label)}" data-blurb="${esc(blurb || "")}">
+        <span>${esc(label)}</span>
+        <button type="button" class="stat-die" data-action="${action}" title="Roll ${esc(label)}"><i class="fa-solid fa-dice"></i></button>
+        <strong>${esc(value || "—")}</strong>
+      </article>`;
+    }
+
     #identity() {
       const books = ARCHETYPE_CHOICES.map((row) => `<option value="${esc(row.id)}" ${row.id === this.archetype ? "selected" : ""}>${esc(row.label)}</option>`).join("");
+      const quirkText = this.quirkPair
+        ? `${this.quirkPair.kind}: ${this.quirkPair.positive.name} / ${this.quirkPair.negative.name}`
+        : "";
+      const quirkBlurb = this.quirkPair
+        ? `${this.quirkPair.positive.name}: ${this.quirkPair.positive.note} ${this.quirkPair.negative.name}: ${this.quirkPair.negative.note}`
+        : "";
       return `
-        <section class="creator-hero">
-          <div>
-            <p class="creator-kicker">Who is this?</p>
-            <h2>Name the hero, then walk the table one tab at a time.</h2>
-            <p class="creator-lead">Each tab rolls its own dice. Powers open by category, with what that power actually does on the card.</p>
-          </div>
+        <section class="creator-block">
+          <p class="creator-kicker">Who is this?</p>
+          <h2>${esc(this.name || "Name the hero")}</h2>
           <div class="creator-fields">
             <label>Hero name<input name="name" type="text" value="${esc(this.name)}" /></label>
             <label>Public identity<input name="publicId" type="text" value="${esc(this.publicId)}" /></label>
             <label>Secret identity<input name="secretName" type="text" value="${esc(this.secretName)}" /></label>
             <label>Sheet<select name="actorType"><option value="hero" ${this.actorType === "hero" ? "selected" : ""}>Hero</option><option value="npc" ${this.actorType === "npc" ? "selected" : ""}>NPC</option></select></label>
             <label class="check"><input name="secretId" type="checkbox" ${this.secretId ? "checked" : ""} /> Secret identity</label>
+            <label class="check"><input name="lifeHeight" type="checkbox" ${this.lifeHeight ? "checked" : ""} /> Roll height and weight later</label>
             <label class="check"><input name="useUpb" type="checkbox" ${this.useUpb ? "checked" : ""} /> Ultimate Powers Book tables</label>
             <label class="check"><input name="useUltimateTalents" type="checkbox" ${this.useUltimateTalents ? "checked" : ""} /> Ultimate Talents list</label>
             ${this.romAvailable ? `<label class="check"><input name="useRom" type="checkbox" ${this.useRom ? "checked" : ""} /> Realms of Magic path</label>` : ""}
-            <label>Calling<select name="archetype">${books}</select></label>
-            <p class="creator-fine">A calling other than Standard hero, or Realms of Magic, keeps this tabbed creator through Abilities and then opens that path’s own picks.</p>
-            <label class="check"><input name="lifeHeight" type="checkbox" ${this.lifeHeight ? "checked" : ""} /> Roll height and weight</label>
-            <label class="check"><input name="lifeCalling" type="checkbox" ${this.lifeCalling ? "checked" : ""} /> Roll a calling</label>
-            <label class="check"><input name="lifeQuirk" type="checkbox" ${this.lifeQuirk ? "checked" : ""} /> Roll a quirk and a drawback</label>
+            <label>Archetype<select name="archetype">${books}</select></label>
           </div>
+          <div class="life-row">
+            ${this.#lifeDie("roll-calling", "Calling", this.calling?.label, this.calling?.note || "")}
+            ${this.#lifeDie("roll-quirk", "Quirk", quirkText, quirkBlurb)}
+            ${this.#lifeDie("roll-social-pos", "Positive social", this.socialPositive?.name, this.socialPositive?.note || "")}
+            ${this.#lifeDie("roll-social-neg", "Negative social", this.socialNegative?.name, this.socialNegative?.note || "")}
+          </div>
+          <p class="creator-fine">Hover a result to read it. An archetype other than Standard hero, or Realms of Magic, leaves this creator after Abilities.</p>
         </section>`;
     }
 
@@ -222,11 +292,7 @@ function CreatorApp() {
       const cards = ORIGINS.map((origin) => {
         const on = origin.id === this.originId ? "is-on" : "";
         const disabled = locked && origin.id !== locked ? "disabled" : "";
-        return `<button type="button" class="choice-card ${on}" data-action="pick-origin" data-id="${esc(origin.id)}" ${disabled}>
-          <strong>${esc(origin.label)}</strong>
-          <em>Column ${origin.column}</em>
-          <span>${esc(origin.notes)}</span>
-        </button>`;
+        return `<button type="button" class="name-card ${on}" data-action="pick-origin" data-id="${esc(origin.id)}" data-title="${esc(origin.label)}" data-blurb="${esc(`Column ${origin.column}. ${origin.notes}`)}" ${disabled}><strong>${esc(origin.label)}</strong></button>`;
       }).join("");
       const rolled = this.originRoll ? `<p class="roll-pill">Origin roll ${this.originRoll}</p>` : "";
       return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Origin</p><h2>Where the power comes from</h2></div><button type="button" class="roll-btn" data-action="roll-origin" ${locked ? "disabled" : ""}>Roll origin</button></div>${rolled}<div class="choice-grid">${cards}</div></section>`;
@@ -237,27 +303,42 @@ function CreatorApp() {
     }
 
     #abilities() {
-      if (!this.result) {
-        return `<section class="creator-empty"><p class="creator-kicker">FASERIP</p><h2>Roll the seven abilities</h2><p class="creator-lead">One roll fills Fighting through Psyche, then Resources, Powers, Talents, and Contacts.</p><button type="button" class="roll-btn big" data-action="roll-abilities">Roll the table</button></section>`;
-      }
-      const result = this.result;
       const cards = ABILITIES.map((key) => {
-        const rank = result.abilities[key];
-        return `<article class="ability-card rank-${esc(rank)}"><span>${esc(ABILITY_LABEL[key])}</span><strong>${esc(rankLabel(rank))}</strong><em>${result.numbers[key]}</em><small>d100 ${result.abilityRolls[key] || "—"}</small></article>`;
+        const rank = this.abilities[key];
+        const face = rank
+          ? `<strong>${esc(rankLabel(rank))}</strong><em>${this.numbers[key]}</em><small>${this.abilityRolls[key] || "—"}</small>`
+          : `<strong class="await">Roll</strong>`;
+        return `<article class="ability-card ${rank ? "is-rolled" : ""}">
+          <span>${esc(ABILITY_LABEL[key].slice(0, 1))}</span>
+          <small>${esc(ABILITY_LABEL[key])}</small>
+          <button type="button" class="stat-die" data-action="roll-stat" data-stat="${key}" title="Roll ${esc(ABILITY_LABEL[key])}"><i class="fa-solid fa-dice"></i></button>
+          ${face}
+        </article>`;
       }).join("");
-      const health = ["fighting", "agility", "strength", "endurance"].reduce((sum, key) => sum + Number(result.numbers[key] || 0), 0);
-      const karma = ["reason", "intuition", "psyche"].reduce((sum, key) => sum + Number(result.numbers[key] || 0), 0);
-      const canRaise = result.origin?.id === "altered" || result.formRaiseOne;
+      const health = ["fighting", "agility", "strength", "endurance"].reduce((sum, key) => sum + Number(this.numbers[key] || 0), 0);
+      const karma = ["reason", "intuition", "psyche"].reduce((sum, key) => sum + Number(this.numbers[key] || 0), 0);
+      const counts = this.result?.counts;
+      const canRaise = this.result && (this.result.origin?.id === "altered" || this.result.formRaiseOne);
       const raise = canRaise ? `<label class="raise">Raise one ability +1 CS<select name="raise">${ABILITIES.map((key) => `<option value="${key}" ${this.raise === key ? "selected" : ""}>${esc(ABILITY_LABEL[key])}</option>`).join("")}</select></label>` : "";
+      const resourceFace = this.resources ? rankLabel(this.resources) : "Roll";
       return `<section class="creator-block">
-        <div class="creator-block-head"><div><p class="creator-kicker">${esc(result.origin?.label || "Abilities")}</p><h2>The spread</h2><p class="creator-lead">${esc(result.origin?.notes || "")}</p></div><button type="button" class="roll-btn" data-action="roll-abilities">Reroll</button></div>
+        <p class="creator-kicker">FASERIP</p>
+        <h2>Click each die</h2>
         <div class="ability-row">${cards}</div>
         <div class="stat-pills">
-          <span>Health ${health}</span><span>Karma ${karma}</span>
-          <span>Resources ${esc(rankLabel(result.resources))}</span>
-          <span>Powers ${result.counts.powers[0]}/${result.counts.powers[1]}</span>
-          <span>Talents ${result.counts.talents[0]}/${result.counts.talents[1]}</span>
-          <span>Contacts ${result.counts.contacts[0]}/${result.counts.contacts[1]}</span>
+          <span>Health ${health || "—"}</span>
+          <span>Karma ${karma || "—"}</span>
+        </div>
+        <div class="count-row">
+          <article class="ability-card resource-card ${this.resources ? "is-rolled" : ""}">
+            <small>Resources</small>
+            <button type="button" class="stat-die" data-action="roll-resources" title="Roll Resources"><i class="fa-solid fa-dice"></i></button>
+            <strong>${esc(resourceFace)}</strong>
+          </article>
+          <div class="count-roll">
+            <button type="button" class="roll-btn big" data-action="roll-counts">Roll powers, talents, and contacts</button>
+            <p>${counts ? `Powers ${counts.powers[0]}/${counts.powers[1]} · Talents ${counts.talents[0]}/${counts.talents[1]} · Contacts ${counts.contacts[0]}/${counts.contacts[1]}` : "Rolled after the seven abilities."}</p>
+          </div>
         </div>
         ${raise}
       </section>`;
@@ -269,7 +350,7 @@ function CreatorApp() {
       const tray = this.#tray(this.powers, "power");
       if (!this.powerCategory) {
         const table = this.useUpb ? this.#upbClasses() : POWER_CATEGORIES;
-        const cards = table.map((row) => `<button type="button" class="choice-card" data-action="pick-category" data-id="${esc(row.id)}"><strong>${esc(row.label)}</strong><em>${row.lo}–${row.hi === 100 ? "00" : row.hi}</em><span>${esc(BLURB[row.id] || "Powers in this class.")}</span></button>`).join("");
+        const cards = table.map((row) => `<button type="button" class="name-card" data-action="pick-category" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(`${row.lo}–${row.hi === 100 ? "00" : row.hi}. ${BLURB[row.id] || "Powers in this class."}`)}"><strong>${esc(row.label)}</strong></button>`).join("");
         return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Powers ${spent}/${needed}</p><h2>Roll a category, or choose one</h2></div><button type="button" class="roll-btn" data-action="roll-category">Roll category</button></div>${tray}<div class="choice-grid">${cards}</div></section>`;
       }
       const cat = this.powerCategory;
@@ -277,7 +358,8 @@ function CreatorApp() {
       const cards = list.map((row) => {
         const on = row.name === this.openPower ? "is-on" : "";
         const locked = row.slots > (needed - spent) ? "is-locked" : "";
-        return `<button type="button" class="power-card ${on} ${locked}" data-action="open-power" data-name="${esc(row.name)}"><strong>${esc(row.name)}</strong><em>${esc(row.grade)}</em>${row.slots > 1 ? "<b>2 slots</b>" : ""}</button>`;
+        const blurb = `${row.grade}. ${row.definition} ${row.play}${row.slots > 1 ? " Spends two slots." : ""}`;
+        return `<button type="button" class="name-card ${on} ${locked}" data-action="open-power" data-name="${esc(row.name)}" data-title="${esc(row.name)}" data-blurb="${esc(blurb)}"><strong>${esc(row.name)}</strong></button>`;
       }).join("");
       const open = list.find((row) => row.name === this.openPower);
       const detail = open ? `<aside class="power-detail">
@@ -308,11 +390,14 @@ function CreatorApp() {
       const tray = this.#tray(this.talents, "talent");
       if (!this.talentCategory) {
         const table = this.#talentCategories();
-        const cards = table.map((row) => `<button type="button" class="choice-card" data-action="pick-talent-cat" data-id="${esc(row.id)}"><strong>${esc(row.label)}</strong><em>${row.lo != null ? `${row.lo}–${row.hi === 100 ? "00" : row.hi}` : "List"}</em></button>`).join("");
+        const cards = table.map((row) => {
+          const bandText = row.lo != null ? `${row.lo}–${row.hi === 100 ? "00" : row.hi}` : "List";
+          return `<button type="button" class="name-card" data-action="pick-talent-cat" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(bandText)}"><strong>${esc(row.label)}</strong></button>`;
+        }).join("");
         return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Talents ${this.talents.length}/${needed}</p><h2>Roll a talent category</h2></div><button type="button" class="roll-btn" data-action="roll-talent-cat">Roll category</button></div>${tray}<div class="choice-grid">${cards}</div></section>`;
       }
       const list = this.#talentList();
-      const cards = list.map((row) => `<button type="button" class="power-card ${row.name === this.openTalent ? "is-on" : ""}" data-action="open-talent" data-name="${esc(row.name)}"><strong>${esc(row.name)}</strong></button>`).join("");
+      const cards = list.map((row) => `<button type="button" class="name-card ${row.name === this.openTalent ? "is-on" : ""}" data-action="open-talent" data-name="${esc(row.name)}" data-title="${esc(row.name)}" data-blurb="${esc(row.definition || "")}"><strong>${esc(row.name)}</strong></button>`).join("");
       const open = list.find((row) => row.name === this.openTalent);
       const detail = open ? `<aside class="power-detail"><h3>${esc(open.name)}</h3><p>${esc(open.definition)}</p><button type="button" class="roll-btn" data-action="take-talent" data-name="${esc(open.name)}">Take this talent</button></aside>` : `<aside class="power-detail empty"><p>Choose a talent to read it.</p></aside>`;
       return `<section class="creator-split"><div><div class="creator-block-head"><div><p class="creator-kicker">${this.talents.length}/${needed} starting · max ${cap}</p><h2>${esc(this.talentCategory.label)}</h2></div><div class="btn-row"><button type="button" class="roll-btn" data-action="roll-talent">Roll one</button><button type="button" class="text-btn" data-action="clear-talent-cat">All categories</button></div></div>${tray}<div class="power-grid">${cards}</div></div>${detail}</section>`;
@@ -370,7 +455,13 @@ function CreatorApp() {
         this.notice = "";
         return this.render();
       }
-      if (action === "roll-abilities") return this.#guard(() => this.#rollAbilities());
+      if (action === "roll-stat") return this.#guard(() => this.#rollStat(button.dataset.stat));
+      if (action === "roll-resources") return this.#guard(() => this.#rollResources());
+      if (action === "roll-counts") return this.#guard(() => this.#rollCounts());
+      if (action === "roll-calling") return this.#guard(() => this.#rollCalling());
+      if (action === "roll-quirk") return this.#guard(() => this.#rollQuirk());
+      if (action === "roll-social-pos") return this.#guard(() => this.#rollSocial("positive"));
+      if (action === "roll-social-neg") return this.#guard(() => this.#rollSocial("negative"));
       if (action === "roll-category") return this.#guard(() => this.#rollCategory());
       if (action === "pick-category") return this.#setCategory(button.dataset.id, null);
       if (action === "clear-category") {
@@ -455,8 +546,17 @@ function CreatorApp() {
         return this.#go("abilities", true);
       }
       if (this.step === "abilities") {
+        const missing = ABILITIES.filter((key) => !this.abilities[key]);
+        if (missing.length) {
+          this.notice = `Still to roll: ${missing.map((key) => ABILITY_LABEL[key]).join(", ")}.`;
+          return this.render();
+        }
+        if (!this.resources) {
+          this.notice = "Roll Resources.";
+          return this.render();
+        }
         if (!this.result) {
-          this.notice = "Roll the abilities before leaving this tab.";
+          this.notice = "Roll how many powers, talents, and contacts.";
           return this.render();
         }
         if (this.special) return this.#guard(() => this.#handOff());
@@ -504,44 +604,87 @@ function CreatorApp() {
       this.notice = `${originById(row.id).label} (${roll}). You can still pick a different origin.`;
     }
 
-    async #rollAbilities() {
-      await this.#ensureActor();
-      const actor = this.actor;
+    #generationContext() {
       const setup = archetypeSetup(this.archetype);
       if (setup) {
         this.originId = setup.originId;
         this.useUpb = false;
       }
       const origin = originById(this.originId || "altered");
-      const column = Number(this.upbForm?.column || setup?.column || origin.column || 1);
-      const abilityRolls = {};
-      const abilities = {};
-      for (const key of ABILITIES) {
-        if (setup?.fixedAbilities) {
-          abilityRolls[key] = 0;
-          abilities[key] = setup.fixedAbilities[key] || "typical";
-          continue;
-        }
-        const total = await rollD100({ flavor: `${actor.name} — ${ABILITY_LABEL[key]}`, actor });
-        abilityRolls[key] = total;
-        abilities[key] = typeof setup?.rankFor === "function" ? setup.rankFor(key, total) : rollOnColumn(column, total);
+      const column = Number(this.upbForm?.column || origin.column || 1);
+      return { setup, origin, column, skipMods: !!this.useUpb || !!this.archetype };
+    }
+
+    #boostStat(key, rank) {
+      if (!this.result) return rank;
+      const form = this.useUpb ? this.#upbFormRecord() : null;
+      let cs = Number(form?.abilityCs?.[key] || 0);
+      if (form?.allPrimaryCs) cs += form.allPrimaryCs;
+      if (cs <= -99) return "shift0";
+      if (cs) rank = shiftRank(rank, cs);
+      if (this.archetype === "martial" && key === "fighting") {
+        rank = shiftRank(rank, 2);
+        const order = ["feeble", "poor", "typical", "good", "excellent", "remarkable", "incredible", "amazing"];
+        if (order.indexOf(rank) > order.indexOf("amazing")) rank = "amazing";
+        if (order.indexOf(rank) >= 0 && order.indexOf(rank) < order.indexOf("remarkable")) rank = "remarkable";
       }
-      const skipMods = !!this.useUpb || !!this.archetype;
-      if (!skipMods) {
-        if (origin.id === "mutant") abilities.endurance = shiftRank(abilities.endurance, 1);
-        if (origin.id === "hitech") abilities.reason = shiftRank(abilities.reason, 2);
+      if (this.archetype === "elder" && ["endurance", "intuition", "psyche"].includes(key)) rank = shiftRank(rank, 2);
+      return rank;
+    }
+
+    async #rollStat(key) {
+      if (!ABILITIES.includes(key)) return;
+      await this.#ensureActor();
+      const { setup, origin, column, skipMods } = this.#generationContext();
+      let roll = 0;
+      let rank;
+      if (setup?.fixedAbilities) {
+        rank = setup.fixedAbilities[key] || "typical";
+      } else {
+        roll = await rollD100({ flavor: `${this.actor.name} — ${ABILITY_LABEL[key]}`, actor: this.actor });
+        rank = typeof setup?.rankFor === "function" ? setup.rankFor(key, roll) : rollOnColumn(column, roll);
+        if (!skipMods && origin.id === "mutant" && key === "endurance") rank = shiftRank(rank, 1);
+        if (!skipMods && origin.id === "hitech" && key === "reason") rank = shiftRank(rank, 2);
+        rank = this.#boostStat(key, rank);
       }
-      const numbers = {};
-      for (const key of ABILITIES) numbers[key] = rankMin(abilities[key]);
-      const resourceModRoll = await rollD100({ flavor: `${actor.name} — Resources`, actor });
-      const resourceMod = lookupTable(ABILITY_MODIFIER_TABLE, resourceModRoll);
+      this.abilityRolls[key] = roll;
+      this.abilities[key] = rank;
+      this.numbers[key] = rankMin(rank);
+      if (this.result) {
+        this.result.abilities[key] = rank;
+        this.result.numbers[key] = this.numbers[key];
+        this.result.abilityRolls[key] = roll;
+        await persistGenerationStats(this.actor, this.result, { quiet: true, originLabel: this.result.origin.label });
+      }
+      this.notice = `${ABILITY_LABEL[key]}: ${rankLabel(rank)}${roll ? ` (${roll})` : ""}.`;
+    }
+
+    async #rollResources() {
+      await this.#ensureActor();
+      const { origin } = this.#generationContext();
+      const roll = await rollD100({ flavor: `${this.actor.name} — Resources`, actor: this.actor });
+      const resourceMod = lookupTable(ABILITY_MODIFIER_TABLE, roll);
       let resources = (!this.useUpb && origin.id === "hitech") ? "good" : (!this.useUpb && origin.id === "alien") ? "poor" : "typical";
       resources = shiftRank(resources, resourceMod.cs);
       if (!this.useUpb && origin.id === "mutant") resources = shiftRank(resources, -1);
-      const countSrc = this.useUpb ? (await import("../data/upb.mjs")).UPB_COUNT_TABLE : SPECIAL_COUNT_TABLE;
-      const powerRoll = await rollD100({ flavor: `${actor.name} — Number of Powers`, actor });
-      const talentRoll = await rollD100({ flavor: `${actor.name} — Number of Talents`, actor });
-      const contactRoll = await rollD100({ flavor: `${actor.name} — Number of Contacts`, actor });
+      if (this.result) {
+        const form = this.useUpb ? this.#upbFormRecord() : null;
+        if (form?.resourcesFixed) resources = form.resourcesFixed;
+        else if (form?.resourceCs) resources = shiftRank(resources, form.resourceCs);
+        this.result.resources = resources;
+        this.result.resourceMod = resourceMod;
+        this.result.resourceModRoll = roll;
+        await persistGenerationStats(this.actor, this.result, { quiet: true, originLabel: this.result.origin.label });
+      }
+      this.resources = resources;
+      this.resourceMod = resourceMod;
+      this.resourceModRoll = roll;
+      this.notice = `Resources: ${rankLabel(resources)} (${roll}).`;
+    }
+
+    #baseCounts(powerRoll, talentRoll, contactRoll) {
+      const { origin } = this.#generationContext();
+      const countSrc = this.useUpb ? this._countTable : SPECIAL_COUNT_TABLE;
       let counts = clampCounts({
         powers: lookupTable(countSrc, powerRoll)?.powers ?? [2, 4],
         talents: lookupTable(countSrc, talentRoll)?.talents ?? [1, 4],
@@ -553,32 +696,114 @@ function CreatorApp() {
         counts.contacts[0] = Math.min(1, counts.contacts[0]);
         counts.contacts[1] = 1;
       }
-      counts = clampCounts(counts, this.useUpb);
-      const popularity = (!this.useUpb && (origin.id === "mutant" || origin.id === "robot")) ? 0 : 10;
-      const result = {
-        origin: { ...origin, column, notes: this.upbForm?.notes || origin.notes, label: this.upbForm?.label || setup?.originLabel || origin.label },
-        originRoll: this.originRoll,
-        abilities, numbers, abilityRolls, resources, resourceModRoll, resourceMod,
-        counts, popularity, useUpb: !!this.useUpb, column,
-        countRolls: { powers: powerRoll, talents: talentRoll, contacts: contactRoll },
-        useUltimateTalents: !!this.useUltimateTalents
-      };
-      if (this.useUpb && this.upbForm) {
-        const { finalizeUpbResult } = await import("../wizard-upb.mjs");
-        finalizeUpbResult(result, { form: this.#upbFormRecord(), originOfPower: this.upbOrigin });
-        this.powers = this.powers.filter((row) => row.category !== "Form");
-        for (const bonus of result.bonusPowers || []) {
-          this.powers.push({ name: bonus, category: "Form", rank: "good", rankRoll: 0, cost: 0, grade: "Form bonus", bodyArmor: /armor/i.test(bonus), forceField: /force field/i.test(bonus) });
+      return clampCounts(counts, this.useUpb);
+    }
+
+    async #rollCounts() {
+      const missing = ABILITIES.filter((key) => !this.abilities[key]);
+      if (missing.length) {
+        this.notice = `Roll ${missing.map((key) => ABILITY_LABEL[key]).join(", ")} first.`;
+        return;
+      }
+      if (this.useUpb) await this.#loadUpb();
+      await this.#ensureActor();
+      const actor = this.actor;
+      const powerRoll = await rollD100({ flavor: `${actor.name} — Number of Powers`, actor });
+      const talentRoll = await rollD100({ flavor: `${actor.name} — Number of Talents`, actor });
+      const contactRoll = await rollD100({ flavor: `${actor.name} — Number of Contacts`, actor });
+      const counts = this.#baseCounts(powerRoll, talentRoll, contactRoll);
+      const { setup, origin, column } = this.#generationContext();
+      if (!this.result) {
+        const popularity = (!this.useUpb && (origin.id === "mutant" || origin.id === "robot")) ? 0 : 10;
+        const result = {
+          origin: { ...origin, column, notes: this.upbForm?.notes || origin.notes, label: this.upbForm?.label || setup?.originLabel || origin.label },
+          originRoll: this.originRoll,
+          abilities: { ...this.abilities },
+          numbers: { ...this.numbers },
+          abilityRolls: { ...this.abilityRolls },
+          resources: this.resources,
+          resourceModRoll: this.resourceModRoll,
+          resourceMod: this.resourceMod,
+          counts, popularity, useUpb: !!this.useUpb, column,
+          countRolls: { powers: powerRoll, talents: talentRoll, contacts: contactRoll },
+          useUltimateTalents: !!this.useUltimateTalents
+        };
+        if (this.useUpb && this.upbForm) {
+          const { finalizeUpbResult } = await import("../wizard-upb.mjs");
+          finalizeUpbResult(result, { form: this.#upbFormRecord(), originOfPower: this.upbOrigin });
+          this.powers = this.powers.filter((row) => row.category !== "Form");
+          for (const bonus of result.bonusPowers || []) {
+            this.powers.push({ name: bonus, category: "Form", rank: "good", rankRoll: 0, cost: 0, grade: "Form bonus", bodyArmor: /armor/i.test(bonus), forceField: /force field/i.test(bonus) });
+          }
         }
+        if (this.archetype) {
+          tuneArchetypeResult(result, this.archetype);
+          this.tuned = true;
+        }
+        this.abilities = { ...result.abilities };
+        this.numbers = { ...result.numbers };
+        this.resources = result.resources;
+        this.result = result;
+        this.raise = ABILITIES[0];
+      } else {
+        const form = this.useUpb ? this.#upbFormRecord() : null;
+        if (form?.extraPower) counts.powers[0] += form.extraPower;
+        if (form?.lessPower) counts.powers[0] = Math.max(0, counts.powers[0] - form.lessPower);
+        this.result.counts = clampCounts(counts, this.useUpb);
+        this.result.countRolls = { powers: powerRoll, talents: talentRoll, contacts: contactRoll };
       }
-      if (this.archetype) {
-        tuneArchetypeResult(result, this.archetype);
-        this.tuned = true;
+      await persistGenerationStats(actor, this.result, { quiet: true, originLabel: this.result.origin.label });
+      const shown = this.result.counts;
+      this.notice = `Powers ${shown.powers[0]}/${shown.powers[1]}. Talents ${shown.talents[0]}/${shown.talents[1]}. Contacts ${shown.contacts[0]}/${shown.contacts[1]}.`;
+    }
+
+    async #rollCalling() {
+      await this.#ensureActor();
+      const roll = await rollD100({ flavor: `${this.actor.name} — Calling`, actor: this.actor });
+      const index = Math.min(CALLINGS.length - 1, Math.floor(((roll - 1) / 100) * CALLINGS.length));
+      this.calling = { ...CALLINGS[index], roll };
+      this.notice = `Calling: ${this.calling.label} (${roll}).`;
+    }
+
+    async #rollQuirk() {
+      await this.#ensureActor();
+      const typeRoll = await rollD100({ flavor: `${this.actor.name} — Quirk type`, actor: this.actor });
+      const kind = typeRoll <= 50 ? "physical" : "mental";
+      const posRoll = await rollD100({ flavor: `${this.actor.name} — Positive ${kind} quirk`, actor: this.actor });
+      const negRoll = await rollD100({ flavor: `${this.actor.name} — Negative ${kind} quirk`, actor: this.actor });
+      this.quirkPair = {
+        kind,
+        positive: band(QUIRKS[kind].positive, posRoll),
+        negative: band(QUIRKS[kind].negative, negRoll)
+      };
+      this.notice = `${kind}: ${this.quirkPair.positive.name} and ${this.quirkPair.negative.name}.`;
+    }
+
+    async #rollSocial(side) {
+      await this.#ensureActor();
+      const roll = await rollD100({ flavor: `${this.actor.name} — ${side} social`, actor: this.actor });
+      const row = { ...band(QUIRKS.social[side], roll), roll };
+      if (side === "positive") this.socialPositive = row;
+      else this.socialNegative = row;
+      this.notice = `${side === "positive" ? "Positive" : "Negative"} social: ${row.name} (${roll}).`;
+    }
+
+    async #writeLife(actor) {
+      const update = {};
+      if (this.calling) {
+        update["system.identity.calling"] = this.calling.label;
+        update["system.identity.personality"] = `${this.calling.label}: ${this.calling.note}`;
       }
-      this.result = result;
-      this.raise = ABILITIES[0];
-      await persistGenerationStats(actor, result, { quiet: true, originLabel: result.origin.label });
-      this.notice = `Powers ${counts.powers[0]}/${counts.powers[1]}. Talents ${counts.talents[0]}/${counts.talents[1]}. Contacts ${counts.contacts[0]}/${counts.contacts[1]}.`;
+      const bits = [];
+      if (this.quirkPair) {
+        const pair = this.quirkPair;
+        bits.push(`${pair.kind} ${pair.positive.name} (${pair.positive.points} pt): ${pair.positive.note}`);
+        bits.push(`${pair.kind} ${pair.negative.name} (${pair.negative.points} pt): ${pair.negative.note}`);
+      }
+      if (this.socialPositive) bits.push(`social ${this.socialPositive.name} (${this.socialPositive.points} pt): ${this.socialPositive.note}`);
+      if (this.socialNegative) bits.push(`social ${this.socialNegative.name} (${this.socialNegative.points} pt): ${this.socialNegative.note}`);
+      if (bits.length) update["system.identity.quirks"] = bits.join(" | ");
+      if (Object.keys(update).length) await actor.update(update);
     }
 
     #upbClasses() {
@@ -646,10 +871,10 @@ function CreatorApp() {
         grade: row.grade, bodyArmor: row.bodyArmor, forceField: row.forceField
       });
       this.openPower = "";
+      this.powerCategory = null;
       this.notice = fromRoll
-        ? `Rolled ${row.name}: ${rankLabel(rank)}.`
-        : `${row.name}: ${rankLabel(rank)}.`;
-      if (spent + cost >= needed) this.powerCategory = null;
+        ? `Rolled ${row.name}: ${rankLabel(rank)}. Pick the next category.`
+        : `${row.name}: ${rankLabel(rank)}. Pick the next category.`;
     }
 
     #talentCategories() {
@@ -753,6 +978,7 @@ function CreatorApp() {
       const upb = await import("../data/upb.mjs");
       this._upbClasses = upb.UPB_POWER_CLASSES;
       this._upbPowers = upb.UPB_POWERS;
+      this._countTable = upb.UPB_COUNT_TABLE;
       this._forms = upb.UPB_PHYSICAL_FORMS;
       this._origins = upb.UPB_ORIGINS_OF_POWER;
       this._compound = upb.UPB_COMPOUND_COUNT;
@@ -823,12 +1049,13 @@ function CreatorApp() {
         publicId: this.publicId,
         secretName: this.secretName,
         lifeHeight: this.lifeHeight,
-        lifeCalling: this.lifeCalling,
-        lifeQuirk: this.lifeQuirk,
+        lifeCalling: false,
+        lifeQuirk: false,
         raise: (this.result?.origin?.id === "altered" || this.result?.formRaiseOne) ? this.raise : null,
         rolled: this.result,
         tuned: this.tuned
       };
+      await this.#writeLife(actor);
       this._leaving = true;
       try { await this.close(); } catch {}
       await runFullGeneration(actor, payload);
@@ -863,10 +1090,11 @@ function CreatorApp() {
         "system.identity.archetype": ARCHETYPE_CHOICES.find((row) => row.id === this.archetype)?.label || ""
       });
       try {
-        const life = await import("../life.mjs");
-        if (this.lifeHeight) await life.writeHeightWeight(actor, { prompt: true });
-        if (this.lifeCalling) await life.writeCalling(actor, { prompt: true });
-        if (this.lifeQuirk) await life.writeQuirk(actor, { prompt: true, balanced: true });
+        await this.#writeLife(actor);
+        if (this.lifeHeight) {
+          const life = await import("../life.mjs");
+          await life.writeHeightWeight(actor, { prompt: true });
+        }
       } catch (err) {
         console.warn("FASERIP | life rolls", err);
       }
@@ -904,11 +1132,11 @@ function CreatorApp() {
       if (!mount || !this._forms) return;
       const forms = this._forms.map((form) => {
         const on = this.upbForm?.label === form.label ? "is-on" : "";
-        return `<button type="button" class="choice-card ${on}" data-action="pick-upb-form" data-id="${esc(form.label)}"><strong>${esc(form.label)}</strong><em>Column ${form.column}</em><span>${esc(form.notes || "")}</span></button>`;
+        return `<button type="button" class="name-card ${on}" data-action="pick-upb-form" data-id="${esc(form.label)}" data-title="${esc(form.label)}" data-blurb="${esc(`Column ${form.column}. ${form.notes || ""}`)}"><strong>${esc(form.label)}</strong></button>`;
       }).join("");
       const origins = (this._origins || []).map((row) => {
         const on = this.upbOrigin?.label === row.label ? "is-on" : "";
-        return `<button type="button" class="choice-card ${on}" data-action="pick-upb-origin" data-id="${esc(row.label)}"><strong>${esc(row.label)}</strong><span>${esc(row.notes || "")}</span></button>`;
+        return `<button type="button" class="name-card ${on}" data-action="pick-upb-origin" data-id="${esc(row.label)}" data-title="${esc(row.label)}" data-blurb="${esc(row.notes || "")}"><strong>${esc(row.label)}</strong></button>`;
       }).join("");
       const angel = this.upbForm?.pickAngelDemon ? `<div class="btn-row"><button type="button" class="roll-btn" data-action="angel-side" data-side="angel">Angel</button><button type="button" class="roll-btn" data-action="angel-side" data-side="demon">Demon</button></div>` : "";
       mount.innerHTML = `

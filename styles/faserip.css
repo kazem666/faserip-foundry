@@ -937,9 +937,88 @@ button.faserip-generate,
 }
 .faserip-creator .choice-grid, .faserip-creator .power-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
 }
+.faserip-creator .name-card {
+  display: flex;
+  min-height: 88px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 18px 14px;
+  background: #241910;
+  color: #f6f1e4;
+  border: 1px solid #3a2d22;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.faserip-creator .name-card strong {
+  font-family: Oswald, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.faserip-creator .name-card.is-on {
+  border-color: var(--gold);
+  background: #3a2a16;
+  color: var(--gold);
+}
+.faserip-creator .name-card.is-locked { opacity: 0.4; }
+.creator-tip {
+  position: fixed;
+  z-index: 100000;
+  background: #f4ead7;
+  color: #1a120c;
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.creator-tip strong {
+  display: block;
+  font-family: Oswald, sans-serif;
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+.creator-tip p { margin: 0; font-size: 16px; line-height: 1.4; }
+.faserip-creator .stat-die {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  border: 2px solid var(--gold);
+  background: #3a2a16;
+  color: var(--gold);
+  font-size: 32px;
+  cursor: pointer;
+}
+.faserip-creator .stat-die:hover { background: var(--gold); color: #1a120c; }
+.faserip-creator .life-row, .faserip-creator .count-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+.faserip-creator .count-row { grid-template-columns: 180px 1fr; align-items: center; }
+.faserip-creator .life-die, .faserip-creator .resource-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: #241910;
+  border: 1px solid #3a2d22;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+.faserip-creator .life-die span, .faserip-creator .ability-card small {
+  font-family: Oswald, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.faserip-creator .life-die strong { font-size: 15px; line-height: 1.25; }
+.faserip-creator .count-roll p { margin: 8px 0 0; color: #d9cbb6; }
 .faserip-creator .choice-card, .faserip-creator .power-card {
   text-align: left;
   background: #241910;
@@ -1021,13 +1100,22 @@ button.faserip-generate,
 .faserip-creator .ability-card {
   background: #241910;
   border: 1px solid #3a2d22;
-  border-radius: 10px;
-  padding: 8px;
+  border-radius: 12px;
+  padding: 12px 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
+  min-height: 180px;
+  text-align: center;
 }
-.faserip-creator .ability-card strong { font-family: Oswald, sans-serif; font-size: 16px; color: var(--gold); }
+.faserip-creator .ability-card > span {
+  font-family: Oswald, sans-serif;
+  font-size: 28px;
+  line-height: 1;
+}
+.faserip-creator .ability-card strong { font-family: Oswald, sans-serif; font-size: 18px; color: var(--gold); }
+.faserip-creator .ability-card.is-rolled { border-color: var(--gold); }
 .faserip-creator .ability-card em { font-style: normal; font-size: 18px; }
 .faserip-creator .ability-card small { color: #b5a48d; }
 .faserip-creator .stat-pills, .faserip-creator .tray, .faserip-creator .chip-row {
@@ -1053,7 +1141,7 @@ button.faserip-generate,
 .faserip-creator .picked-list li { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
 .faserip-creator .creator-empty { padding: 24px 8px; }
 @media (max-width: 860px) {
-  .faserip-creator .creator-hero, .faserip-creator .creator-split, .faserip-creator .ability-row, .faserip-creator .review-cols {
+  .faserip-creator .creator-hero, .faserip-creator .creator-split, .faserip-creator .ability-row, .faserip-creator .review-cols, .faserip-creator .life-row, .faserip-creator .count-row {
     grid-template-columns: 1fr;
   }
 }
