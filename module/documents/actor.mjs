@@ -102,7 +102,10 @@ export class FaseripActor extends Actor {
   }
 
   getAbilityNumber(ability) {
-    return abilityNumber(this.system.abilities?.[ability]);
+    const data = this.system.abilities?.[ability] || {};
+    const rolled = this.flags?.faserip?.rolledStats;
+    const number = Number(data.number || 0) || Number(rolled?.numbers?.[ability] || 0);
+    return abilityNumber({ rank: this.getAbilityRank(ability), number });
   }
 
   getBodyArmor() {

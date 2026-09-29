@@ -1,4 +1,4 @@
-import { ABILITIES, PHYSICAL, MENTAL, abilityNumber, MOVEMENT_AREAS } from "../config.mjs";
+import { ABILITIES, PHYSICAL, MENTAL, abilityNumber, abilityRankId, MOVEMENT_AREAS } from "../config.mjs";
 
 const { NumberField, StringField, SchemaField, HTMLField, BooleanField } = foundry.data.fields;
 
@@ -133,16 +133,29 @@ export class HeroData extends foundry.abstract.TypeDataModel {
   }
 
   prepareDerivedData() {
-    const phys = PHYSICAL.reduce((sum, k) => sum + abilityNumber(this.abilities[k]), 0);
-    const ment = MENTAL.reduce((sum, k) => sum + abilityNumber(this.abilities[k]), 0);
+    const rolled = this.parent?.flags?.faserip?.rolledStats || {};
+    const score = (key) => {
+      const slot = this.abilities?.[key] || {};
+      const rank = abilityRankId(slot, rolled.abilities?.[key] || "");
+      const number = Number(slot.number || 0) || Number(rolled.numbers?.[key] || 0);
+      return abilityNumber({ rank, number });
+    };
+    const physBase = PHYSICAL.reduce((sum, key) => sum + score(key), 0);
+    const ment = MENTAL.reduce((sum, key) => sum + score(key), 0);
+    const doubled = !!this.parent?.flags?.faserip?.doubleHealth;
+    const phys = doubled ? physBase * 2 : physBase;
+    const healthFull = Number(this.health.value) === Number(this.health.max);
+    const karmaFull = Number(this.karma.value) === Number(this.karma.max);
     this.health.max = phys;
     this.karma.max = ment;
-    if (this.health.value > this.health.max) this.health.value = this.health.max;
-    if (this.karma.value > this.karma.max) this.karma.value = this.karma.max;
+    if (healthFull) this.health.value = phys;
+    else if (this.health.value > phys) this.health.value = phys;
+    if (karmaFull) this.karma.value = ment;
+    else if (this.karma.value > ment) this.karma.value = ment;
 
-    const endRank = this.abilities.endurance?.rank ?? "typical";
+    const endRank = abilityRankId(this.abilities.endurance, rolled.abilities?.endurance || "");
     this.movement = MOVEMENT_AREAS[endRank] ?? 2;
-    this.healRate = abilityNumber(this.abilities.endurance);
+    this.healRate = score("endurance");
   }
 }
 

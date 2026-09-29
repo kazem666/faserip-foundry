@@ -77,6 +77,24 @@ export class FaseripActorSheet extends ActorSheetBase {
         }
       }
     }
+    const pool = (keys) => keys.reduce((sum, key) => {
+      const number = Number(formData?.[`system.abilities.${key}.number`] ?? formData?.system?.abilities?.[key]?.number ?? 0);
+      const rank = formData?.[`system.abilities.${key}.rank`] ?? formData?.system?.abilities?.[key]?.rank;
+      return sum + abilityNumber({ rank, number });
+    }, 0);
+    const sourceHealth = this.actor?._source?.system?.health || {};
+    const sourceKarma = this.actor?._source?.system?.karma || {};
+    const phys = pool(["fighting", "agility", "strength", "endurance"]);
+    const ment = pool(["reason", "intuition", "psyche"]);
+    const submittedHealth = Number(formData?.["system.health.value"]);
+    const submittedKarma = Number(formData?.["system.karma.value"]);
+    if (formData && Number(sourceHealth.value) === Number(sourceHealth.max) && phys > 0 && submittedHealth === Number(sourceHealth.value)) {
+      const mult = this.actor.getFlag?.("faserip", "doubleHealth") ? 2 : 1;
+      formData["system.health.value"] = phys * mult;
+    }
+    if (formData && Number(sourceKarma.value) === Number(sourceKarma.max) && ment > 0 && submittedKarma === Number(sourceKarma.value)) {
+      formData["system.karma.value"] = ment;
+    }
     return super._updateObject(event, formData);
   }
 
@@ -108,15 +126,13 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.healRate = actor.getAbilityNumber("endurance");
       context.combatColumns = Object.entries(BATTLE_EFFECTS).map(([id, col]) => ({ id, label: col.label }));
       context.abilities = ABILITIES.map((key) => {
-        const data = actor.system.abilities[key] ?? {};
         const rank = actor.getAbilityRank(key);
-        const shown = abilityNumber({ rank, number: data.number });
         return {
           key,
           label: game.i18n.localize(`FASERIP.Ability.${key}`),
           abbr: game.i18n.localize(`FASERIP.AbilityAbbr.${key}`),
           rank,
-          number: shown,
+          number: actor.getAbilityNumber(key),
           rankLabel: rankLabel(rank),
           options: RANKS.map((r) => ({ ...r, selected: r.id === rank }))
         };

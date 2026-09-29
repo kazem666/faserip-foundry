@@ -22,7 +22,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.41";
+const VERSION = "1.17.42";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -511,6 +511,9 @@ Hooks.on("renderActorSheet", (app) => {
     app.close = (options = {}) => orig({ ...options, submit: false });
   }
   tryReapplyRolledStats(actor).catch(() => {});
+  import("./module/chargen.mjs")
+    .then((mod) => mod.syncFullResourcePools?.(actor))
+    .catch(() => {});
 });
 
 Hooks.on("renderApplicationV2", (app) => {

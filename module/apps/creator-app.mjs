@@ -9,7 +9,7 @@ import { describeItemAction } from "../item-actions.mjs";
 import { rollD100 } from "../dice/percentile.mjs";
 import { clampCounts, persistGenerationStats, applyGeneration } from "../chargen.mjs";
 import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES } from "../life.mjs";
-import { CALLINGS, QUIRKS, band } from "../data/archetypes.mjs";
+import { BUILDS, CALLINGS, QUIRKS, STATURE, band, heightAndWeight, statureText } from "../data/archetypes.mjs";
 import { isUpbEnabled } from "../data/upb.mjs";
 import { isRomEnabled } from "../data/rom.mjs";
 import { isUltimateTalentsEnabled } from "../data/ultimate-talents.mjs";
@@ -107,9 +107,14 @@ function CreatorApp() {
       this.useUltimateTalents = isUltimateTalentsEnabled();
       this.useRom = false;
       this.archetype = "";
-      this.lifeHeight = true;
+      this.lifeHeight = false;
       this.lifeCalling = false;
       this.lifeQuirk = false;
+      this.buildRoll = null;
+      this.statureRoll = null;
+      this.weightRoll = null;
+      this.build = null;
+      this.stature = null;
       this.calling = null;
       this.quirkPair = null;
       this.socialPositive = null;
@@ -269,7 +274,6 @@ function CreatorApp() {
             <label>Secret identity<input name="secretName" type="text" value="${esc(this.secretName)}" /></label>
             <label>Sheet<select name="actorType"><option value="hero" ${this.actorType === "hero" ? "selected" : ""}>Hero</option><option value="npc" ${this.actorType === "npc" ? "selected" : ""}>NPC</option></select></label>
             <label class="check"><input name="secretId" type="checkbox" ${this.secretId ? "checked" : ""} /> Secret identity</label>
-            <label class="check"><input name="lifeHeight" type="checkbox" ${this.lifeHeight ? "checked" : ""} /> Roll height and weight later</label>
             <label class="check"><input name="useUpb" type="checkbox" ${this.useUpb ? "checked" : ""} /> Ultimate Powers Book tables</label>
             <label class="check"><input name="useUltimateTalents" type="checkbox" ${this.useUltimateTalents ? "checked" : ""} /> Ultimate Talents list</label>
             ${this.romAvailable ? `<label class="check"><input name="useRom" type="checkbox" ${this.useRom ? "checked" : ""} /> Realms of Magic path</label>` : ""}
@@ -280,7 +284,10 @@ function CreatorApp() {
             ${this.#lifeDie("roll-quirk", "Quirk", quirkText, quirkBlurb)}
             ${this.#lifeDie("roll-social-pos", "Positive social", this.socialPositive?.name, this.socialPositive?.note || "")}
             ${this.#lifeDie("roll-social-neg", "Negative social", this.socialNegative?.name, this.socialNegative?.note || "")}
+            ${this.#lifeDie("roll-build", "Build", this.build?.label, "Slender 01–25, average 26–75, muscular 76–00.")}
+            ${this.#lifeDie("roll-stature", "Stature", this.stature?.height, this.stature ? statureText(this.stature) : "Height. Weight is scaled by Strength.")}
           </div>
+          ${this.#bodyLine()}
           <p class="creator-fine">Hover a result to read it. An archetype other than Standard hero, or Realms of Magic, leaves this creator after Abilities.</p>
         </section>`;
     }
@@ -462,6 +469,8 @@ function CreatorApp() {
       if (action === "roll-quirk") return this.#guard(() => this.#rollQuirk());
       if (action === "roll-social-pos") return this.#guard(() => this.#rollSocial("positive"));
       if (action === "roll-social-neg") return this.#guard(() => this.#rollSocial("negative"));
+      if (action === "roll-build") return this.#guard(() => this.#rollBuild());
+      if (action === "roll-stature") return this.#guard(() => this.#rollStature());
       if (action === "roll-category") return this.#guard(() => this.#rollCategory());
       if (action === "pick-category") return this.#setCategory(button.dataset.id, null);
       if (action === "clear-category") {
@@ -788,6 +797,40 @@ function CreatorApp() {
       this.notice = `${side === "positive" ? "Positive" : "Negative"} social: ${row.name} (${roll}).`;
     }
 
+    #bodyPreview() {
+      if (!this.buildRoll || !this.statureRoll) return null;
+      const strength = this.abilities.strength || "typical";
+      return heightAndWeight(this.buildRoll, this.statureRoll, strength, this.weightRoll || 50);
+    }
+
+    #bodyLine() {
+      const body = this.#bodyPreview();
+      if (!body) return "";
+      const pending = this.abilities.strength ? "" : " Weight uses Typical until Strength is rolled, then updates when the hero is saved.";
+      return `<p class="creator-fine">${esc(body.height)}, ${esc(body.weight)}. ${esc(body.build)}. ${esc(body.modifier)}.${esc(pending)}</p>`;
+    }
+
+    async #rollBuild() {
+      await this.#ensureActor();
+      const roll = await rollD100({ flavor: `${this.actor.name} — Build`, actor: this.actor });
+      this.buildRoll = roll;
+      this.build = band(BUILDS, roll);
+      this.notice = `Build: ${this.build.label} (${roll}).`;
+    }
+
+    async #rollStature() {
+      await this.#ensureActor();
+      const roll = await rollD100({ flavor: `${this.actor.name} — Stature`, actor: this.actor });
+      this.statureRoll = roll;
+      this.stature = band(STATURE, roll);
+      const weight = await new Roll("1d100").evaluate();
+      this.weightRoll = Number(weight.total);
+      const body = this.#bodyPreview();
+      this.notice = body
+        ? `${body.height}, ${body.weight} (${body.build}).`
+        : `Stature: ${this.stature.height} (${roll}).`;
+    }
+
     async #writeLife(actor) {
       const update = {};
       if (this.calling) {
@@ -803,6 +846,15 @@ function CreatorApp() {
       if (this.socialPositive) bits.push(`social ${this.socialPositive.name} (${this.socialPositive.points} pt): ${this.socialPositive.note}`);
       if (this.socialNegative) bits.push(`social ${this.socialNegative.name} (${this.socialNegative.points} pt): ${this.socialNegative.note}`);
       if (bits.length) update["system.identity.quirks"] = bits.join(" | ");
+      if (this.buildRoll && this.statureRoll) {
+        const strength = actor.getAbilityRank?.("strength") || this.abilities.strength || "typical";
+        const body = heightAndWeight(this.buildRoll, this.statureRoll, strength, this.weightRoll || 50);
+        update["system.identity.height"] = body.height;
+        update["system.identity.weight"] = body.weight;
+        const feature = `Build: ${body.build}. ${body.modifier}.`;
+        const existing = String(actor.system?.identity?.physicalFeatures || "");
+        if (!existing.includes(feature)) update["system.identity.physicalFeatures"] = [existing, feature].filter(Boolean).join(" ");
+      }
       if (Object.keys(update).length) await actor.update(update);
     }
 
@@ -1048,7 +1100,7 @@ function CreatorApp() {
         secretId: this.secretId,
         publicId: this.publicId,
         secretName: this.secretName,
-        lifeHeight: this.lifeHeight,
+        lifeHeight: false,
         lifeCalling: false,
         lifeQuirk: false,
         raise: (this.result?.origin?.id === "altered" || this.result?.formRaiseOne) ? this.raise : null,
@@ -1091,10 +1143,6 @@ function CreatorApp() {
       });
       try {
         await this.#writeLife(actor);
-        if (this.lifeHeight) {
-          const life = await import("../life.mjs");
-          await life.writeHeightWeight(actor, { prompt: true });
-        }
       } catch (err) {
         console.warn("FASERIP | life rolls", err);
       }

@@ -142,16 +142,23 @@ export async function persistGenerationStats(actor, result = {}, extras = {}) {
     };
   }
   if (Object.keys(abilityBlock).length) update["system.abilities"] = abilityBlock;
-  const phys = ["fighting", "agility", "strength", "endurance"].reduce((s, k) => s + Number(numbers[k] || 0), 0);
-  const ment = ["reason", "intuition", "psyche"].reduce((s, k) => s + Number(numbers[k] || 0), 0);
+  const score = (key) => {
+    const n = Number(numbers[key] || 0);
+    if (n > 0) return n;
+    return rankMin(abilities[key]) || 0;
+  };
+  const phys = ["fighting", "agility", "strength", "endurance"].reduce((s, k) => s + score(k), 0);
+  const ment = ["reason", "intuition", "psyche"].reduce((s, k) => s + score(k), 0);
+  const healthTotal = result.doubleHealth ? phys * 2 : phys;
   if (!extras.abilitiesOnly) {
     if (result.resources) {
       update["system.resources.rank"] = result.resources;
       update["system.resources.number"] = rankMin(result.resources);
     }
     if (phys) {
-      update["system.health.value"] = result.doubleHealth ? phys * 2 : phys;
-      update["system.health.max"] = result.doubleHealth ? phys * 2 : phys;
+      update["system.health.value"] = healthTotal;
+      update["system.health.max"] = healthTotal;
+      if (result.doubleHealth) update["flags.faserip.doubleHealth"] = true;
     }
     if (ment) {
       update["system.karma.value"] = ment;
@@ -188,6 +195,39 @@ export async function persistGenerationStats(actor, result = {}, extras = {}) {
       console.warn("FASERIP | persistGenerationStats retry", err2);
     }
   }
+  if (!extras.abilitiesOnly && (phys || ment)) {
+    const pools = {};
+    if (phys) {
+      pools["system.health.value"] = healthTotal;
+      pools["system.health.max"] = healthTotal;
+      if (result.doubleHealth) pools["flags.faserip.doubleHealth"] = true;
+    }
+    if (ment) {
+      pools["system.karma.value"] = ment;
+      pools["system.karma.max"] = ment;
+    }
+    try { await actor.update(pools, opts); } catch (err) {
+      console.warn("FASERIP | resource pools", err);
+    }
+  }
+}
+
+/** A full Health or Karma pool follows the ability totals. A wounded pool (current below max) stays put. */
+export async function syncFullResourcePools(actor) {
+  if (!actor || (actor.type !== "hero" && actor.type !== "npc")) return;
+  const health = actor._source?.system?.health || {};
+  const karma = actor._source?.system?.karma || {};
+  const update = {};
+  if (Number(health.value) === Number(health.max) && Number(actor.system.health.max) !== Number(health.value)) {
+    update["system.health.value"] = actor.system.health.max;
+    update["system.health.max"] = actor.system.health.max;
+  }
+  if (Number(karma.value) === Number(karma.max) && Number(actor.system.karma.max) !== Number(karma.value)) {
+    update["system.karma.value"] = actor.system.karma.max;
+    update["system.karma.max"] = actor.system.karma.max;
+  }
+  if (!Object.keys(update).length) return;
+  await actor.update(update, { diff: false, render: false, faseripApplyRolls: true });
 }
 
 export async function reapplyRolledStats(actor) {

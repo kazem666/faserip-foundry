@@ -995,7 +995,7 @@ button.faserip-generate,
 .faserip-creator .stat-die:hover { background: var(--gold); color: #1a120c; }
 .faserip-creator .life-row, .faserip-creator .count-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
   gap: 12px;
   margin-top: 14px;
 }
