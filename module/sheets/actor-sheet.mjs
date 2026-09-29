@@ -107,16 +107,10 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.forceField = actor.getForceField();
       context.healRate = actor.getAbilityNumber("endurance");
       context.combatColumns = Object.entries(BATTLE_EFFECTS).map(([id, col]) => ({ id, label: col.label }));
-      const rolledStats = actor.getFlag?.("faserip", "rolledStats") || actor.flags?.faserip?.rolledStats;
       context.abilities = ABILITIES.map((key) => {
         const data = actor.system.abilities[key] ?? {};
-        let rank = data.rank ?? "typical";
-        let number = data.number;
-        if (rolledStats?.abilities?.[key] && rank !== rolledStats.abilities[key] && (rank === "typical" || !rank)) {
-          rank = rolledStats.abilities[key];
-          if (rolledStats.numbers?.[key] != null) number = Number(rolledStats.numbers[key]);
-        }
-        const shown = abilityNumber({ rank, number });
+        const rank = actor.getAbilityRank(key);
+        const shown = abilityNumber({ rank, number: data.number });
         return {
           key,
           label: game.i18n.localize(`FASERIP.Ability.${key}`),
@@ -477,7 +471,9 @@ export class FaseripActorSheet extends ActorSheetBase {
     await this.actor.update({
       "system.health.value": this.actor.system.health.max,
       "system.condition.unconscious": false
-    });
+    }, { faseripHeal: true });
+    const { releaseIfConscious } = await import("../battle-results.mjs");
+    await releaseIfConscious(this.actor);
   }
 
   async _onResetKarma(event) {

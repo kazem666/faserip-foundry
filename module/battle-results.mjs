@@ -76,12 +76,73 @@ async function note(text) {
   }
 }
 
+const STATUS_FOR_STATE = {
+  stunned: ["stun"],
+  unconscious: ["unconscious"],
+  dying: ["dying", "unconscious"],
+  dead: ["dead"]
+};
+const MANAGED_STATUSES = ["stun", "unconscious", "dying", "dead"];
+
+export function registerConditionEffects() {
+  const effects = globalThis.CONFIG?.statusEffects;
+  if (!Array.isArray(effects)) return;
+  const add = (id, name, img) => {
+    if (!effects.some((effect) => effect.id === id)) effects.push({ id, name, img });
+  };
+  add("stun", "Stunned", "icons/svg/daze.svg");
+  add("unconscious", "Unconscious", "icons/svg/unconscious.svg");
+  add("dying", "Dying", "icons/svg/blood.svg");
+  add("dead", "Dead", "icons/svg/skull.svg");
+  const Hooks = globalThis.Hooks;
+  if (!Hooks || Hooks._faseripConditions) return;
+  Hooks._faseripConditions = true;
+  Hooks.on("updateActor", (actor) => {
+    if (!globalThis.game?.user?.isGM) return;
+    syncStatuses(actor, readBattle(actor)?.state || "").catch((err) => console.warn("FASERIP | condition icon", err));
+  });
+}
+
+function hasStatus(actor, id) {
+  return [...(actor?.effects ?? [])].some((effect) => effect.statuses?.has?.(id) || effect.getFlag?.("core", "statusId") === id);
+}
+
+async function syncStatuses(actor, state) {
+  if (!actor || typeof actor.toggleStatusEffect !== "function") return;
+  const want = new Set(STATUS_FOR_STATE[state] || []);
+  if (!state && Number(actor.system?.health?.value) === 0) want.add("unconscious");
+  for (const id of MANAGED_STATUSES) {
+    const active = want.has(id);
+    if (hasStatus(actor, id) === active) continue;
+    try {
+      await actor.toggleStatusEffect(id, { active, overlay: id === "unconscious" || id === "dead" });
+    } catch (err) {
+      console.warn("FASERIP | status", id, err);
+    }
+  }
+}
+
 async function writeBattle(actor, data) {
   if (!data) {
     try { await actor.unsetFlag("faserip", "battle"); } catch {}
+    await syncStatuses(actor, "");
     return;
   }
   await actor.setFlag("faserip", "battle", data);
+  await syncStatuses(actor, data.state || "");
+}
+
+export async function releaseIfConscious(actor) {
+  if (!actor || Number(actor.system?.health?.value) <= 0) return;
+  const cond = readBattle(actor);
+  if (cond?.state === "unconscious") {
+    await writeBattle(actor, null);
+  } else {
+    await syncStatuses(actor, cond?.state || "");
+  }
+  if (actor.system?.condition?.unconscious) {
+    try { await actor.update({ "system.condition.unconscious": false }); } catch {}
+  }
 }
 
 function stampRolled(actor, key, rankId, number) {
@@ -236,9 +297,22 @@ export async function applyCheckResult({ actor, color, columnId, resultOf = null
 }
 
 export async function collapseAtZero(actor) {
-  if (!actor || !workflowActive("autoBattleResults")) return;
+  if (!actor) return;
   const existing = readBattle(actor);
-  if (existing?.state === "dying" || existing?.state === "dead" || existing?.state === "unconscious") return;
+  if (!workflowActive("autoBattleResults")) {
+    if (existing?.state) {
+      await syncStatuses(actor, existing.state);
+      return;
+    }
+    await writeBattle(actor, { state: "unconscious", rounds: 0, note: "Health 0" });
+    await actor.update({ "system.condition.unconscious": true });
+    await note(`${actor.name} drops to 0 Health and is unconscious.`);
+    return;
+  }
+  if (existing?.state === "dying" || existing?.state === "dead" || existing?.state === "unconscious") {
+    await syncStatuses(actor, existing.state);
+    return;
+  }
   const roll = await new Roll("1d10").evaluate({ allowInteractive: false });
   const rounds = Math.max(1, Number(roll.total) || 1);
   await writeBattle(actor, timedState("unconscious", rounds, { wakeCheck: true, note: "Health 0" }));

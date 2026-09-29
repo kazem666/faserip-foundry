@@ -160,6 +160,18 @@ export function abilityNumber(abilityData) {
   if (n > 0) return n;
   return rankValue(abilityData?.rank ?? "typical");
 }
+
+/** The Universal Table column for an ability. A Typical label does not hide a higher rank number or a generation stamp. */
+export function abilityRankId(data, rolledId = "") {
+  const stored = RANK_BY_ID[data?.rank] ? data.rank : "";
+  const rolled = RANK_BY_ID[rolledId] ? rolledId : "";
+  const number = Number(data?.number || 0);
+  const fromNumber = number > 0 ? rankFromNumber(number) : "";
+  if (stored && stored !== "typical") return stored;
+  if (rolled && rolled !== "typical") return rolled;
+  if (fromNumber && fromNumber !== "typical") return fromNumber;
+  return stored || rolled || fromNumber || "typical";
+}
 export function intensityNeeded(abilityRankId, intensityRankId) {
   if (!intensityRankId) return { color: "green", label: "Any color (no Intensity set)", automatic: false, impossible: false, delta: 0 };
   const delta = rankIndex(abilityRankId) - rankIndex(intensityRankId);

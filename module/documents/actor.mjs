@@ -1,4 +1,4 @@
-import { rankValue, ABILITIES, abilityNumber, initiativeModifier } from "../config.mjs";
+import { rankValue, ABILITIES, abilityNumber, abilityRankId, initiativeModifier } from "../config.mjs";
 import { rollFeat } from "../dice/universal-table.mjs";
 import { createActorWizard } from "../wizard.mjs";
 import { initiativeTalentBonus, initiativeTotal, readPending, shiftedArmor, writePending } from "../play-rules.mjs";
@@ -94,7 +94,11 @@ export class FaseripActor extends Actor {
   }
 
   getAbilityRank(ability) {
-    return this.system.abilities?.[ability]?.rank ?? "typical";
+    const data = this.system.abilities?.[ability];
+    const rolled = this.getFlag?.("faserip", "rolledStats")?.abilities?.[ability]
+      || this.flags?.faserip?.rolledStats?.abilities?.[ability]
+      || "";
+    return abilityRankId(data, rolled);
   }
 
   getAbilityNumber(ability) {
@@ -141,6 +145,10 @@ export class FaseripActor extends Actor {
     if (value === 0) update["system.condition.unconscious"] = true;
     await this.update(update, { faseripDamage: true });
     if (readPending(this).armorCs) await writePending(this, { armorCs: 0, armorNote: "" });
+    if (value === 0) {
+      const { collapseAtZero } = await import("../battle-results.mjs");
+      await collapseAtZero(this);
+    }
     return incoming;
   }
 
@@ -153,7 +161,12 @@ export class FaseripActor extends Actor {
     const value = Math.min(max, (this.system.health.value ?? 0) + Number(amount || 0));
     const update = { "system.health.value": value };
     if (value > 0) update["system.condition.unconscious"] = false;
-    return this.update(update, { faseripHeal: true });
+    await this.update(update, { faseripHeal: true });
+    if (value > 0) {
+      const { releaseIfConscious } = await import("../battle-results.mjs");
+      await releaseIfConscious(this);
+    }
+    return value;
   }
 
   async recover() {
