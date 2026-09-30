@@ -194,9 +194,10 @@ export function playFeatVfx({ actor, target, item, columnId = "", color = "", la
 
 const WALL_FILES = {
   earth: [
-    "jb2a.wall_of_force.horizontal.grey",
-    "jb2a.wall_of_force.horizontal.yellow",
-    "jb2a.wall_of_force.horizontal.blue"
+    "jb2a.falling_rocks.endframe.side.2x1.sandstone",
+    "jb2a.falling_rocks.endframe.side.2x1.grey",
+    "modules/jb2a_patreon/Library/Generic/Traps/Falling_Rocks/FallingRocks01Side_01_Regular_Sandstone_10x05ft_Endframe.webp",
+    "jb2a.wall_of_force.vertical.grey"
   ],
   air: [
     "jb2a.gust_of_wind.veryfast",
@@ -219,8 +220,10 @@ const SHIELD_FILES = [
 
 function sequencerFile(candidates) {
   const db = globalThis.Sequencer?.Database;
-  if (typeof db?.entryExists !== "function") return "";
+  const modules = globalThis.game?.modules;
   return candidates.find((file) => {
+    if (String(file).startsWith("modules/jb2a_patreon/") && modules?.get?.("jb2a_patreon")?.active) return true;
+    if (typeof db?.entryExists !== "function") return false;
     try { return db.entryExists(file); } catch { return false; }
   }) || "";
 }
@@ -238,7 +241,7 @@ export async function endSequencerNames(names = [], { prefix = false } = {}) {
   const matched = [];
   for (const effect of effects) {
     const name = String(effect?.data?.name || "");
-    const hit = list.some((wanted) => prefix ? name.startsWith(wanted) : name === wanted);
+    const hit = list.some((wanted) => prefix ? name.startsWith(wanted) : (name === wanted || name.startsWith(`${wanted}-`)));
     if (hit) matched.push(effect);
   }
   for (const effect of matched) {
@@ -262,6 +265,21 @@ export async function endSequencerNames(names = [], { prefix = false } = {}) {
   }
 }
 
+function rockPoints(start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const grid = Number(globalThis.canvas?.grid?.size) || 100;
+  const step = Math.max(grid, grid * 1.35);
+  const count = Math.max(1, Math.ceil(dist / step));
+  const points = [];
+  for (let i = 0; i < count; i++) {
+    const t = (i + 0.5) / count;
+    points.push({ x: start.x + dx * t, y: start.y + dy * t });
+  }
+  return { points, angle: Math.atan2(dy, dx) * (180 / Math.PI), grid };
+}
+
 export async function playWallArt(start, end, kind = "force") {
   if (!librariesOn() || !start || !end) return "";
   const Sequence = globalThis.Sequence;
@@ -269,11 +287,20 @@ export async function playWallArt(start, end, kind = "force") {
   const file = sequencerFile(WALL_FILES[kind] || WALL_FILES.force);
   if (!file) return "";
   const name = `faserip-wall-${kind}-${effectId()}`;
+  const rocks = kind === "earth" && /falling_rocks|FallingRocks/i.test(file);
   try {
     const seq = new Sequence();
-    const effect = seq.effect().file(file).atLocation(start).stretchTo(end).scale(0.45).persist(true).name(name);
-    if (kind === "air") effect.opacity(0.55);
-    if (kind === "earth" && /energy_beam|blue/.test(file) && typeof effect.tint === "function") effect.tint("#78716c");
+    if (rocks) {
+      const { points, angle, grid } = rockPoints(start, end);
+      const scale = Math.max(0.3, (grid * 1.15) / 250);
+      points.forEach((point, index) => {
+        seq.effect().file(file).atLocation(point).rotate(angle).scale(scale).persist(true).name(`${name}-${index}`);
+      });
+    } else {
+      const effect = seq.effect().file(file).atLocation(start).stretchTo(end).scale(0.45).persist(true).name(name);
+      if (kind === "air") effect.opacity(0.55);
+      if (kind === "earth" && typeof effect.tint === "function") effect.tint("#a16207");
+    }
     await seq.play();
     return name;
   } catch (err) {
