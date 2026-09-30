@@ -375,9 +375,14 @@ async function askWilling(name) {
 
 async function theyHold(target, powerRank, keys, label) {
   const { rollFeat } = await import("./dice/universal-table.mjs");
+  let rankId = betterRank(target, keys);
+  if (keys.includes("psyche")) {
+    const { shiftedResistRank } = await import("./talents.mjs");
+    rankId = shiftedResistRank(target, rankId);
+  }
   const message = await rollFeat({
     actor: target,
-    rankId: betterRank(target, keys),
+    rankId,
     intensityId: powerRank,
     label,
     skipCondition: true

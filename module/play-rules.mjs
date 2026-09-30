@@ -1,5 +1,6 @@
 import { BATTLE_EFFECTS, rankFromNumber, rankValue, shiftRank } from "./config.mjs";
 import { situationMods } from "./situation.mjs";
+import { namedInitiative, namedTalentShift } from "./talents.mjs";
 
 export const ATTACK_COLUMNS = new Set([
   "blunt", "edged", "shooting", "throwEdged", "throwBlunt", "energy", "force", "charging", "grappling", "grabbing"
@@ -119,11 +120,19 @@ function skippedShift(text) {
   return /one weapon|chosen weapon|listed weapon/i.test(text);
 }
 
-export function talentColumnShift(actor, { ability = "", effectsColumn = "" } = {}) {
+export function talentColumnShift(actor, { ability = "", effectsColumn = "", item: attack = null } = {}) {
   let cs = 0;
   const notes = [];
   for (const item of actor?.items ?? []) {
     if (item.type !== "talent") continue;
+    const named = namedTalentShift(item, { effectsColumn, attack });
+    if (named.handled) {
+      if (named.cs) {
+        cs += named.cs;
+        notes.push(named.note);
+      }
+      continue;
+    }
     const text = talentText(item);
     if (skippedShift(text)) continue;
     const shiftText = text.replace(/[+-]?\d+\s*CS\s*(?:to\s*)?initiative/ig, "");
@@ -151,6 +160,11 @@ export function initiativeTalentBonus(actor) {
   let total = 0;
   for (const item of actor?.items ?? []) {
     if (item.type !== "talent") continue;
+    const named = namedInitiative(item);
+    if (named.handled) {
+      total += named.cs;
+      continue;
+    }
     const text = talentText(item);
     if (skippedShift(text) || !/initiative/i.test(text)) continue;
     const match = text.match(/([+-]?\d+)\s*(?:CS\s*(?:to\s*)?)?initiative/i);
@@ -165,8 +179,8 @@ export function initiativeTotal(face, mod) {
   return die + (Number(mod) || 0);
 }
 
-export function combinedShift(actor, { ability = "", effectsColumn = "", target = null } = {}) {
-  const talent = talentColumnShift(actor, { ability, effectsColumn });
+export function combinedShift(actor, { ability = "", effectsColumn = "", target = null, item = null } = {}) {
+  const talent = talentColumnShift(actor, { ability, effectsColumn, item });
   const pending = readPending(actor);
   let cs = talent.cs + pending.nextCs;
   const notes = [...talent.notes];

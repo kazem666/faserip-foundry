@@ -287,7 +287,7 @@ export async function fillActorDefinitions(actor) {
     });
     const patch = { _id: item.id };
     let dirty = false;
-    if (info.definition && (isGenericDefinition(item.system.definition) || !item.system.definition)) {
+    if (info.definition && info.definition !== item.system.definition && (isGenericDefinition(item.system.definition) || !item.system.definition)) {
       patch["system.definition"] = info.definition;
       dirty = true;
     }

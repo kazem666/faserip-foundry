@@ -53,9 +53,9 @@ function action(partial) {
     ability,
     rankFrom: partial.rankFrom || "ability",
     label,
-    title: label === "FEAT"
+    title: partial.title || (label === "FEAT"
       ? "Roll a FEAT. Shift-click to set Karma or Intensity."
-      : "Roll against the targeted token. Shift-click to set Karma or a column shift."
+      : "Roll against the targeted token. Shift-click to set Karma or a column shift.")
   };
 }
 
@@ -147,11 +147,12 @@ function abilityFromText(attribute, category, key) {
 
 function talentAction(item) {
   const key = keyOf(item?.name);
-  if (/martial arts [hl]/.test(key)) return action({ kind: "feat", ability: "endurance", rankFrom: "ability" });
+  const title = item?.system?.definition || item?.system?.bonus || "";
+  if (/martial arts [hl]/.test(key)) return action({ kind: "feat", ability: "endurance", rankFrom: "ability", title });
   const column = talentColumn(key);
   const ability = talentAbility(key, column) || abilityFromText(item?.system?.attribute, item?.system?.category, key);
-  if (column) return action({ kind: "attack", column, ability, rankFrom: "ability" });
-  return action({ kind: "feat", ability, rankFrom: "ability" });
+  if (column) return action({ kind: "attack", column, ability, rankFrom: "ability", title });
+  return action({ kind: "feat", ability, rankFrom: "ability", title });
 }
 
 function gearAction(item) {
@@ -412,7 +413,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
   }
   stretchForStrike(actor, spec.column).catch((err) => console.warn("FASERIP | stretch", err));
   const reactionCs = target && damaging ? await offerDefenseReaction(target, name) : 0;
-  const plan = shiftPlan(actor, { ability: spec.ability, effectsColumn: spec.column, target });
+  const plan = shiftPlan(actor, { ability: spec.ability, effectsColumn: spec.column, target, item });
   const message = await rollFeat({
     actor,
     item,
@@ -441,6 +442,11 @@ export async function rollItemAction(actor, item, opts = {}) {
   if (item.getFlag?.("faserip", "nullified") || item.flags?.faserip?.nullified) {
     ui.notifications?.warn(`${item.name} is nullified.`);
     return null;
+  }
+  if (item.type === "talent") {
+    const { prepareTalent } = await import("./talents.mjs");
+    const step = await prepareTalent(actor, item);
+    if (step !== "roll") return step === "done" ? true : null;
   }
   if (item.type === "power" && teleportKind(item.name)) return useTeleportPower(actor, item);
   if (item.type === "power" && movementPowerKind(item.name) === "leap") return useMovementPower(actor, item);

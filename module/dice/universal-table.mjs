@@ -419,7 +419,8 @@ export async function promptFeatRoll({
     const plan = shiftPlan(actor, {
       ability: abilityForColumn(column, ability),
       effectsColumn: column,
-      target
+      target,
+      item
     });
     const input = root.querySelector('[name="cs"]');
     const hint = root.querySelector(".shift-hint");
@@ -485,7 +486,8 @@ export async function promptFeatRoll({
   const plan = holdPending ? { note: "", consumeOutgoing: false, consumeIncoming: false } : shiftPlan(actor, {
     ability: abilityForColumn(effectsColumn, ability),
     effectsColumn,
-    target
+    target,
+    item
   });
   const cs = csInput?.dataset.edited ? typedCs : plan.cs;
   return rollFeat({

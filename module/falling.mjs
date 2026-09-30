@@ -221,6 +221,19 @@ function refreshActor(actor) {
   }
 }
 
+async function tumbleLanding(actor, impactId) {
+  const { rollFeat } = await import("./dice/universal-table.mjs");
+  const message = await rollFeat({
+    actor,
+    rankId: actor.getAbilityRank?.("agility") || "typical",
+    intensityId: impactId,
+    label: "Tumbling",
+    ability: "agility",
+    skipCondition: true
+  });
+  return !!(message?.getFlag?.("faserip", "intensityPass") ?? message?.flags?.faserip?.intensityPass);
+}
+
 export async function applyFall(tokenDoc, surface = "excellent") {
   const actor = tokenDoc?.actor;
   const uuid = tokenDoc?.uuid;
@@ -241,6 +254,14 @@ export async function applyFall(tokenDoc, surface = "excellent") {
     if (floors > 0 && outcome.gives) {
       line = `${name} drops ${Math.round(feet)} ft (${floors} floors). The fall is ${outcome.rate} areas, ${rankLabel(outcome.impactId)}. The ${rankLabel(outcome.surface)} surface gives way, so the impact is absorbed.`;
     } else if (floors > 0 && outcome.damage > 0) {
+      const { hasTalent } = await import("./talents.mjs");
+      const tumbled = hasTalent(actor, "tumbling") ? await tumbleLanding(actor, outcome.impactId) : false;
+      if (tumbled) {
+        line = `${name} drops ${Math.round(feet)} ft (${floors} floors) and tumbles clear of the impact.`;
+        globalThis.ui?.notifications?.info(line);
+        await settleCards(uuid, name, line);
+        return true;
+      }
       const soft = !!actor.getFlag?.("faserip", "softFall");
       const harm = soft ? Math.floor(outcome.damage / 2) : outcome.damage;
       const taken = await actor.applyDamage(harm, { energy: false });

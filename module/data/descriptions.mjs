@@ -23,6 +23,7 @@ export function catalogKey(name) {
 export { POWER_DEFINITIONS, TALENT_DEFINITIONS } from "./adv-descriptions.mjs";
 export { GEAR_DEFINITIONS, describeGear } from "./gear-descriptions.mjs";
 import { POWER_DEFINITIONS, TALENT_DEFINITIONS } from "./adv-descriptions.mjs";
+import { ultimateTalentByName } from "./ultimate-talents.mjs";
 
 const UPB_CLASS_HINT = {
   defensive: "Defensive Power. Use this rank to resist, block, or shed the listed threat.",
@@ -70,9 +71,11 @@ export function describePower(name, extra = {}) {
 
 export function describeTalent(name, extra = {}) {
   const key = catalogKey(name);
-  const stock = TALENT_DEFINITIONS[key];
+  const stock = TALENT_DEFINITIONS[key] || TALENT_DEFINITIONS[key.replace(/[/\-]/g, " ").replace(/\s+/g, " ")];
+  const gloss = ultimateTalentByName(name);
+  const clean = String(name).replace(/\s*\([^)]*\)/g, "").trim();
   return {
-    definition: stock?.definition || extra.definition || `${String(name).replace(/\s*\([^)]*\)/g, "").trim()} is a Talent. When it applies, shift the related ability +1 CS unless a more specific bonus is listed.`,
+    definition: stock?.definition || extra.definition || gloss?.definition || `${clean} is a Talent. Use it for a FEAT when that skill matters.`,
     bonus: extra.bonus || stock?.bonus || "",
     attribute: extra.attribute || stock?.attribute || "",
     category: extra.category || "",
@@ -158,5 +161,5 @@ export function upbHint(classId) {
 export function isGenericDefinition(text) {
   const t = String(text || "");
   if (!t) return true;
-  return /is a FASERIP Power\. Use this rank|Use this Power rank for FEATs\. The Judge sets details|Defensive Power\. Use this rank|Detection Power\. Use this rank|Energy-control Power\.|Energy-emission Power\.|Fighting Power\. Apply this rank|Illusory Power\.|Lifeform-control Power\.|Magic Power\. Treat rites|Matter-control Power\.|Matter-conversion Power\.|Matter-creation Power\.|Mental Power\. Psyche contests|Physical-enhancement Power\.|Power-control Power\.|Self-alteration Power\.|Travel Power\. Movement mode|is catalog gear\. The Judge sets cost/i.test(t);
+  return /is a FASERIP Power\. Use this rank|Use this Power rank for FEATs\. The Judge sets details|Defensive Power\. Use this rank|Detection Power\. Use this rank|Energy-control Power\.|Energy-emission Power\.|Fighting Power\. Apply this rank|Illusory Power\.|Lifeform-control Power\.|Magic Power\. Treat rites|Matter-control Power\.|Matter-conversion Power\.|Matter-creation Power\.|Mental Power\. Psyche contests|Physical-enhancement Power\.|Power-control Power\.|Self-alteration Power\.|Travel Power\. Movement mode|is catalog gear\. The Judge sets cost|is a Talent\. When it applies, shift the related ability|is a Talent\. Use it for a FEAT when that skill matters/i.test(t);
 }
