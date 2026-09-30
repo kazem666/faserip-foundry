@@ -387,14 +387,19 @@ async function togglePhase(actor, item) {
   return on ? `${item.name} is on. ${who(actor)} can walk through walls.` : `${item.name} is off.`;
 }
 
+export async function setDensityMode(actor, mode) {
+  if (!actor) return;
+  if (mode) await actor.setFlag("faserip", "density", mode);
+  else await actor.unsetFlag("faserip", "density");
+  await syncPhaseMove(actor);
+  await syncAlpha(actor);
+}
+
 async function cycleDensity(actor, item) {
   const order = ["", "solid", "diffuse"];
   const current = actor.getFlag?.("faserip", "density") || "";
   const next = order[(order.indexOf(current) + 1) % order.length];
-  if (next) await actor.setFlag("faserip", "density", next);
-  else await actor.unsetFlag("faserip", "density");
-  await syncPhaseMove(actor);
-  await syncAlpha(actor);
+  await setDensityMode(actor, next);
   if (next === "solid") return `${item.name}: solid. Slams shove ${who(actor)} a shorter distance.`;
   if (next === "diffuse") return `${item.name}: diffuse. ${who(actor)} can walk through walls and is easier to slam.`;
   return `${item.name} is off. Density is normal.`;

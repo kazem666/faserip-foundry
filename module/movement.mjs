@@ -602,7 +602,7 @@ function tokenCenter(doc) {
   };
 }
 
-function pickLanding(hint) {
+export function pickMapPoint(hint) {
   const board = globalThis.canvas?.app?.view || globalThis.document?.getElementById?.("board");
   if (!board) return Promise.resolve(null);
   globalThis.ui?.notifications?.info(hint);
@@ -650,7 +650,7 @@ async function leapNow(actor, item) {
   }
   const rankId = item?.system?.rank || "typical";
   const reach = formatMovement(areasForRank(rankId));
-  const point = await pickLanding(`${item?.name || "Leaping"}: click a landing spot within ${reach}. Right-click cancels.`);
+  const point = await pickMapPoint(`${item?.name || "Leaping"}: click a landing spot within ${reach}. Right-click cancels.`);
   if (!point) return null;
   const here = tokenCenter(doc);
   const feet = (Math.hypot(point.x - here.x, point.y - here.y) / here.grid) * gridFeet();
