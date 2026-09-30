@@ -8,6 +8,7 @@ import { consumeMentalPrep, mentalKind, mentalRankOverride, mentalUseTitle, useM
 import { offensiveKind, offensiveUseTitle, useOffensivePower } from "./offensive.mjs";
 import { defenseKind, defenseUseTitle, useDefensePower } from "./defense.mjs";
 import { senseKind, senseUseTitle, useSensePower } from "./senses.mjs";
+import { rangedKind, rangedUseTitle, useRangedPower } from "./ranged.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
@@ -197,6 +198,11 @@ export function describeItemAction(item) {
     if (matterTitle) {
       spec.label = "Use";
       spec.title = matterTitle;
+    }
+    const rangedTitle = rangedUseTitle(item.name);
+    if (rangedTitle) {
+      spec.label = "Use";
+      spec.title = rangedTitle;
     }
     const energyTitle = energyUseTitle(item.name);
     if (energyTitle) {
@@ -434,6 +440,7 @@ export async function rollItemAction(actor, item, opts = {}) {
   if (item.type === "power" && movementPowerKind(item.name) === "leap") return useMovementPower(actor, item);
   if (item.type === "power" && matterKind(item.name)) return useMatterPower(actor, item);
   if (item.type === "power" && energyKind(item.name)) return useEnergyPower(actor, item);
+  if (item.type === "power" && rangedKind(item.name)) return useRangedPower(actor, item);
   if (item.type === "power" && mentalKind(item.name)) return useMentalPower(actor, item);
   if (item.type === "power" && offensiveKind(item.name)) return useOffensivePower(actor, item);
   if (item.type === "power" && defenseKind(item.name)) return useDefensePower(actor, item);
