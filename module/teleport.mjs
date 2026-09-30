@@ -884,6 +884,7 @@ export function registerTeleport() {
   Hooks.on("renderChatMessageHTML", bindTeleportChat);
   Hooks.on("updateToken", (doc, changes) => {
     if (!changes || !("x" in changes || "y" in changes)) return;
+    if ("width" in changes || "height" in changes) return;
     onTokenMoved(doc).catch((err) => console.warn("FASERIP | gateway", err));
   });
   Hooks.on("deleteChatMessage", (message) => {

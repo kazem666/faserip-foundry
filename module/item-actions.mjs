@@ -5,6 +5,7 @@ import { attackOutOfRange, closeCharge, rangePhrase } from "./movement.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
+import { bodyFormKind, bodyUseTitle, revealIfAttacking, stretchForStrike, stretchPowerTitle, toggleBodySize, toggleInvisible } from "./body-form.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -174,6 +175,13 @@ export function describeItemAction(item) {
       spec.label = "Use";
       spec.title = teleportTitle;
     }
+    const bodyTitle = bodyUseTitle(item.name);
+    if (bodyTitle) {
+      spec.label = "Use";
+      spec.title = bodyTitle;
+    }
+    const stretchTitle = stretchPowerTitle(item.name);
+    if (stretchTitle) spec.title = stretchTitle;
     return spec;
   }
   if (item.type === "equipment") return action({ kind: "feat", ability: "reason", rankFrom: "item" });
@@ -300,7 +308,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
   const { promptFeatRoll, rollFeat } = await import("./dice/universal-table.mjs");
   const fast = workflowActive("autoRollAttack") && (game.user?.isGM || workflowOn("playersFastForward"));
   if (dialog || !fast) {
-    return promptFeatRoll({
+    const message = await promptFeatRoll({
       actor,
       item,
       ability: spec.ability,
@@ -308,6 +316,11 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
       label: name,
       defaultColumn: spec.column
     });
+    if (message) {
+      stretchForStrike(actor, spec.column).catch((err) => console.warn("FASERIP | stretch", err));
+      revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));
+    }
+    return message;
   }
   const needsTarget = spec.kind === "attack" && ATTACK_COLUMNS.has(spec.column);
   const damaging = DAMAGE_COLUMNS.has(spec.column);
@@ -337,6 +350,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     ui.notifications?.warn(`Target a token before ${name} so damage can land.`);
     if (workflowActive("requireTarget")) return null;
   }
+  stretchForStrike(actor, spec.column).catch((err) => console.warn("FASERIP | stretch", err));
   const reactionCs = target && damaging ? await offerDefenseReaction(target, name) : 0;
   const plan = shiftPlan(actor, { ability: spec.ability, effectsColumn: spec.column, target });
   const message = await rollFeat({
@@ -354,6 +368,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming && !reactionCs
   });
+  if (message) revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));
   if (needsTarget) clearUserTargets();
   return message;
 }
@@ -366,6 +381,18 @@ export async function rollItemAction(actor, item, opts = {}) {
     const { toggleFlying } = await import("./falling.mjs");
     const flying = await toggleFlying(actor);
     ui.notifications?.info(flying ? `${item.name} is on. ${actor?.name || "The hero"} is flying.` : `${item.name} is off.`);
+  }
+  if (message && item.type === "power") {
+    const kind = bodyFormKind(item.name);
+    const who = actor?.name || "The hero";
+    if (kind === "growth" || kind === "shrink") {
+      const on = await toggleBodySize(actor, kind);
+      if (on === true) ui.notifications?.info(kind === "growth" ? `${item.name} is on. ${who} grows.` : `${item.name} is on. ${who} shrinks.`);
+      if (on === false) ui.notifications?.info(`${item.name} is off. ${who} is back to normal size.`);
+    } else if (kind === "invisible") {
+      const on = await toggleInvisible(actor);
+      ui.notifications?.info(on ? `${item.name} is on. ${who} is unseen.` : `${item.name} is off. ${who} can be seen.`);
+    }
   }
   return message;
 }
