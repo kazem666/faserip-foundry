@@ -23,6 +23,43 @@ export function powerKeepsAloft(name) {
   return ALOFT_NAME.test(String(name || "").toLowerCase());
 }
 
+export function flyingStatusId() {
+  return globalThis.CONFIG?.specialStatusEffects?.FLY || "fly";
+}
+
+function hasStatus(actor, id) {
+  return [...(actor?.effects ?? [])].some((effect) => effect.statuses?.has?.(id) || effect.getFlag?.("core", "statusId") === id);
+}
+
+async function syncFlyMovement(actor, active) {
+  for (const token of actor?.getActiveTokens?.() ?? []) {
+    const doc = token.document || token;
+    if (active) {
+      if (doc.movementAction === "fly") continue;
+    } else if (doc.movementAction !== "fly") continue;
+    try { await doc.update({ movementAction: active ? "fly" : "walk" }); } catch { /* the icon still toggles */ }
+  }
+}
+
+export async function setFlying(actor, active) {
+  if (!actor || typeof actor.toggleStatusEffect !== "function") return;
+  const id = flyingStatusId();
+  if (hasStatus(actor, id) !== active) {
+    try {
+      await actor.toggleStatusEffect(id, { active, overlay: false });
+    } catch (err) {
+      console.warn("FASERIP | flying", err);
+    }
+  }
+  await syncFlyMovement(actor, active);
+}
+
+export async function toggleFlying(actor) {
+  const next = !hasStatus(actor, flyingStatusId());
+  await setFlying(actor, next);
+  return next;
+}
+
 function isIncapacitated(actor) {
   if (actor?.system?.condition?.unconscious) return true;
   const state = actor?.getFlag?.("faserip", "battle")?.state || actor?.flags?.faserip?.battle?.state;
@@ -170,6 +207,7 @@ async function syncToken(tokenDoc) {
   if (!globalThis.game?.user?.isGM) return;
   const actor = tokenDoc?.actor;
   if (!actor || dropping.has(tokenDoc.uuid)) return;
+  if (isIncapacitated(actor)) await setFlying(actor, false);
   const before = hasFalling(actor);
   const suspended = workflowOn("autoFalling") && !staysAloft(tokenDoc) && heightFeet(tokenDoc) >= 8;
   await setFalling(actor, suspended);
@@ -245,6 +283,10 @@ export function registerFalling() {
   const effects = globalThis.CONFIG?.statusEffects;
   if (Array.isArray(effects) && !effects.some((effect) => effect.id === STATUS_ID)) {
     effects.push({ id: STATUS_ID, name: "Falling", img: "icons/svg/falling.svg" });
+  }
+  const flyId = flyingStatusId();
+  if (Array.isArray(effects) && !effects.some((effect) => effect.id === flyId)) {
+    effects.push({ id: flyId, name: "EFFECT.StatusFlying", img: "icons/svg/wing.svg" });
   }
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripFalling) return;

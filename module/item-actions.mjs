@@ -3,6 +3,7 @@ import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combatTarget } from "
 import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
 import { attackOutOfRange, closeCharge, rangePhrase } from "./movement.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
+import { powerKeepsAloft } from "./falling.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -156,15 +157,18 @@ export function describeItemAction(item) {
   if (item.type === "weapon") return gearAction(item);
   if (item.type === "power") {
     const stored = canonicalColumn(item.system?.effectsColumn);
-    if (stored) {
-      return action({
+    const spec = stored
+      ? action({
         kind: "attack",
         column: stored,
         rankFrom: "item",
         ability: abilityForColumn(stored, "agility")
-      });
+      })
+      : powerAction(item.name);
+    if (powerKeepsAloft(item.name)) {
+      spec.title = "Turns Foundry's flying icon on or off, then rolls a FEAT. Shift-click to set Karma or Intensity.";
     }
-    return powerAction(item.name);
+    return spec;
   }
   if (item.type === "equipment") return action({ kind: "feat", ability: "reason", rankFrom: "item" });
   return action({ kind: "feat", ability: "reason" });
@@ -348,9 +352,15 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
   return message;
 }
 
-export function rollItemAction(actor, item, opts = {}) {
+export async function rollItemAction(actor, item, opts = {}) {
   if (!item) return null;
-  return rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
+  const message = await rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
+  if (message && item.type === "power" && powerKeepsAloft(item.name)) {
+    const { toggleFlying } = await import("./falling.mjs");
+    const flying = await toggleFlying(actor);
+    ui.notifications?.info(flying ? `${item.name} is on. ${actor?.name || "The hero"} is flying.` : `${item.name} is off.`);
+  }
+  return message;
 }
 
 export function rollStandardAction(actor, id, opts = {}) {
