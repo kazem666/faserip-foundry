@@ -140,7 +140,8 @@ function installCombatElevation() {
       const token = combatant.token;
       turn.elevation = token ? Math.round(elevationFeet(token)) : "";
       turn.canEditElevation = !!token && !!combatant.isOwner;
-      turn.canDrop = !!token && token.movementAction !== "fly" && elevationFeet(token) >= 8 && !!combatant.isOwner;
+      const { staysAloft } = await import("./falling.mjs");
+      turn.canDrop = !!token && !staysAloft(token) && elevationFeet(token) >= 8 && !!combatant.isOwner;
       return turn;
     }
 

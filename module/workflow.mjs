@@ -124,7 +124,7 @@ export const WORKFLOW_SETTINGS = [
   {
     key: "autoFalling",
     name: "Workflow: Mark a token as falling when it is up in the air",
-    hint: "A token above the ground that is not using Fly is marked Falling. Drop, on the combat tracker, brings it down and applies falling impact. Turn this off if the marker gets in the way. The Drop button still works.",
+    hint: "A token 8 feet or more above the ground is marked Falling, unless a flight power is keeping it up. A chat card shows the impact for that height. Drop on the card, the falling icon, or the combat tracker brings it to the ground and applies the impact. Turn this off if the marker gets in the way.",
     default: true
   },
   {

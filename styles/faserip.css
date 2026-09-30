@@ -858,6 +858,17 @@ button.faserip-import-pdf,
   font-size: var(--font-size-12, 0.85rem);
 }
 
+.faserip-fall .fall-line { margin: 0; padding: 6px 8px; }
+.faserip-fall label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0 8px 6px;
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+}
+.faserip-fall select { flex: 1; margin: 0; }
+
 .combat-tracker .drop-control {
   margin-left: 2px;
   padding: 0 4px;
