@@ -662,38 +662,118 @@ export function bindTeleportChat(message, html) {
   });
 }
 
-function isBrokenPortal(drawing) {
-  const source = drawing?._source || {};
-  const type = source.shape?.type || drawing?.shape?.type;
-  const text = source.text || drawing?.text || "";
-  const flagged = source.flags?.faserip?.gatewayPortal || drawing?.flags?.faserip?.gatewayPortal;
-  return type === "c" && (flagged || text === "In" || text === "Out" || text === "A" || text === "B");
+function isCircleType(type) {
+  return type === "c" || type === "circle";
+}
+
+function ellipseFrom(shape) {
+  const radius = Number(shape?.radius) || 0;
+  const width = Math.max(1, Math.round(Number(shape?.width) || (radius ? radius * 2 : 1)));
+  const height = Math.max(1, Math.round(Number(shape?.height) || (radius ? radius * 2 : 1)));
+  return {
+    type: "e",
+    width,
+    height,
+    radius: Math.max(1, Math.round(radius || Math.min(width, height) / 2)),
+    points: Array.isArray(shape?.points) ? shape.points : []
+  };
+}
+
+function coerceCircleShape(document) {
+  const shape = document?.shape;
+  if (!isCircleType(shape?.type)) return false;
+  const next = ellipseFrom(shape);
+  shape.type = next.type;
+  shape.width = next.width;
+  shape.height = next.height;
+  if (!shape.radius) shape.radius = next.radius;
+  return shape.type === "e";
+}
+
+function installCircleDrawingFix() {
+  const Doc = globalThis.foundry?.documents?.DrawingDocument || globalThis.DrawingDocument;
+  const proto = Doc?.prototype;
+  if (!proto?.prepareDerivedData || proto._faseripCircleCoerce) return;
+  const original = proto.prepareDerivedData;
+  const wrapped = function (...args) {
+    try { coerceCircleShape(this); }
+    catch (err) { console.warn("FASERIP | circle drawing", err); }
+    return original.apply(this, args);
+  };
+  const libWrapper = globalThis.libWrapper;
+  if (typeof libWrapper?.register === "function") {
+    try {
+      libWrapper.register(
+        "faserip",
+        "foundry.documents.DrawingDocument.prototype.prepareDerivedData",
+        function (next, ...args) {
+          try { coerceCircleShape(this); }
+          catch (err) { console.warn("FASERIP | circle drawing", err); }
+          return next(...args);
+        },
+        "WRAPPER"
+      );
+      proto._faseripCircleCoerce = true;
+      return;
+    } catch (err) {
+      console.warn("FASERIP | circle drawing", err);
+    }
+  }
+  proto.prepareDerivedData = wrapped;
+  proto._faseripCircleCoerce = true;
+}
+
+function circleDrawingUpdates(scene) {
+  const updates = [];
+  const seen = new Set();
+  const consider = (id, shape) => {
+    if (!id || seen.has(id) || !isCircleType(shape?.type)) return;
+    seen.add(id);
+    updates.push({ _id: id, shape: ellipseFrom(shape) });
+  };
+  for (const drawing of scene.drawings ?? []) consider(drawing.id, drawing._source?.shape || drawing.shape);
+  const raw = scene.drawings?._source;
+  if (Array.isArray(raw)) {
+    for (const data of raw) consider(data?._id, data?.shape);
+  }
+  return updates;
 }
 
 async function repairPortalDrawings() {
   if (!globalThis.game?.user?.isGM) return;
   const removed = new Set();
+  let changed = false;
   for (const scene of globalThis.game.scenes ?? []) {
-    const bad = [...(scene.drawings ?? [])].filter(isBrokenPortal);
-    if (!bad.length) continue;
+    const updates = circleDrawingUpdates(scene);
+    if (!updates.length) continue;
     try {
-      await scene.deleteEmbeddedDocuments("Drawing", bad.map((drawing) => drawing.id));
-      for (const drawing of bad) removed.add(drawing.id);
+      await scene.updateEmbeddedDocuments("Drawing", updates);
+      changed = true;
+      console.log("FASERIP | saved circle drawings as ellipses", updates.map((update) => update._id));
+      continue;
+    } catch (err) {
+      console.warn("FASERIP | portal repair", err);
+    }
+    try {
+      await scene.deleteEmbeddedDocuments("Drawing", updates.map((update) => update._id));
+      for (const update of updates) removed.add(update._id);
+      changed = true;
     } catch (err) {
       console.warn("FASERIP | portal repair", err);
     }
   }
-  if (removed.size && globalThis.canvas?.scene) {
-    try { await globalThis.canvas.draw(); } catch (err) {
-      console.warn("FASERIP | portal repair draw", err);
-    }
+  const canvas = globalThis.canvas;
+  if (changed && canvas?.scene && !canvas.ready) {
+    try { await canvas.draw(); }
+    catch (err) { console.warn("FASERIP | portal repair draw", err); }
   }
-  const sceneId = globalThis.canvas?.scene?.id || "";
+  if (!removed.size || !canvas?.scene) return;
+  const sceneId = canvas.scene.id || "";
   for (const message of globalThis.game.messages?.contents ?? []) {
     if (message.getFlag?.("faserip", "gateClosed")) continue;
     const gate = message.getFlag?.("faserip", "gateway") ?? message.flags?.faserip?.gateway;
     if (!gate || gate.sceneId !== sceneId) continue;
-    const stale = (gate.portalIds || []).some((id) => removed.has(id) || !globalThis.canvas.scene.drawings?.get?.(id));
+    const stale = (gate.portalIds || []).some((id) => removed.has(id) || !canvas.scene.drawings?.get?.(id));
     if (!stale) continue;
     await removePortals({ portalIds: [], effectNames: gate.effectNames || [] });
     const entrance = await placePortal({ x: gate.ax, y: gate.ay }, "In");
@@ -714,6 +794,7 @@ export function registerTeleport() {
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripTeleport) return;
   Hooks._faseripTeleport = true;
+  installCircleDrawingFix();
   Hooks.on("renderChatMessageHTML", bindTeleportChat);
   Hooks.on("updateToken", (doc, changes) => {
     if (!changes || !("x" in changes || "y" in changes)) return;
