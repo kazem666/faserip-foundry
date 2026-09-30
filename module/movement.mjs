@@ -488,6 +488,7 @@ export function registerMovement() {
 function installMovementActions() {
   const actions = globalThis.CONFIG?.Token?.movement?.actions;
   if (!actions) return;
+  if (actions.burrow && !Object.isFrozen(actions)) actions.burrow.walls = null;
   for (const [id, action] of Object.entries(actions)) {
     if (!action || action.teleport || id === "displace" || action._faseripCost) continue;
     action.getCostFunction = () => (first, _from, _to, distance) => {
@@ -561,6 +562,169 @@ function installRulers() {
     }
   }
   CONFIG.Token.rulerClass = FaseripTokenRuler;
+}
+
+const TRAVEL_ACTION = { climb: "climb", swim: "swim", dig: "burrow", leap: "jump" };
+
+export function movementPowerKind(name) {
+  const key = String(name || "").toLowerCase();
+  if (/hyper-leaping|hyper leaping|\bleaping\b/.test(key)) return "leap";
+  if (/wall-crawling|wall crawling|\bclimbing\b/.test(key)) return "climb";
+  if (/\bswimming\b/.test(key)) return "swim";
+  if (/\bdigging\b/.test(key)) return "dig";
+  if (/lightning speed|hyper-speed|hyper speed|hyper-running|hyper running/.test(key)) return "sprint";
+  return "";
+}
+
+export function movementUseTitle(name, rankId = "typical") {
+  const kind = movementPowerKind(name);
+  if (!kind) return "";
+  const areas = formatMovement(areasForRank(rankId));
+  if (kind === "leap") return `Click a landing spot within ${areas}. Right-click cancels.`;
+  if (kind === "climb") return `Use toggles climbing. The ruler allows ${areas} on walls and ceilings. Shift-click to set Karma or Intensity.`;
+  if (kind === "swim") return `Use toggles swimming. The ruler allows ${areas} in water. Shift-click to set Karma or Intensity.`;
+  if (kind === "dig") return `Use toggles tunneling. The token can pass through walls at ${areas}. Shift-click to set Karma or Intensity.`;
+  return `Use sets movement to a ground sprint. The ruler allows ${areas}. Shift-click to set Karma or Intensity.`;
+}
+
+function controlledDoc(actor) {
+  const list = actor?.getActiveTokens?.() ?? [];
+  const token = list.find((entry) => entry.controlled) || list[0];
+  return token?.document || null;
+}
+
+function tokenCenter(doc) {
+  const grid = Number(globalThis.canvas?.grid?.size) || 100;
+  return {
+    x: doc.x + (doc.width * grid) / 2,
+    y: doc.y + (doc.height * grid) / 2,
+    grid
+  };
+}
+
+function pickLanding(hint) {
+  const board = globalThis.canvas?.app?.view || globalThis.document?.getElementById?.("board");
+  if (!board) return Promise.resolve(null);
+  globalThis.ui?.notifications?.info(hint);
+  return new Promise((resolve) => {
+    const finish = (point) => {
+      board.removeEventListener("pointerdown", onDown, true);
+      board.removeEventListener("contextmenu", onMenu, true);
+      globalThis.document?.removeEventListener?.("keydown", onKey, true);
+      resolve(point);
+    };
+    const onKey = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      finish(null);
+    };
+    const onMenu = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      finish(null);
+    };
+    const onDown = (event) => {
+      if (event.button === 2) {
+        event.preventDefault();
+        event.stopPropagation();
+        finish(null);
+        return;
+      }
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const point = globalThis.canvas?.canvasCoordinatesFromClient?.({ x: event.clientX, y: event.clientY });
+      finish(point || null);
+    };
+    board.addEventListener("pointerdown", onDown, true);
+    board.addEventListener("contextmenu", onMenu, true);
+    globalThis.document?.addEventListener?.("keydown", onKey, true);
+  });
+}
+
+async function leapNow(actor, item) {
+  const doc = controlledDoc(actor);
+  if (!doc) {
+    globalThis.ui?.notifications?.warn(`${actor?.name || "The hero"} needs a token on the map.`);
+    return null;
+  }
+  const rankId = item?.system?.rank || "typical";
+  const reach = formatMovement(areasForRank(rankId));
+  const point = await pickLanding(`${item?.name || "Leaping"}: click a landing spot within ${reach}. Right-click cancels.`);
+  if (!point) return null;
+  const here = tokenCenter(doc);
+  const feet = (Math.hypot(point.x - here.x, point.y - here.y) / here.grid) * gridFeet();
+  const budget = areasToFeet(areasForRank(rankId));
+  if (feet > budget + 0.5) {
+    globalThis.ui?.notifications?.warn(`${item?.name || "Leaping"} reaches ${reach}. That spot is ${formatMovement(feetToAreas(feet))} away.`);
+    return null;
+  }
+  const corner = {
+    x: Math.round(point.x - (doc.width * here.grid) / 2),
+    y: Math.round(point.y - (doc.height * here.grid) / 2)
+  };
+  const hop = Math.max(gridFeet(), Math.min(budget / 4, gridFeet() * 4));
+  const mid = {
+    x: Math.round((doc.x + corner.x) / 2),
+    y: Math.round((doc.y + corner.y) / 2),
+    elevation: (Number(doc.elevation) || 0) + hop
+  };
+  try {
+    if (typeof doc.move === "function") {
+      const moved = await doc.move([
+        { ...mid, action: "jump", snapped: false, explicit: true },
+        { x: corner.x, y: corner.y, elevation: doc.elevation ?? 0, action: "jump", snapped: false, explicit: true }
+      ], { showRuler: false });
+      if (moved !== false) {
+        globalThis.ui?.notifications?.info(`${actor?.name || "The hero"} leaps ${formatMovement(feetToAreas(feet))}.`);
+        return true;
+      }
+    }
+    await doc.update({ x: corner.x, y: corner.y, movementAction: "jump" });
+    globalThis.ui?.notifications?.info(`${actor?.name || "The hero"} leaps ${formatMovement(feetToAreas(feet))}.`);
+    return true;
+  } catch (err) {
+    console.warn("FASERIP | leap", err);
+    globalThis.ui?.notifications?.warn("That leap could not be moved.");
+    return null;
+  }
+}
+
+async function setTravelAction(actor, action) {
+  const list = actor?.getActiveTokens?.() ?? [];
+  if (!list.length) {
+    globalThis.ui?.notifications?.warn(`${actor?.name || "The hero"} needs a token on the map.`);
+    return null;
+  }
+  const turningOff = list.some((token) => (token.document || token).movementAction === action);
+  const next = turningOff ? "walk" : action;
+  for (const token of list) {
+    const doc = token.document || token;
+    try { await doc.update({ movementAction: next }); } catch (err) {
+      console.warn("FASERIP | travel", err);
+    }
+  }
+  return !turningOff;
+}
+
+export async function useMovementPower(actor, item) {
+  const kind = movementPowerKind(item?.name);
+  if (!actor || !kind) return null;
+  if (kind === "leap") return leapNow(actor, item);
+  if (kind === "sprint") {
+    const on = await setTravelAction(actor, "walk");
+    const reach = formatMovement(areasForRank(item?.system?.rank || "typical"));
+    if (on === null) return null;
+    globalThis.ui?.notifications?.info(`${item.name} is on. Ground speed ${reach}.`);
+    return true;
+  }
+  const action = TRAVEL_ACTION[kind];
+  const on = await setTravelAction(actor, action);
+  if (on === null) return null;
+  const reach = formatMovement(areasForRank(item?.system?.rank || "typical"));
+  const label = kind === "climb" ? "climbing" : kind === "swim" ? "swimming" : "tunneling";
+  globalThis.ui?.notifications?.info(on ? `${item.name} is on. ${actor.name} is ${label} at ${reach}.` : `${item.name} is off.`);
+  return true;
 }
 
 function pastBudget(token, waypoint) {

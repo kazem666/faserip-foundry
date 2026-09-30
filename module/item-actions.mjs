@@ -1,7 +1,7 @@
 import { BATTLE_EFFECTS, rankLabel, rankValue } from "./config.mjs";
 import { ATTACK_COLUMNS, DAMAGE_COLUMNS, abilityForColumn, combatTarget } from "./play-rules.mjs";
 import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserTargets } from "./workflow.mjs";
-import { attackOutOfRange, closeCharge, rangePhrase } from "./movement.mjs";
+import { attackOutOfRange, closeCharge, movementPowerKind, movementUseTitle, rangePhrase, useMovementPower } from "./movement.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
@@ -182,6 +182,11 @@ export function describeItemAction(item) {
     }
     const stretchTitle = stretchPowerTitle(item.name);
     if (stretchTitle) spec.title = stretchTitle;
+    const travelTitle = movementUseTitle(item.name, item.system?.rank || "typical");
+    if (travelTitle && !teleportTitle) {
+      spec.label = "Use";
+      spec.title = travelTitle;
+    }
     return spec;
   }
   if (item.type === "equipment") return action({ kind: "feat", ability: "reason", rankFrom: "item" });
@@ -376,6 +381,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
 export async function rollItemAction(actor, item, opts = {}) {
   if (!item) return null;
   if (item.type === "power" && teleportKind(item.name)) return useTeleportPower(actor, item);
+  if (item.type === "power" && movementPowerKind(item.name) === "leap") return useMovementPower(actor, item);
   const message = await rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
   if (message && item.type === "power" && powerKeepsAloft(item.name)) {
     const { toggleFlying } = await import("./falling.mjs");
@@ -385,6 +391,8 @@ export async function rollItemAction(actor, item, opts = {}) {
   if (message && item.type === "power") {
     const line = await applyBodyPower(actor, item);
     if (line) ui.notifications?.info(line);
+    const travel = movementPowerKind(item.name);
+    if (travel && travel !== "leap") await useMovementPower(actor, item);
   }
   return message;
 }
