@@ -5,7 +5,7 @@ import { attackOutOfRange, closeCharge, rangePhrase } from "./movement.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
-import { bodyFormKind, bodyUseTitle, revealIfAttacking, stretchForStrike, stretchPowerTitle, toggleBodySize, toggleInvisible } from "./body-form.mjs";
+import { applyBodyPower, bodyUseTitle, revealIfAttacking, stretchForStrike, stretchPowerTitle } from "./body-form.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -383,16 +383,8 @@ export async function rollItemAction(actor, item, opts = {}) {
     ui.notifications?.info(flying ? `${item.name} is on. ${actor?.name || "The hero"} is flying.` : `${item.name} is off.`);
   }
   if (message && item.type === "power") {
-    const kind = bodyFormKind(item.name);
-    const who = actor?.name || "The hero";
-    if (kind === "growth" || kind === "shrink") {
-      const on = await toggleBodySize(actor, kind);
-      if (on === true) ui.notifications?.info(kind === "growth" ? `${item.name} is on. ${who} grows.` : `${item.name} is on. ${who} shrinks.`);
-      if (on === false) ui.notifications?.info(`${item.name} is off. ${who} is back to normal size.`);
-    } else if (kind === "invisible") {
-      const on = await toggleInvisible(actor);
-      ui.notifications?.info(on ? `${item.name} is on. ${who} is unseen.` : `${item.name} is off. ${who} can be seen.`);
-    }
+    const line = await applyBodyPower(actor, item);
+    if (line) ui.notifications?.info(line);
   }
   return message;
 }

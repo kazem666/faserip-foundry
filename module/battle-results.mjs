@@ -215,7 +215,8 @@ async function applySlam(actor, color, resultOf) {
   }
   const attacker = resultOf?.attackerId ? game.actors?.get?.(resultOf.attackerId) : null;
   const strength = resultOf?.strengthRank || attacker?.getAbilityRank?.("strength") || "typical";
-  const squares = slamSquares(color, strength, squaresPerArea());
+  const { densitySlamSquares } = await import("./body-form.mjs");
+  const squares = densitySlamSquares(slamSquares(color, strength, squaresPerArea()), actor);
   if (squares <= 0) {
     await note(`${actor.name} is staggered in place.`);
     return;

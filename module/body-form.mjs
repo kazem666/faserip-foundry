@@ -1,3 +1,5 @@
+import { ABILITIES, rankIndex, rankLabel, rankValue } from "./config.mjs";
+import { reachSquares } from "./movement.mjs";
 import { ATTACK_COLUMNS, combatTarget } from "./play-rules.mjs";
 
 /**
@@ -36,6 +38,14 @@ export function bodyFormKind(name) {
   if (key === "growth") return "growth";
   if (key === "shrinking") return "shrink";
   if (key === "invisibility") return "invisible";
+  if (key === "phasing") return "phase";
+  if (key === "density manipulation - self") return "density";
+  if (key === "blending") return "blend";
+  if (key === "imitation") return "imitation";
+  if (key === "alter ego") return "alter";
+  if (key === "raise lowest ability") return "raise";
+  if (key === "power absorption") return "absorb";
+  if (key === "shape-shifting" || key === "body transformation" || key === "animal transformation - self") return "disguise";
   return "";
 }
 
@@ -44,6 +54,14 @@ export function bodyUseTitle(name) {
   if (kind === "growth") return "Use toggles a larger token. Use again to return to normal size. Shift-click to set Karma or Intensity.";
   if (kind === "shrink") return "Use toggles a smaller token. Use again to return to normal size. Shift-click to set Karma or Intensity.";
   if (kind === "invisible") return "Use toggles unseen. An attack reveals the hero. Shift-click to set Karma or Intensity.";
+  if (kind === "phase") return "Use toggles phasing. The token can walk through walls until Use is pressed again. Shift-click to set Karma or Intensity.";
+  if (kind === "density") return "Use cycles solid, diffuse, then normal. Solid shrugs off some of a slam. Diffuse walks through walls and is easier to shove. Shift-click to set Karma or Intensity.";
+  if (kind === "blend") return "Use fades the token into the background. Moving reveals it. Shift-click to set Karma or Intensity.";
+  if (kind === "imitation") return "Use copies a targeted token's picture, or asks for an image. Use again restores the original. Shift-click to set Karma or Intensity.";
+  if (kind === "disguise") return "Use asks for a new token image. Use again restores the original. Shift-click to set Karma or Intensity.";
+  if (kind === "alter") return "Use swaps to the other face. The first use asks for that picture. Shift-click to set Karma or Intensity.";
+  if (kind === "raise") return "Use lifts the lowest ability up to this Power rank. Use again puts it back. Shift-click to set Karma or Intensity.";
+  if (kind === "absorb") return "Use copies a power from a touched target. Use again drops the copy. Shift-click to set Karma or Intensity.";
   return "";
 }
 
@@ -243,4 +261,363 @@ export async function revealIfAttacking(actor, column) {
   }
   globalThis.ui?.notifications?.info(`${actor.name} is seen.`);
   return true;
+}
+
+function who(actor) {
+  return actor?.name || "The hero";
+}
+
+function activeDocs(actor) {
+  return (actor?.getActiveTokens?.() ?? []).map((token) => token.document || token).filter(Boolean);
+}
+
+export function densitySlamSquares(squares, actor) {
+  const mode = actor?.getFlag?.("faserip", "density") || "";
+  const n = Math.max(0, Number(squares) || 0);
+  if (mode === "solid") return Math.floor(n * 0.5);
+  if (mode === "diffuse") return Math.ceil(n * 1.5);
+  return n;
+}
+
+function wantsPhase(actor) {
+  return !!(actor?.getFlag?.("faserip", "phasing") || actor?.getFlag?.("faserip", "density") === "diffuse");
+}
+
+async function syncPhaseMove(actor) {
+  const phase = wantsPhase(actor);
+  for (const doc of activeDocs(actor)) {
+    const saved = doc.getFlag?.("faserip", "moveAction");
+    try {
+      if (phase) {
+        if (doc.movementAction === "phase") continue;
+        if (!saved) await doc.setFlag("faserip", "moveAction", doc.movementAction || "walk");
+        await doc.update({ movementAction: "phase" });
+      } else if (doc.movementAction === "phase") {
+        await doc.update({ movementAction: saved || "walk" });
+        if (saved) await doc.unsetFlag("faserip", "moveAction");
+      }
+    } catch (err) {
+      console.warn("FASERIP | phase", err);
+    }
+  }
+}
+
+async function syncAlpha(actor) {
+  const blending = !!actor?.getFlag?.("faserip", "blending");
+  const phasing = !!actor?.getFlag?.("faserip", "phasing");
+  const diffuse = actor?.getFlag?.("faserip", "density") === "diffuse";
+  const alpha = blending ? 0.3 : phasing ? 0.45 : diffuse ? 0.55 : null;
+  for (const doc of activeDocs(actor)) {
+    const saved = doc.getFlag?.("faserip", "baseAlpha");
+    try {
+      if (alpha == null) {
+        if (saved == null) continue;
+        await doc.update({ alpha: saved });
+        await doc.unsetFlag("faserip", "baseAlpha");
+        continue;
+      }
+      if (saved == null) await doc.setFlag("faserip", "baseAlpha", doc.alpha ?? 1);
+      if (doc.alpha !== alpha) await doc.update({ alpha });
+    } catch (err) {
+      console.warn("FASERIP | body look", err);
+    }
+  }
+}
+
+export function registerBodyForm() {
+  const actions = globalThis.CONFIG?.Token?.movement?.actions;
+  if (actions && !actions.phase && !Object.isFrozen(actions)) {
+    actions.phase = {
+      label: "Phase",
+      icon: "fa-solid fa-ghost",
+      img: "icons/svg/invisible.svg",
+      order: 9,
+      walls: null,
+      canSelect: () => false
+    };
+  }
+  const Hooks = globalThis.Hooks;
+  if (!Hooks || Hooks._faseripBody) return;
+  Hooks._faseripBody = true;
+  Hooks.on("updateToken", (doc, changes) => {
+    if (!changes || !("x" in changes || "y" in changes)) return;
+    if ("width" in changes || "height" in changes) return;
+    if (!doc?.isOwner) return;
+    const actor = doc.actor;
+    if (!actor?.getFlag?.("faserip", "blending")) return;
+    revealBlend(actor).catch((err) => console.warn("FASERIP | blending", err));
+  });
+}
+
+async function revealBlend(actor) {
+  if (!actor?.getFlag?.("faserip", "blending")) return;
+  await actor.unsetFlag("faserip", "blending");
+  await syncAlpha(actor);
+  globalThis.ui?.notifications?.info(`${who(actor)} is seen. Movement broke the blend.`);
+}
+
+export async function applyBodyPower(actor, item) {
+  const kind = bodyFormKind(item?.name);
+  if (!actor || !kind) return "";
+  if (kind === "growth" || kind === "shrink") {
+    const on = await toggleBodySize(actor, kind);
+    if (on === true) return kind === "growth" ? `${item.name} is on. ${who(actor)} grows.` : `${item.name} is on. ${who(actor)} shrinks.`;
+    if (on === false) return `${item.name} is off. ${who(actor)} is back to normal size.`;
+    return "";
+  }
+  if (kind === "invisible") {
+    const on = await toggleInvisible(actor);
+    return on ? `${item.name} is on. ${who(actor)} is unseen.` : `${item.name} is off. ${who(actor)} can be seen.`;
+  }
+  if (kind === "phase") return togglePhase(actor, item);
+  if (kind === "density") return cycleDensity(actor, item);
+  if (kind === "blend") return toggleBlend(actor, item);
+  if (kind === "disguise" || kind === "imitation" || kind === "alter") return toggleFace(actor, item, kind);
+  if (kind === "raise") return toggleRaise(actor, item);
+  if (kind === "absorb") return toggleAbsorb(actor, item);
+  return "";
+}
+
+async function togglePhase(actor, item) {
+  const on = !actor.getFlag?.("faserip", "phasing");
+  if (on) await actor.setFlag("faserip", "phasing", true);
+  else await actor.unsetFlag("faserip", "phasing");
+  await syncPhaseMove(actor);
+  await syncAlpha(actor);
+  return on ? `${item.name} is on. ${who(actor)} can walk through walls.` : `${item.name} is off.`;
+}
+
+async function cycleDensity(actor, item) {
+  const order = ["", "solid", "diffuse"];
+  const current = actor.getFlag?.("faserip", "density") || "";
+  const next = order[(order.indexOf(current) + 1) % order.length];
+  if (next) await actor.setFlag("faserip", "density", next);
+  else await actor.unsetFlag("faserip", "density");
+  await syncPhaseMove(actor);
+  await syncAlpha(actor);
+  if (next === "solid") return `${item.name}: solid. Slams shove ${who(actor)} a shorter distance.`;
+  if (next === "diffuse") return `${item.name}: diffuse. ${who(actor)} can walk through walls and is easier to slam.`;
+  return `${item.name} is off. Density is normal.`;
+}
+
+async function toggleBlend(actor, item) {
+  const on = !actor.getFlag?.("faserip", "blending");
+  if (!activeDocs(actor).length) {
+    globalThis.ui?.notifications?.warn(`${who(actor)} needs a token on the map.`);
+    return "";
+  }
+  if (on) await actor.setFlag("faserip", "blending", true);
+  else await actor.unsetFlag("faserip", "blending");
+  await syncAlpha(actor);
+  return on ? `${item.name} is on. ${who(actor)} fades until they move.` : `${item.name} is off.`;
+}
+
+function textureSrc(doc) {
+  return doc?.texture?.src || "";
+}
+
+function pickImage(current) {
+  const FilePickerImpl = globalThis.foundry?.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+  if (!FilePickerImpl) return Promise.resolve("");
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (path) => {
+      if (done) return;
+      done = true;
+      resolve(path || "");
+    };
+    try {
+      const picker = new FilePickerImpl({
+        type: "image",
+        current: current || "",
+        callback: (path) => finish(path)
+      });
+      picker.browse().catch(() => finish(""));
+    } catch (err) {
+      console.warn("FASERIP | image", err);
+      finish("");
+    }
+  });
+}
+
+async function targetImage(actor) {
+  const target = combatTarget(actor?.id || "");
+  const token = (target?.getActiveTokens?.() ?? []).find((entry) => entry.isTargeted || entry.targeted) || target?.getActiveTokens?.()?.[0];
+  return textureSrc(token?.document);
+}
+
+async function toggleFace(actor, item, kind) {
+  const docs = activeDocs(actor);
+  if (!docs.length) {
+    globalThis.ui?.notifications?.warn(`${who(actor)} needs a token on the map.`);
+    return "";
+  }
+  const showing = docs.some((doc) => doc.getFlag?.("faserip", "face")?.kind === kind);
+  if (showing) {
+    for (const doc of docs) {
+      const saved = doc.getFlag?.("faserip", "face");
+      if (saved?.kind !== kind || !saved.src) continue;
+      try {
+        await doc.update({ "texture.src": saved.src });
+        await doc.unsetFlag("faserip", "face");
+      } catch (err) {
+        console.warn("FASERIP | face", err);
+      }
+    }
+    return `${item.name} is off. ${who(actor)} looks like themself again.`;
+  }
+  let next = "";
+  if (kind === "imitation") next = await targetImage(actor);
+  if (kind === "alter") {
+    next = actor.getFlag?.("faserip", "alterFace")?.src || "";
+    if (!next) {
+      next = await pickImage(textureSrc(docs[0]));
+      if (next) await actor.setFlag("faserip", "alterFace", { src: next });
+    }
+  }
+  if (!next && kind !== "alter") next = await pickImage(textureSrc(docs[0]));
+  if (!next) return "";
+  for (const doc of docs) {
+    const saved = doc.getFlag?.("faserip", "face");
+    const original = saved?.src || textureSrc(doc);
+    try {
+      await doc.update({ "texture.src": next });
+      await doc.setFlag("faserip", "face", { kind, src: original });
+    } catch (err) {
+      console.warn("FASERIP | face", err);
+    }
+  }
+  return `${item.name} is on. ${who(actor)} wears another look.`;
+}
+
+async function toggleRaise(actor, item) {
+  const saved = actor.getFlag?.("faserip", "raisedAbility");
+  if (saved?.key) {
+    try {
+      await actor.update({
+        [`system.abilities.${saved.key}.rank`]: saved.rank,
+        [`system.abilities.${saved.key}.number`]: saved.number ?? 0
+      });
+      await actor.unsetFlag("faserip", "raisedAbility");
+    } catch (err) {
+      console.warn("FASERIP | raise", err);
+      return "";
+    }
+    const ability = saved.key.charAt(0).toUpperCase() + saved.key.slice(1);
+    return `${item.name} is off. ${ability} returns to ${rankLabel(saved.rank)}.`;
+  }
+  const powerRank = item?.system?.rank || "typical";
+  let key = ABILITIES[0];
+  let lowest = rankIndex(actor.getAbilityRank?.(key));
+  for (const ability of ABILITIES) {
+    const index = rankIndex(actor.getAbilityRank?.(ability));
+    if (index >= 0 && (lowest < 0 || index < lowest)) {
+      lowest = index;
+      key = ability;
+    }
+  }
+  if (rankIndex(powerRank) < 0 || lowest >= rankIndex(powerRank)) {
+    return `${who(actor)}'s lowest ability is already at ${rankLabel(powerRank)} or higher.`;
+  }
+  const slot = actor.system?.abilities?.[key] || {};
+  try {
+    await actor.setFlag("faserip", "raisedAbility", { key, rank: slot.rank || "typical", number: slot.number ?? 0 });
+    await actor.update({
+      [`system.abilities.${key}.rank`]: powerRank,
+      [`system.abilities.${key}.number`]: rankValue(powerRank)
+    });
+  } catch (err) {
+    console.warn("FASERIP | raise", err);
+    return "";
+  }
+  const ability = key.charAt(0).toUpperCase() + key.slice(1);
+  return `${item.name} raises ${ability} to ${rankLabel(powerRank)}.`;
+}
+
+function squaresApart(doc, other) {
+  const grid = gridSize();
+  const ax = doc.x + (doc.width * grid) / 2;
+  const ay = doc.y + (doc.height * grid) / 2;
+  const bx = other.x + (other.width * grid) / 2;
+  const by = other.y + (other.height * grid) / 2;
+  return Math.max(Math.abs(ax - bx), Math.abs(ay - by)) / grid;
+}
+
+async function chooseAbsorbed(powers) {
+  if (powers.length <= 1) return powers[0] || null;
+  const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
+  if (!DialogV2?.wait) return powers[0];
+  const options = powers.map((power) => `<option value="${power.id}">${esc(power.name)}</option>`).join("");
+  const form = await DialogV2.wait({
+    window: { title: "Power Absorption" },
+    content: `<label>Power <select name="power">${options}</select></label>`,
+    buttons: [
+      { action: "take", label: "Take", default: true, callback: (_event, button) => button.form },
+      { action: "cancel", label: "Cancel" }
+    ],
+    rejectClose: false
+  });
+  if (!form || form === "cancel") return null;
+  const id = form.elements?.power?.value || form.querySelector?.('[name="power"]')?.value || "";
+  return powers.find((power) => power.id === id) || null;
+}
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[ch]));
+}
+
+async function toggleAbsorb(actor, item) {
+  const existing = actor.getFlag?.("faserip", "absorbedPower");
+  if (existing) {
+    const held = actor.items?.get?.(existing);
+    try {
+      if (held) await held.delete();
+      await actor.unsetFlag("faserip", "absorbedPower");
+    } catch (err) {
+      console.warn("FASERIP | absorb", err);
+      return "";
+    }
+    return `${item.name} is off. The copied power is gone.`;
+  }
+  const target = combatTarget(actor.id);
+  if (!target) {
+    globalThis.ui?.notifications?.warn("Target someone you can touch.");
+    return "";
+  }
+  const from = activeDocs(actor)[0];
+  const to = (target.getActiveTokens?.() ?? [])[0]?.document;
+  if (!from || !to) {
+    globalThis.ui?.notifications?.warn("Both tokens need to be on the map.");
+    return "";
+  }
+  const limit = Math.max(1, reachSquares(actor));
+  if (squaresApart(from, to) > limit + 0.25) {
+    globalThis.ui?.notifications?.warn(`${target.name} is out of reach.`);
+    return "";
+  }
+  const powers = [...(target.items ?? [])].filter((power) => power.type === "power" && !power.getFlag?.("faserip", "absorbed"));
+  if (!powers.length) {
+    globalThis.ui?.notifications?.warn(`${target.name} has no power to copy.`);
+    return "";
+  }
+  const picked = await chooseAbsorbed(powers);
+  if (!picked) return "";
+  const system = typeof picked.system?.toObject === "function" ? picked.system.toObject() : { rank: picked.system?.rank || "typical" };
+  system.notes = "A copied power. It lasts until Power Absorption is used again.";
+  try {
+    const [created] = await actor.createEmbeddedDocuments("Item", [{
+      name: picked.name,
+      type: "power",
+      img: picked.img,
+      system,
+      flags: { faserip: { absorbed: true, from: target.uuid } }
+    }]);
+    if (created?.id) await actor.setFlag("faserip", "absorbedPower", created.id);
+  } catch (err) {
+    console.warn("FASERIP | absorb", err);
+    return "";
+  }
+  return `${who(actor)} copies ${picked.name} from ${target.name}.`;
 }
