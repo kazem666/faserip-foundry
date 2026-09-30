@@ -4,6 +4,7 @@ import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserT
 import { attackOutOfRange, closeCharge, rangePhrase } from "./movement.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
+import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -167,6 +168,11 @@ export function describeItemAction(item) {
       : powerAction(item.name);
     if (powerKeepsAloft(item.name)) {
       spec.title = "Turns Foundry's flying icon on or off, then rolls a FEAT. Shift-click to set Karma or Intensity.";
+    }
+    const teleportTitle = teleportUseTitle(item.name, item.system?.rank || "typical");
+    if (teleportTitle) {
+      spec.label = "Use";
+      spec.title = teleportTitle;
     }
     return spec;
   }
@@ -354,6 +360,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
 
 export async function rollItemAction(actor, item, opts = {}) {
   if (!item) return null;
+  if (item.type === "power" && teleportKind(item.name)) return useTeleportPower(actor, item);
   const message = await rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
   if (message && item.type === "power" && powerKeepsAloft(item.name)) {
     const { toggleFlying } = await import("./falling.mjs");

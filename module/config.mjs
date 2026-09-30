@@ -68,6 +68,8 @@ export const BATTLE_EFFECTS = {
 };
 
 export const MOVEMENT_AREAS = { shift0:0, feeble:1, poor:1, typical:2, good:2, excellent:3, remarkable:3, incredible:4, amazing:5, monstrous:6, unearthly:7, shiftx:8, shifty:9, shiftz:10, cl1000:20, cl3000:40, cl5000:60, beyond:99 };
+/** Teleport reach in areas. One area is a room. Class 1000 and above covers the whole scene. */
+export const TELEPORT_AREAS = { shift0:0, feeble:1, poor:2, typical:5, good:10, excellent:25, remarkable:50, incredible:100, amazing:250, monstrous:500, unearthly:1000, shiftx:2500, shifty:10000, shiftz:25000, cl1000:Infinity, cl3000:Infinity, cl5000:Infinity, beyond:Infinity };
 export const THROW_RANGE = { shift0:0, feeble:1, poor:1, typical:1, good:2, excellent:3, remarkable:4, incredible:5, amazing:6, monstrous:7, unearthly:8, shiftx:10, shifty:15, shiftz:20, cl1000:99, cl3000:99, cl5000:99, beyond:99 };
 
 export const ORIGINS = [

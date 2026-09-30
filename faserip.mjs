@@ -13,6 +13,7 @@ import { registerComicSocket } from "./module/comic-hit.mjs";
 import { registerMovement } from "./module/movement.mjs";
 import { registerElevation } from "./module/elevation.mjs";
 import { registerFalling } from "./module/falling.mjs";
+import { registerTeleport } from "./module/teleport.mjs";
 import { registerConditionEffects } from "./module/battle-results.mjs";
 import { registerAutoAnimations } from "./module/auto-animations.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
@@ -22,7 +23,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.50";
+const VERSION = "1.17.51";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -391,6 +392,7 @@ Hooks.once("init", () => {
     registerMovement();
     registerElevation();
     registerFalling();
+    registerTeleport();
     registerConditionEffects();
     registerAutoAnimations();
     try {

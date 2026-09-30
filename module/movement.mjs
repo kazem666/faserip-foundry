@@ -1,4 +1,4 @@
-import { MOVEMENT_AREAS, THROW_RANGE } from "./config.mjs";
+import { MOVEMENT_AREAS, TELEPORT_AREAS, THROW_RANGE } from "./config.mjs";
 
 export const DEFAULT_FEET_PER_AREA = 20;
 
@@ -9,7 +9,7 @@ const MODE_RULES = [
   { action: "climb", re: /climbing|wall-crawling|wall crawling/ },
   { action: "jump", re: /leaping|hyper-leaping/ },
   { action: "burrow", re: /\bdigging\b/ },
-  { action: "blink", re: /teleport/ }
+  { action: "blink", re: /teleport|telereform|gateway|dimensional gate|dimensional aperture/ }
 ];
 
 const MODE_LABELS = {
@@ -65,6 +65,7 @@ export function formatAreaCount(areas) {
 }
 
 export function formatMovement(areas) {
+  if (areas === Infinity) return "anywhere on this scene";
   const feet = Math.round(areasToFeet(areas));
   const squares = gridFeet() > 0 ? areasToFeet(areas) / gridFeet() : 0;
   const sqWhole = Math.abs(squares - Math.round(squares)) < 0.05;
@@ -87,6 +88,13 @@ export function movementModes(actor) {
     const areas = areasForRank(item.system?.rank || "typical");
     for (const rule of MODE_RULES) {
       if (!rule.re.test(name)) continue;
+      if (rule.action === "blink") {
+        if (/matter teleport/.test(name)) continue;
+        const reach = TELEPORT_AREAS[item.system?.rank] ?? TELEPORT_AREAS.typical;
+        const budget = Number.isFinite(reach) ? reach : Infinity;
+        modes.blink = Math.max(modes.blink || 0, budget);
+        continue;
+      }
       modes[rule.action] = Math.max(modes[rule.action] || 0, areas);
     }
   }
