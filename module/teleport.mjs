@@ -523,11 +523,42 @@ function clearPortalGraphics(ids) {
   }
 }
 
-async function endGateEffects(names) {
-  const endEffects = globalThis.Sequencer?.EffectManager?.endEffects;
+function effectNear(effect, spots, reach) {
+  const pos = effect?.sourcePosition || effect?.position;
+  if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return false;
+  return spots.some((spot) => Number.isFinite(spot.x) && Math.hypot(pos.x - spot.x, pos.y - spot.y) <= reach);
+}
+
+async function endGateEffects(gate) {
+  const manager = globalThis.Sequencer?.EffectManager;
+  const endEffects = manager?.endEffects;
+  const names = new Set((gate?.effectNames || []).filter((entry) => typeof entry === "string" && entry));
+  const spots = [{ x: gate?.ax, y: gate?.ay }, { x: gate?.bx, y: gate?.by }];
+  const reach = Math.max(portalRadius() * 3, 140);
+  const effects = typeof manager?.effects?.[Symbol.iterator] === "function" ? [...manager.effects] : [];
+  const matched = [];
+  for (const effect of effects) {
+    const name = String(effect?.data?.name || "");
+    const file = String(effect?.data?.file || "");
+    const named = names.has(name) || (name.startsWith("faserip-gate") && effectNear(effect, spots, reach));
+    const ring = /portal|magic_signs|energy_field/i.test(file) && effectNear(effect, spots, reach);
+    if (!named && !ring && !(names.has(name))) continue;
+    matched.push(effect);
+  }
+  for (const effect of matched) {
+    try { await effect.endEffect?.(); } catch (err) {
+      console.warn("FASERIP | gateway effect", err);
+    }
+  }
   if (typeof endEffects !== "function") return;
-  for (const name of new Set((names || []).filter((entry) => typeof entry === "string" && entry))) {
+  for (const name of names) {
     try { await endEffects({ name }); } catch (err) {
+      console.warn("FASERIP | gateway effect", err);
+    }
+  }
+  const ids = matched.map((effect) => effect.id).filter(Boolean);
+  if (ids.length) {
+    try { await endEffects({ effects: ids }); } catch (err) {
       console.warn("FASERIP | gateway effect", err);
     }
   }
@@ -537,12 +568,23 @@ async function removePortals(gate) {
   const ids = portalIdsFor(gate);
   const scene = gateScene(gate);
   if (ids.length && scene?.deleteEmbeddedDocuments) {
-    try { await scene.deleteEmbeddedDocuments("Drawing", ids); } catch (err) {
+    try {
+      const unlock = ids.filter((id) => scene.drawings?.get?.(id)).map((id) => ({ _id: id, locked: false }));
+      if (unlock.length) await scene.updateEmbeddedDocuments("Drawing", unlock);
+      await scene.deleteEmbeddedDocuments("Drawing", ids);
+    } catch (err) {
       console.warn("FASERIP | gateway portals", err);
+    }
+    for (const id of ids) {
+      const drawing = scene.drawings?.get?.(id);
+      if (!drawing?.delete) continue;
+      try { await drawing.delete(); } catch (err) {
+        console.warn("FASERIP | gateway portals", err);
+      }
     }
   }
   clearPortalGraphics(ids);
-  await endGateEffects(gate?.effectNames);
+  await endGateEffects(gate);
 }
 
 async function sweepClosedGates() {
@@ -587,7 +629,7 @@ async function openGateway(actor, item) {
   }
   const exit = await placePortal(second, "Out");
   const sceneId = globalThis.canvas?.scene?.id || "";
-  const line = `${actor.name} opens a gateway. Walk into the entrance to come out the exit. Close removes both portals.`;
+  const line = `${actor.name} opens a gateway. Walk into either portal to come out the other. Close removes both.`;
   const buttons = `<div class="feat-actions"><button type="button" data-faserip-gate="close">Close</button></div>`;
   await note(actor, hero, card(item.name, actor.name, line, buttons), {
     gateway: {
@@ -639,6 +681,7 @@ async function leaveDimension(actor, item) {
 }
 
 const crossing = new Set();
+const arrived = new Map();
 
 function gateKeeper(doc) {
   const users = globalThis.game?.users;
@@ -670,23 +713,42 @@ function enteredPortal(doc, point) {
   return Math.hypot(here.x - point.x, here.y - point.y) <= reach;
 }
 
+function holdingArrival(doc) {
+  const hold = arrived.get(doc.id);
+  if (!hold) return false;
+  if (enteredPortal(doc, hold)) return true;
+  arrived.delete(doc.id);
+  return false;
+}
+
 async function onTokenMoved(doc) {
-  if (!doc || crossing.has(doc.id) || !gateKeeper(doc)) return;
+  if (!doc || crossing.has(doc.id) || !gateKeeper(doc) || holdingArrival(doc)) return;
   const token = doc.object || globalThis.canvas?.tokens?.get?.(doc.id);
   if (!token) return;
+  let best = null;
+  const here = centerOf({ document: doc });
   for (const gate of openGates()) {
-    if (!enteredPortal(doc, { x: gate.ax, y: gate.ay })) continue;
-    crossing.add(doc.id);
-    try {
-      const moved = await blinkToken(token, { x: gate.bx, y: gate.by });
-      if (moved) {
-        const name = token.actor?.name || token.name || "A token";
-        globalThis.ui?.notifications?.info(`${name} comes out the exit portal.`);
-      }
-    } finally {
-      crossing.delete(doc.id);
+    const ways = [
+      { from: { x: gate.ax, y: gate.ay }, to: { x: gate.bx, y: gate.by } },
+      { from: { x: gate.bx, y: gate.by }, to: { x: gate.ax, y: gate.ay } }
+    ];
+    for (const way of ways) {
+      if (!enteredPortal(doc, way.from) || !here) continue;
+      const dist = Math.hypot(here.x - way.from.x, here.y - way.from.y);
+      if (!best || dist < best.dist) best = { dest: way.to, dist };
     }
-    return;
+  }
+  if (!best) return;
+  crossing.add(doc.id);
+  try {
+    const moved = await blinkToken(token, best.dest);
+    if (moved) {
+      arrived.set(doc.id, best.dest);
+      const name = token.actor?.name || token.name || "A token";
+      globalThis.ui?.notifications?.info(`${name} comes out the other portal.`);
+    }
+  } finally {
+    crossing.delete(doc.id);
   }
 }
 
