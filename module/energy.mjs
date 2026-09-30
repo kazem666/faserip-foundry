@@ -444,6 +444,15 @@ async function shock(actor, item) {
   return true;
 }
 
+async function senseGuard(target, rank) {
+  try {
+    const { protectedSensesHold } = await import("./senses.mjs");
+    return protectedSensesHold(target, rank);
+  } catch {
+    return false;
+  }
+}
+
 async function setStatus(actor, statusId, active, overlay) {
   return owned(actor, "status", { uuid: actor.uuid, statusId, active, overlay });
 }
@@ -467,6 +476,10 @@ async function blind(actor, item) {
         globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
         return true;
       }
+    }
+    if (!on && await senseGuard(target, rankOf(item))) {
+      globalThis.ui?.notifications?.info(`${target.name}'s protected senses hold.`);
+      return true;
     }
     const ok = await setStatus(target, id, !on, true);
     if (!ok) return null;
@@ -552,6 +565,10 @@ async function sound(actor, item) {
       return true;
     }
   }
+  if (!on && await senseGuard(target, rankOf(item))) {
+    globalThis.ui?.notifications?.info(`${target.name}'s protected senses hold.`);
+    return true;
+  }
   const ok = await setStatus(target, "deaf", !on, false);
   if (!ok) return null;
   globalThis.ui?.notifications?.info(on ? `${target.name} can hear again.` : `${item.name} deafens ${target.name}.`);
@@ -635,6 +652,7 @@ async function placeField(actor, item, spec) {
       const person = token.actor;
       if (!spot || !person) continue;
       if (Math.hypot(spot.x - point.x, spot.y - point.y) > radius) continue;
+      if (await senseGuard(person, rankOf(item))) continue;
       await setStatus(person, "deaf", true, false);
     }
   }

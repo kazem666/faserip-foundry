@@ -224,7 +224,12 @@ export class FaseripActor extends Actor {
   }
 
   getInitiativeMod() {
-    return initiativeModifier(this.getAbilityNumber("intuition")) + initiativeTalentBonus(this);
+    let number = this.getAbilityNumber("intuition");
+    for (const key of ["combatSense", "circularVision"]) {
+      const rank = this.getFlag?.("faserip", key);
+      if (rank) number = Math.max(number, rankValue(rank));
+    }
+    return initiativeModifier(number) + initiativeTalentBonus(this);
   }
 
   getInitiativeRoll() {

@@ -526,6 +526,11 @@ async function blind(actor, item) {
     globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
     return true;
   }
+  const { protectedSensesHold } = await import("./senses.mjs");
+  if (protectedSensesHold(target, rankOf(item))) {
+    globalThis.ui?.notifications?.info(`${target.name}'s protected senses hold.`);
+    return true;
+  }
   const rounds = result.color === "white" ? 0 : failRounds(result.color);
   const now = globalThis.game?.combat?.round ?? 0;
   await owned(target, "status", { uuid: target.uuid, statusId: id, active: true, overlay: true });

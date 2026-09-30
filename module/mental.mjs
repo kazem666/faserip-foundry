@@ -85,6 +85,12 @@ export function mentalRankOverride(actor, spec) {
   const ultimate = actor.getFlag?.("faserip", "ultimate");
   if (ultimate?.ability && ultimate.ability === spec.ability && ultimate.rank) return ultimate.rank;
   if (spec.ability === "reason" && actor.getFlag?.("faserip", "machineRank")) return actor.getFlag("faserip", "machineRank");
+  if (spec.ability === "intuition") {
+    const once = actor.getFlag?.("faserip", "senseRank");
+    if (once) return once;
+    const combat = actor.getFlag?.("faserip", "combatSense");
+    if (combat && rankIndex(combat) > rankIndex(actor.getAbilityRank?.("intuition") || "typical")) return combat;
+  }
   return "";
 }
 
@@ -97,6 +103,9 @@ export async function consumeMentalPrep(actor, spec) {
   }
   if (spec.ability === "reason" && actor.getFlag?.("faserip", "machineRank")) {
     try { await actor.unsetFlag("faserip", "machineRank"); } catch { /* the roll already used the rank */ }
+  }
+  if (spec.ability === "intuition" && actor.getFlag?.("faserip", "senseRank")) {
+    try { await actor.unsetFlag("faserip", "senseRank"); } catch { /* the roll already used the rank */ }
   }
 }
 
