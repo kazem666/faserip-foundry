@@ -5,6 +5,7 @@ import { attackOutOfRange, closeCharge, movementPowerKind, movementUseTitle, ran
 import { matterKind, matterUseTitle, useMatterPower } from "./matter.mjs";
 import { energyKind, energyUseTitle, useEnergyPower } from "./energy.mjs";
 import { consumeMentalPrep, mentalKind, mentalRankOverride, mentalUseTitle, useMentalPower } from "./mental.mjs";
+import { offensiveKind, offensiveUseTitle, useOffensivePower } from "./offensive.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
@@ -204,6 +205,11 @@ export function describeItemAction(item) {
     if (mentalTitle) {
       spec.label = "Use";
       spec.title = mentalTitle;
+    }
+    const offensiveTitle = offensiveUseTitle(item.name);
+    if (offensiveTitle) {
+      spec.label = "Use";
+      spec.title = offensiveTitle;
     }
     if (item.getFlag?.("faserip", "nullified") || item.flags?.faserip?.nullified) {
       spec.label = "Nullified";
@@ -417,6 +423,7 @@ export async function rollItemAction(actor, item, opts = {}) {
   if (item.type === "power" && matterKind(item.name)) return useMatterPower(actor, item);
   if (item.type === "power" && energyKind(item.name)) return useEnergyPower(actor, item);
   if (item.type === "power" && mentalKind(item.name)) return useMentalPower(actor, item);
+  if (item.type === "power" && offensiveKind(item.name)) return useOffensivePower(actor, item);
   const message = await rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
   if (message && item.type === "power" && powerKeepsAloft(item.name)) {
     const { toggleFlying } = await import("./falling.mjs");
