@@ -394,7 +394,7 @@ function portalDrawing(point, label) {
   return {
     x: point.x - radius,
     y: point.y - radius,
-    shape: { type: "c", width: radius * 2, height: radius * 2, radius },
+    shape: { type: "e", width: radius * 2, height: radius * 2 },
     strokeWidth: 8,
     strokeColor: exit ? "#d97706" : "#6d28d9",
     strokeAlpha: 1,
@@ -662,6 +662,54 @@ export function bindTeleportChat(message, html) {
   });
 }
 
+function isBrokenPortal(drawing) {
+  const source = drawing?._source || {};
+  const type = source.shape?.type || drawing?.shape?.type;
+  const text = source.text || drawing?.text || "";
+  const flagged = source.flags?.faserip?.gatewayPortal || drawing?.flags?.faserip?.gatewayPortal;
+  return type === "c" && (flagged || text === "In" || text === "Out" || text === "A" || text === "B");
+}
+
+async function repairPortalDrawings() {
+  if (!globalThis.game?.user?.isGM) return;
+  const removed = new Set();
+  for (const scene of globalThis.game.scenes ?? []) {
+    const bad = [...(scene.drawings ?? [])].filter(isBrokenPortal);
+    if (!bad.length) continue;
+    try {
+      await scene.deleteEmbeddedDocuments("Drawing", bad.map((drawing) => drawing.id));
+      for (const drawing of bad) removed.add(drawing.id);
+    } catch (err) {
+      console.warn("FASERIP | portal repair", err);
+    }
+  }
+  if (removed.size && globalThis.canvas?.scene) {
+    try { await globalThis.canvas.draw(); } catch (err) {
+      console.warn("FASERIP | portal repair draw", err);
+    }
+  }
+  const sceneId = globalThis.canvas?.scene?.id || "";
+  for (const message of globalThis.game.messages?.contents ?? []) {
+    if (message.getFlag?.("faserip", "gateClosed")) continue;
+    const gate = message.getFlag?.("faserip", "gateway") ?? message.flags?.faserip?.gateway;
+    if (!gate || gate.sceneId !== sceneId) continue;
+    const stale = (gate.portalIds || []).some((id) => removed.has(id) || !globalThis.canvas.scene.drawings?.get?.(id));
+    if (!stale) continue;
+    await removePortals({ portalIds: [], effectNames: gate.effectNames || [] });
+    const entrance = await placePortal({ x: gate.ax, y: gate.ay }, "In");
+    const exit = await placePortal({ x: gate.bx, y: gate.by }, "Out");
+    try {
+      await message.setFlag("faserip", "gateway", {
+        ...gate,
+        portalIds: [...entrance.portalIds, ...exit.portalIds],
+        effectNames: [...entrance.effectNames, ...exit.effectNames]
+      });
+    } catch (err) {
+      console.warn("FASERIP | portal repair", err);
+    }
+  }
+}
+
 export function registerTeleport() {
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripTeleport) return;
@@ -670,5 +718,8 @@ export function registerTeleport() {
   Hooks.on("updateToken", (doc, changes) => {
     if (!changes || !("x" in changes || "y" in changes)) return;
     onTokenMoved(doc).catch((err) => console.warn("FASERIP | gateway", err));
+  });
+  Hooks.once("ready", () => {
+    repairPortalDrawings().catch((err) => console.warn("FASERIP | portal repair", err));
   });
 }
