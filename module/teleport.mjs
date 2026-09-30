@@ -452,20 +452,106 @@ async function placePortal(point, label) {
   return { portalIds, effectNames };
 }
 
+function gateScene(gate) {
+  return globalThis.game?.scenes?.get?.(gate?.sceneId) || globalThis.canvas?.scene || null;
+}
+
+function isGatewayDrawing(drawing) {
+  return !!(drawing?.getFlag?.("faserip", "gatewayPortal")
+    || drawing?.flags?.faserip?.gatewayPortal
+    || drawing?._source?.flags?.faserip?.gatewayPortal);
+}
+
+function drawingCenter(drawing) {
+  const shape = drawing?._source?.shape || drawing?.shape || {};
+  return {
+    x: Number(drawing?.x) + (Number(shape.width) || 0) / 2,
+    y: Number(drawing?.y) + (Number(shape.height) || 0) / 2
+  };
+}
+
+function nearPoint(drawing, point, reach) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
+  const center = drawingCenter(drawing);
+  return Math.hypot(center.x - point.x, center.y - point.y) <= reach;
+}
+
+function sameGate(a, b) {
+  const aIds = (a?.portalIds || []).filter(Boolean).join(",");
+  const bIds = (b?.portalIds || []).filter(Boolean).join(",");
+  if (aIds && bIds) return aIds === bIds;
+  return a?.sceneId === b?.sceneId && a?.ax === b?.ax && a?.ay === b?.ay && a?.bx === b?.bx && a?.by === b?.by;
+}
+
+function portalIdsFor(gate) {
+  const ids = new Set((gate?.portalIds || []).filter(Boolean));
+  const scene = gateScene(gate);
+  if (!scene?.drawings) return [...ids];
+  const reserved = new Set();
+  for (const other of openGates()) {
+    if (sameGate(other, gate)) continue;
+    for (const id of other.portalIds || []) if (id) reserved.add(id);
+  }
+  for (const id of reserved) ids.delete(id);
+  const reach = Math.max(portalRadius() * 2, 80);
+  const spots = [{ x: gate?.ax, y: gate?.ay }, { x: gate?.bx, y: gate?.by }];
+  for (const drawing of scene.drawings) {
+    if (reserved.has(drawing.id) || ids.has(drawing.id) || !isGatewayDrawing(drawing)) continue;
+    if (spots.some((spot) => nearPoint(drawing, spot, reach))) ids.add(drawing.id);
+  }
+  return [...ids];
+}
+
+function clearPortalGraphics(ids) {
+  const canvas = globalThis.canvas;
+  if (!canvas || !ids?.length) return;
+  for (const id of ids) {
+    const placeable = canvas.drawings?.get?.(id);
+    try { canvas.primary?.removeDrawing?.(placeable); } catch { /* already gone */ }
+    try { canvas.interface?.removeDrawing?.(placeable); } catch { /* already gone */ }
+    if (placeable) {
+      try { placeable.destroy(); } catch { /* already gone */ }
+    }
+    for (const group of [canvas.primary, canvas.interface]) {
+      const map = group?.drawings;
+      const key = `Drawing.${id}`;
+      if (!map?.has?.(key)) continue;
+      const shape = map.get(key);
+      try { if (shape?.destroyed === false) shape.destroy({ children: true }); } catch { /* already gone */ }
+      map.delete(key);
+    }
+  }
+}
+
+async function endGateEffects(names) {
+  const endEffects = globalThis.Sequencer?.EffectManager?.endEffects;
+  if (typeof endEffects !== "function") return;
+  for (const name of new Set((names || []).filter((entry) => typeof entry === "string" && entry))) {
+    try { await endEffects({ name }); } catch (err) {
+      console.warn("FASERIP | gateway effect", err);
+    }
+  }
+}
+
 async function removePortals(gate) {
-  const ids = gate?.portalIds || [];
-  const scene = globalThis.canvas?.scene;
+  const ids = portalIdsFor(gate);
+  const scene = gateScene(gate);
   if (ids.length && scene?.deleteEmbeddedDocuments) {
     try { await scene.deleteEmbeddedDocuments("Drawing", ids); } catch (err) {
       console.warn("FASERIP | gateway portals", err);
     }
   }
-  const names = gate?.effectNames || [];
-  const endEffects = globalThis.Sequencer?.EffectManager?.endEffects;
-  if (names.length && typeof endEffects === "function") {
-    try { await endEffects({ name: names }); } catch (err) {
-      console.warn("FASERIP | gateway effect", err);
-    }
+  clearPortalGraphics(ids);
+  await endGateEffects(gate?.effectNames);
+}
+
+async function sweepClosedGates() {
+  if (!globalThis.game?.user?.isGM) return;
+  for (const message of globalThis.game.messages?.contents ?? []) {
+    if (!message.getFlag?.("faserip", "gateClosed")) continue;
+    const gate = message.getFlag?.("faserip", "gateway") ?? message.flags?.faserip?.gateway;
+    if (!gate) continue;
+    await removePortals(gate);
   }
 }
 
@@ -800,7 +886,14 @@ export function registerTeleport() {
     if (!changes || !("x" in changes || "y" in changes)) return;
     onTokenMoved(doc).catch((err) => console.warn("FASERIP | gateway", err));
   });
+  Hooks.on("deleteChatMessage", (message) => {
+    const gate = message?.getFlag?.("faserip", "gateway") ?? message?.flags?.faserip?.gateway;
+    if (!gate) return;
+    removePortals(gate).catch((err) => console.warn("FASERIP | gateway", err));
+  });
   Hooks.once("ready", () => {
-    repairPortalDrawings().catch((err) => console.warn("FASERIP | portal repair", err));
+    repairPortalDrawings()
+      .then(() => sweepClosedGates())
+      .catch((err) => console.warn("FASERIP | portal repair", err));
   });
 }
