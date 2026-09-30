@@ -19,6 +19,7 @@ import { registerMatter } from "./module/matter.mjs";
 import { registerEnergy } from "./module/energy.mjs";
 import { registerMental } from "./module/mental.mjs";
 import { registerOffensive } from "./module/offensive.mjs";
+import { registerDefense } from "./module/defense.mjs";
 import { registerConditionEffects } from "./module/battle-results.mjs";
 import { registerAutoAnimations } from "./module/auto-animations.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
@@ -28,7 +29,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.66";
+const VERSION = "1.17.67";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -403,6 +404,7 @@ Hooks.once("init", () => {
     registerEnergy();
     registerMental();
     registerOffensive();
+    registerDefense();
     registerConditionEffects();
     registerAutoAnimations();
     try {

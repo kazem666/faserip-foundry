@@ -777,6 +777,10 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   async _onHoldBreath(event) {
     event.preventDefault();
+    if (this.actor.getFlag("faserip", "waterBreath") || this.actor.getFlag("faserip", "lifeSupport")) {
+      ui.notifications?.info(`${this.actor.name} does not need to hold a breath.`);
+      return;
+    }
     const held = Number(this.actor.getFlag("faserip", "breath") || 0) + 1;
     await this.actor.setFlag("faserip", "breath", held);
     const { rankFromNumber } = await import("../config.mjs");
@@ -791,6 +795,10 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   async _onDrown(event) {
     event.preventDefault();
+    if (this.actor.getFlag("faserip", "waterBreath") || this.actor.getFlag("faserip", "lifeSupport")) {
+      ui.notifications?.info(`${this.actor.name} keeps breathing.`);
+      return;
+    }
     const message = await promptFeatRoll({
       actor: this.actor,
       rankId: this.actor.getAbilityRank("endurance"),

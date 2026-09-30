@@ -138,6 +138,14 @@ export class FaseripActor extends Actor {
       }
       incoming = Math.max(0, incoming - soak);
     }
+    const absorb = this.getFlag?.("faserip", "absorbing");
+    let absorbed = 0;
+    if (absorb && incoming > 0) {
+      const cap = rankValue(absorb.rank || "typical");
+      absorbed = Math.min(incoming, cap);
+      incoming -= absorbed;
+      try { await this.unsetFlag("faserip", "absorbing"); } catch { /* the hit still resolves */ }
+    }
     const value = Math.max(0, (this.system.health.value ?? 0) - incoming);
     const update = {
       "system.health.value": value,
@@ -151,6 +159,10 @@ export class FaseripActor extends Actor {
     if (value === 0) {
       const { collapseAtZero } = await import("../battle-results.mjs");
       await collapseAtZero(this);
+    }
+    if (absorbed > 0) {
+      await this.heal(absorbed);
+      globalThis.ui?.notifications?.info(`${this.name} absorbs ${absorbed} of that hit as Health.`);
     }
     return incoming;
   }
