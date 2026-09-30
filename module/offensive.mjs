@@ -405,7 +405,7 @@ async function harmLiving(actor, item, target, { energy = false, label = "" } = 
     globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
     return true;
   }
-  const amount = harm.result === "half" ? harm.amount : full;
+  const amount = harm.result === "reduce" ? harm.amount : full;
   const taken = await owned(target, "harm", { uuid: target.uuid, amount, energy });
   if (label) globalThis.ui?.notifications?.info(`${label} (${taken ?? 0} Health).`);
   return taken;
@@ -458,7 +458,7 @@ async function toxin(actor, item) {
     globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
     return true;
   }
-  const amount = harm.result === "half" ? harm.amount : full;
+  const amount = harm.result === "reduce" ? harm.amount : full;
   await owned(target, "harm", { uuid: target.uuid, amount, energy: false });
   const rounds = failRounds(result.color);
   await owned(target, "poison", { uuid: target.uuid, value: { intensityId: rankOf(item), rounds } });

@@ -165,7 +165,7 @@ export async function rollFeat({
       combat.damageAmount = null;
       effectBlocked = true;
       ui.notifications?.info(healthNote);
-    } else if (harm.result === "half") {
+    } else if (harm.result === "reduce") {
       combat.damageAmount = harm.amount;
       resistNote = harm.note;
     }

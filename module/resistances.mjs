@@ -1,8 +1,9 @@
-import { rankIndex, rankLabel } from "./config.mjs";
+import { rankIndex, rankLabel, rankValue } from "./config.mjs";
 
 /**
- * Resistances. A higher rank cancels the matching harm.
- * An equal rank halves damage. This is a play comparison, not a book chart.
+ * Resistances. This rank or lower does not land.
+ * A higher attack loses this rank's number before armor.
+ * Invulnerability only stops a lower rank.
  * Invulnerability covers one chosen form. True invulnerability covers
  * physical harm, energy, poison, and disease.
  */
@@ -63,7 +64,7 @@ export function resistKind(name) {
 
 export function resistUseTitle(name) {
   const kind = resistKind(name);
-  const compare = "A higher rank cancels that harm. An equal rank halves the damage.";
+  const compare = "This rank or lower does not land. A higher attack loses this rank’s number before armor.";
   const titles = {
     fire: `Fire and heat are compared to this rank. ${compare}`,
     cold: `Cold and ice are compared to this rank. ${compare}`,
@@ -71,16 +72,16 @@ export function resistUseTitle(name) {
     radiation: `Radiation is compared to this rank. ${compare}`,
     toxin: `Poison and toxins are compared to this rank. ${compare}`,
     acid: `Acid and corrosives are compared to this rank. ${compare}`,
-    emotion: `Emotion powers are compared to this rank. ${compare} A higher rank also stops the mood from landing.`,
-    mental: `Mental powers are compared to this rank. A higher rank stops the effect. Otherwise they still resist with Psyche.`,
-    magic: `Magic aimed at you is compared to this rank. A higher rank stops it. ${compare}`,
-    disease: `Disease is compared to this rank. A higher rank keeps it from taking. ${compare}`,
+    emotion: `Emotion powers of this rank or lower do not land. A higher one still gets a Psyche resist.`,
+    mental: `Mental powers of this rank or lower do not land. A higher one still gets a Psyche resist.`,
+    magic: `Magic of this rank or lower does not land. A higher spell loses this rank’s number before armor.`,
+    disease: `Disease of this rank or lower does not take. A higher one loses this rank’s number.`,
     energy: `Energy attacks are compared to this rank. ${compare}`,
     physical: `Physical attacks are compared to this rank. ${compare}`,
-    power: `Powers that copy, drain, or suppress your powers are compared to this rank. A higher rank stops them.`,
-    vampire: `Health-draining and life-draining attacks are compared to this rank. ${compare}`,
-    invuln: "Choose the attack form this covers. A lower rank does not land. An equal rank halves damage.",
-    true: `Physical harm, energy, poison, and disease are compared to this rank. ${compare}`
+    power: `Powers that copy, drain, or suppress yours do not work at this rank or lower.`,
+    vampire: `Drains of this rank or lower do not land. A higher drain loses this rank’s number.`,
+    invuln: "Choose the attack form this covers. A lower rank does not land. An equal or higher rank still does.",
+    true: "Physical harm, energy, poison, and disease of a lower rank do not land. An equal or higher rank still does."
   };
   return titles[kind] || "";
 }
@@ -122,36 +123,47 @@ export function threatTags({ name = "", columnId = "", energy = false } = {}) {
   return tags;
 }
 
-function bestCover(actor, tags, attackRank) {
-  let best = null;
-  for (const item of actor?.items ?? []) {
-    if (item?.type !== "power" || !covers(item, tags)) continue;
-    const rank = item.system?.rank || "typical";
-    const cmp = rankIndex(rank) - rankIndex(attackRank || "feeble");
-    if (!best || cmp > best.cmp) best = { cmp, rank, name: item.name };
+function coverOutcome(item, attackRank) {
+  const kind = resistKind(item?.name);
+  const rank = item.system?.rank || "typical";
+  const cmp = rankIndex(rank) - rankIndex(attackRank || "feeble");
+  const invuln = kind === "invuln" || kind === "true";
+  if (invuln) {
+    if (cmp > 0) return { mode: "cancel", help: 100000, name: item.name };
+    return null;
   }
-  return best;
+  if (cmp >= 0) return { mode: "cancel", help: 100000, name: item.name };
+  const stop = rankValue(rank);
+  if (!(stop > 0)) return null;
+  return { mode: "reduce", help: stop, name: item.name, stop };
 }
 
 export function resistHarm(actor, spec = {}) {
   const tags = threatTags(spec);
   for (const tag of spec.tags || []) tags.add(tag);
-  const cover = bestCover(actor, tags, spec.rankId || "feeble");
-  const amount = Number(spec.amount);
-  if (!cover || cover.cmp < 0) return { result: "", amount: spec.amount, note: "", name: "" };
+  let best = null;
+  for (const item of actor?.items ?? []) {
+    if (item?.type !== "power" || !covers(item, tags)) continue;
+    const outcome = coverOutcome(item, spec.rankId || "feeble");
+    if (outcome && (!best || outcome.help > best.help)) best = outcome;
+  }
   const what = spec.name || "that";
-  if (cover.cmp > 0) {
-    return { result: "cancel", amount: 0, note: `${cover.name} shrugs off ${what}.`, name: cover.name };
+  if (!best) return { result: "", amount: spec.amount, note: "", name: "" };
+  if (best.mode === "cancel") {
+    return { result: "cancel", amount: 0, note: `${best.name} shrugs off ${what}.`, name: best.name };
   }
-  if (Number.isFinite(amount)) {
-    return {
-      result: "half",
-      amount: Math.floor(amount / 2),
-      note: `${cover.name} halves that damage.`,
-      name: cover.name
-    };
+  const amount = Number(spec.amount);
+  if (!Number.isFinite(amount)) return { result: "", amount: spec.amount, note: "", name: best.name };
+  const next = Math.max(0, amount - best.stop);
+  if (next <= 0) {
+    return { result: "cancel", amount: 0, note: `${best.name} stops ${best.stop} of that damage.`, name: best.name };
   }
-  return { result: "even", amount: spec.amount, note: `${cover.name} matches that rank.`, name: cover.name };
+  return {
+    result: "reduce",
+    amount: next,
+    note: `${best.name} stops ${best.stop} of that damage.`,
+    name: best.name
+  };
 }
 
 async function choose(title, content, buttons) {
@@ -196,7 +208,7 @@ export async function useResistPower(actor, item) {
   const rank = rankLabel(item?.system?.rank || "typical");
   const line = kind === "true"
     ? `${item.name} is ${rank}. It covers physical harm, energy, poison, and disease.`
-    : `${item.name} is ${rank}. A higher rank cancels the matching harm. An equal rank halves damage.`;
+    : `${item.name} is ${rank}. This rank or lower does not land. A higher attack loses that rank number before armor.`;
   globalThis.ui?.notifications?.info(line);
   return true;
 }
