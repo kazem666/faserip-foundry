@@ -122,6 +122,10 @@ async function syncStatuses(actor, state) {
   }
 }
 
+export async function setBattleState(actor, data) {
+  return writeBattle(actor, data);
+}
+
 async function writeBattle(actor, data) {
   if (!data) {
     try { await actor.unsetFlag("faserip", "battle"); } catch {}

@@ -148,7 +148,33 @@ export async function rollFeat({
   let damageApplied = false;
   let taken = null;
   let effectBlocked = false;
-  if (target && combat.damageAmount != null && workflowActive("autoApplyDamage")) {
+  if (target && combat.damageEnergy && target.getFlag?.("faserip", "reflecting") && actor && actor.id !== target.id) {
+    try { await target.unsetFlag("faserip", "reflecting"); } catch { /* the bounce still resolves */ }
+    try {
+      if ([...(target.effects ?? [])].some((effect) => effect.statuses?.has?.("reflect") || effect.getFlag?.("core", "statusId") === "reflect")) {
+        await target.toggleStatusEffect("reflect", { active: false });
+      }
+    } catch { /* the flag is already cleared */ }
+    const amount = Number(combat.damageAmount) || 0;
+    if (amount > 0 && (actor.isOwner || game.user?.isGM)) {
+      const before = Number(actor.system?.health?.value ?? 0);
+      const protection = soakAmount(actor, { energy: true, useForceField: false, bonusArmor: 0 });
+      try {
+        taken = await actor.applyDamage(amount, { energy: true, protection });
+        const after = Number(actor.system?.health?.value ?? before);
+        damageApplied = true;
+        healthNote = taken > 0
+          ? `${target.name} reflects the energy. ${actor.name} Health ${before} → ${after} (−${taken}).`
+          : `${target.name} reflects the energy. ${actor.name} loses no Health.`;
+      } catch (err) {
+        console.warn("FASERIP | reflect", err);
+        healthNote = `${target.name} reflects the energy toward ${actor.name}.`;
+      }
+    } else {
+      healthNote = `${target.name} reflects the energy toward ${actor.name}.`;
+    }
+    ui.notifications?.info(healthNote);
+  } else if (target && combat.damageAmount != null && workflowActive("autoApplyDamage")) {
     if (target.isOwner || game.user?.isGM) {
       const before = Number(target.system?.health?.value ?? 0);
       const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;

@@ -98,6 +98,13 @@ export function movementModes(actor) {
       modes[rule.action] = Math.max(modes[rule.action] || 0, areas);
     }
   }
+  const tempo = actor?.getFlag?.("faserip", "tempo") || "";
+  const scale = tempo === "slow" ? 0.5 : tempo === "fast" ? 2 : 1;
+  if (scale !== 1) {
+    for (const key of Object.keys(modes)) {
+      if (Number.isFinite(modes[key])) modes[key] = Math.max(0, modes[key] * scale);
+    }
+  }
   return modes;
 }
 
