@@ -191,3 +191,114 @@ export function playFeatVfx({ actor, target, item, columnId = "", color = "", la
     console.warn("FASERIP | jb2a", err);
   }
 }
+
+const WALL_FILES = {
+  earth: [
+    "jb2a.wall_of_force.horizontal.grey",
+    "jb2a.wall_of_force.horizontal.yellow",
+    "jb2a.wall_of_force.horizontal.blue"
+  ],
+  air: [
+    "jb2a.gust_of_wind.veryfast",
+    "jb2a.gust_of_wind",
+    "jb2a.wall_of_force.horizontal.blue"
+  ],
+  force: [
+    "jb2a.wall_of_force.horizontal.blue",
+    "jb2a.wall_of_force.horizontal.purple",
+    "jb2a.energy_beam"
+  ]
+};
+
+const SHIELD_FILES = [
+  "jb2a.shield.01.loop.blue",
+  "jb2a.shield.01.complete.blue",
+  "jb2a.shield",
+  "jb2a.energy_field.circle.blue"
+];
+
+function sequencerFile(candidates) {
+  const db = globalThis.Sequencer?.Database;
+  if (typeof db?.entryExists !== "function") return "";
+  return candidates.find((file) => {
+    try { return db.entryExists(file); } catch { return false; }
+  }) || "";
+}
+
+function effectId() {
+  return globalThis.foundry?.utils?.randomID?.() || Math.random().toString(36).slice(2);
+}
+
+export async function endSequencerNames(names = [], { prefix = false } = {}) {
+  const manager = globalThis.Sequencer?.EffectManager;
+  if (!manager) return;
+  const list = (names || []).filter((entry) => typeof entry === "string" && entry);
+  if (!list.length) return;
+  const effects = typeof manager.effects?.[Symbol.iterator] === "function" ? [...manager.effects] : [];
+  const matched = [];
+  for (const effect of effects) {
+    const name = String(effect?.data?.name || "");
+    const hit = list.some((wanted) => prefix ? name.startsWith(wanted) : name === wanted);
+    if (hit) matched.push(effect);
+  }
+  for (const effect of matched) {
+    try { await effect.endEffect?.(); } catch (err) {
+      console.warn("FASERIP | sequencer", err);
+    }
+  }
+  if (typeof manager.endEffects !== "function") return;
+  if (!prefix) {
+    for (const name of list) {
+      try { await manager.endEffects({ name }); } catch (err) {
+        console.warn("FASERIP | sequencer", err);
+      }
+    }
+  }
+  const ids = matched.map((effect) => effect.id).filter(Boolean);
+  if (ids.length) {
+    try { await manager.endEffects({ effects: ids }); } catch (err) {
+      console.warn("FASERIP | sequencer", err);
+    }
+  }
+}
+
+export async function playWallArt(start, end, kind = "force") {
+  if (!librariesOn() || !start || !end) return "";
+  const Sequence = globalThis.Sequence;
+  if (typeof Sequence !== "function") return "";
+  const file = sequencerFile(WALL_FILES[kind] || WALL_FILES.force);
+  if (!file) return "";
+  const name = `faserip-wall-${kind}-${effectId()}`;
+  try {
+    const seq = new Sequence();
+    const effect = seq.effect().file(file).atLocation(start).stretchTo(end).scale(0.45).persist(true).name(name);
+    if (kind === "air") effect.opacity(0.55);
+    if (kind === "earth" && /energy_beam|blue/.test(file) && typeof effect.tint === "function") effect.tint("#78716c");
+    await seq.play();
+    return name;
+  } catch (err) {
+    console.warn("FASERIP | wall art", err);
+    return "";
+  }
+}
+
+export async function playShieldArt(actor, active) {
+  const prefix = `faserip-shield-${actor?.id || "hero"}`;
+  await endSequencerNames([prefix], { prefix: true });
+  if (!active || !librariesOn()) return;
+  const Sequence = globalThis.Sequence;
+  if (typeof Sequence !== "function") return;
+  const file = sequencerFile(SHIELD_FILES);
+  if (!file) return;
+  const tokens = actor?.getActiveTokens?.() ?? [];
+  if (!tokens.length) return;
+  try {
+    const seq = new Sequence();
+    tokens.forEach((token, index) => {
+      seq.effect().file(file).attachTo(token).scaleToObject(1.5).persist(true).fadeIn(200).name(`${prefix}-${index}`);
+    });
+    await seq.play();
+  } catch (err) {
+    console.warn("FASERIP | shield art", err);
+  }
+}

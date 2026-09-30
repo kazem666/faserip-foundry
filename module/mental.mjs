@@ -627,6 +627,8 @@ async function field(actor, item) {
     return null;
   }
   const amount = rankValue(rankOf(item));
+  const { playShieldArt } = await import("./vfx.mjs");
+  await playShieldArt(actor, on);
   globalThis.ui?.notifications?.info(on ? `${item.name} is up. It soaks ${amount}.` : `${item.name} is down.`);
   return true;
 }
@@ -652,8 +654,10 @@ async function forceBarrier(actor, item) {
     globalThis.ui?.notifications?.warn("That barrier could not be raised.");
     return null;
   }
+  const { playWallArt } = await import("./vfx.mjs");
+  const effectName = await playWallArt(start, end, "force");
   const line = `${who(actor)} raises a barrier with ${item.name}.`;
-  await postCard(actor, line, { parts: [{ docType: "Wall", ids }] });
+  await postCard(actor, line, { parts: [{ docType: "Wall", ids }], effectNames: effectName ? [effectName] : [] });
   globalThis.ui?.notifications?.info(line);
   return true;
 }
@@ -1056,6 +1060,8 @@ export function bindMentalChat(message, html) {
 }
 
 async function clearMental(message, mental) {
+  const { endSequencerNames } = await import("./vfx.mjs");
+  await endSequencerNames(mental.effectNames || []);
   if (mental.parts?.length) await askJudge("remove", { sceneId: mental.sceneId, parts: mental.parts });
   if (mental.actorId) await askJudge("deleteActor", { sceneId: mental.sceneId, actorId: mental.actorId });
   try {

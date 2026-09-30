@@ -263,14 +263,14 @@ function targetInReach(actor, item, target) {
   return true;
 }
 
-async function postCard(actor, line, button, parts) {
+async function postCard(actor, line, button, parts, effectNames = []) {
   const ChatMessage = globalThis.ChatMessage;
   if (!ChatMessage?.create) return;
   const sceneId = sceneOf()?.id || "";
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker?.({ actor }) || { alias: who(actor) },
     content: `<div class="faserip-matter"><p>${esc(line)}</p><div class="feat-actions"><button type="button" data-faserip-matter="clear">${esc(button)}</button></div></div>`,
-    flags: { faserip: { matter: { sceneId, parts } } }
+    flags: { faserip: { matter: { sceneId, parts, effectNames: effectNames || [] } } }
   });
 }
 
@@ -303,10 +303,12 @@ async function raiseEarth(actor, item, opts = {}) {
     globalThis.ui?.notifications?.warn("That wall could not be raised.");
     return null;
   }
+  const { playWallArt } = await import("./vfx.mjs");
+  const effectName = await playWallArt(start, end, opts.seeThrough ? "air" : "earth");
   const line = opts.seeThrough
     ? `${who(actor)} raises a buffer of air with ${item.name}. You can see through it.`
     : `${who(actor)} raises a wall with ${item.name}.`;
-  await postCard(actor, line, opts.seeThrough ? "Drop buffer" : "Drop wall", [{ docType: "Wall", ids }]);
+  await postCard(actor, line, opts.seeThrough ? "Drop buffer" : "Drop wall", [{ docType: "Wall", ids }], effectName ? [effectName] : []);
   globalThis.ui?.notifications?.info(line);
   return true;
 }
@@ -769,6 +771,8 @@ export function bindMatterChat(message, html) {
 }
 
 async function clearMatter(message, matter) {
+  const { endSequencerNames } = await import("./vfx.mjs");
+  await endSequencerNames(matter.effectNames || []);
   const ok = await askJudge("remove", { sceneId: matter.sceneId, parts: matter.parts });
   if (!ok) return;
   try {
