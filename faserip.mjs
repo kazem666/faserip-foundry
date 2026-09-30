@@ -17,6 +17,7 @@ import { registerTeleport } from "./module/teleport.mjs";
 import { registerBodyForm } from "./module/body-form.mjs";
 import { registerMatter } from "./module/matter.mjs";
 import { registerEnergy } from "./module/energy.mjs";
+import { registerMental } from "./module/mental.mjs";
 import { registerConditionEffects } from "./module/battle-results.mjs";
 import { registerAutoAnimations } from "./module/auto-animations.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
@@ -26,7 +27,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.62";
+const VERSION = "1.17.63";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -399,6 +400,7 @@ Hooks.once("init", () => {
     registerBodyForm();
     registerMatter();
     registerEnergy();
+    registerMental();
     registerConditionEffects();
     registerAutoAnimations();
     try {

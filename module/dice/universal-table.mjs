@@ -13,6 +13,7 @@ import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { playFeatVfx } from "../vfx.mjs";
 import { attackOutOfRange, closeCharge } from "../movement.mjs";
+import { psiScreenBlocks } from "../mental.mjs";
 import {
   applyCheckResult,
   collapseAtZero,
@@ -148,7 +149,12 @@ export async function rollFeat({
   let damageApplied = false;
   let taken = null;
   let effectBlocked = false;
-  if (target && combat.damageEnergy && target.getFlag?.("faserip", "reflecting") && actor && actor.id !== target.id) {
+  if (target && psiScreenBlocks(target, item, effectiveId)) {
+    healthNote = `${target.name}'s Psi-Screen holds.`;
+    combat.checkColumn = "";
+    combat.damageAmount = null;
+    ui.notifications?.info(healthNote);
+  } else if (target && combat.damageEnergy && target.getFlag?.("faserip", "reflecting") && actor && actor.id !== target.id) {
     try { await target.unsetFlag("faserip", "reflecting"); } catch { /* the bounce still resolves */ }
     try {
       if ([...(target.effects ?? [])].some((effect) => effect.statuses?.has?.("reflect") || effect.getFlag?.("core", "statusId") === "reflect")) {

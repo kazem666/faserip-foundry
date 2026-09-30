@@ -4,6 +4,7 @@ import { shiftPlan, workflowActive, workflowOn, offerDefenseReaction, clearUserT
 import { attackOutOfRange, closeCharge, movementPowerKind, movementUseTitle, rangePhrase, useMovementPower } from "./movement.mjs";
 import { matterKind, matterUseTitle, useMatterPower } from "./matter.mjs";
 import { energyKind, energyUseTitle, useEnergyPower } from "./energy.mjs";
+import { consumeMentalPrep, mentalKind, mentalRankOverride, mentalUseTitle, useMentalPower } from "./mental.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
@@ -199,6 +200,11 @@ export function describeItemAction(item) {
       spec.label = "Use";
       spec.title = energyTitle;
     }
+    const mentalTitle = mentalUseTitle(item.name);
+    if (mentalTitle) {
+      spec.label = "Use";
+      spec.title = mentalTitle;
+    }
     if (item.getFlag?.("faserip", "nullified") || item.flags?.faserip?.nullified) {
       spec.label = "Nullified";
       spec.title = "This power is suppressed.";
@@ -210,6 +216,8 @@ export function describeItemAction(item) {
 }
 
 export function rankIdForAction(actor, item, spec) {
+  const override = mentalRankOverride(actor, spec);
+  if (override) return override;
   if (spec.rankFrom === "item") return item?.system?.rank || "typical";
   if (typeof actor?.getAbilityRank === "function") return actor.getAbilityRank(spec.ability || "reason");
   return "typical";
@@ -340,6 +348,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     if (message) {
       stretchForStrike(actor, spec.column).catch((err) => console.warn("FASERIP | stretch", err));
       revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));
+      consumeMentalPrep(actor, spec).catch((err) => console.warn("FASERIP | mental", err));
     }
     return message;
   }
@@ -389,7 +398,10 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming && !reactionCs
   });
-  if (message) revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));
+  if (message) {
+    revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));
+    consumeMentalPrep(actor, spec).catch((err) => console.warn("FASERIP | mental", err));
+  }
   if (needsTarget) clearUserTargets();
   return message;
 }
@@ -404,6 +416,7 @@ export async function rollItemAction(actor, item, opts = {}) {
   if (item.type === "power" && movementPowerKind(item.name) === "leap") return useMovementPower(actor, item);
   if (item.type === "power" && matterKind(item.name)) return useMatterPower(actor, item);
   if (item.type === "power" && energyKind(item.name)) return useEnergyPower(actor, item);
+  if (item.type === "power" && mentalKind(item.name)) return useMentalPower(actor, item);
   const message = await rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
   if (message && item.type === "power" && powerKeepsAloft(item.name)) {
     const { toggleFlying } = await import("./falling.mjs");

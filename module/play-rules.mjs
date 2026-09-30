@@ -183,6 +183,15 @@ export function combinedShift(actor, { ability = "", effectsColumn = "", target 
   const situation = situationMods(actor, effectsColumn);
   cs += situation.cs;
   if (situation.note) notes.push(situation.note);
+  const emotion = actor?.getFlag?.("faserip", "emotion");
+  if (emotion === "rage" && ATTACK_COLUMNS.has(effectsColumn)) {
+    cs += 1;
+    notes.push("Rage +1 CS");
+  }
+  if (emotion === "fear" && ATTACK_COLUMNS.has(effectsColumn)) {
+    cs -= 1;
+    notes.push("Fear −1 CS");
+  }
   return {
     cs,
     damageCs: situation.damageCs,
