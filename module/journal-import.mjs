@@ -136,28 +136,37 @@ async function loadPdfjs() {
   return pdfjsPromise;
 }
 
-async function findPdfjs() {
-  const urls = [];
+function viewerApps() {
+  const apps = [];
   for (const frame of document.querySelectorAll("iframe")) {
     try {
-      const lib = frame.contentWindow?.pdfjsLib;
-      if (lib?.getDocument) return lib;
-    } catch { /* sandboxed viewer */ }
-    const src = frame.getAttribute("src") || "";
-    const mark = src.indexOf("web/viewer");
-    if (mark >= 0) urls.push(new URL("build/pdf.mjs", new URL(src.slice(0, mark), location.href)).href);
+      const app = frame.contentWindow?.PDFViewerApplication;
+      if (app?.pdfDocument?.numPages) apps.push({ app, frame, src: decodeURIComponent(frame.getAttribute("src") || "") });
+    } catch { /* viewer is still loading */ }
   }
-  urls.push(new URL("scripts/pdfjs/build/pdf.mjs", location.origin).href);
-  for (const url of urls) {
-    try {
-      const lib = await import(/* @vite-ignore */ url);
-      if (!lib.getDocument) continue;
-      const worker = url.replace(/pdf\.mjs(\?.*)?$/, "pdf.worker.mjs");
-      if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = worker;
-      return lib;
-    } catch { /* try the next copy */ }
+  return apps;
+}
+
+function viewerAppFor(source) {
+  const stem = decodeURIComponent(String(source?.src || source?.label || "").split("/").pop() || "")
+    .replace(/\.pdf$/i, "")
+    .toLowerCase();
+  const apps = viewerApps();
+  if (!apps.length) return null;
+  const hit = apps.find((row) => stem && row.src.toLowerCase().includes(stem.slice(0, 40)));
+  return (hit || apps[0]).app;
+}
+
+async function findPdfjs() {
+  const url = new URL("scripts/pdfjs/build/pdf.mjs", location.origin).href;
+  try {
+    const lib = await import(/* @vite-ignore */ url);
+    if (!lib.getDocument) return null;
+    if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = new URL("scripts/pdfjs/build/pdf.worker.mjs", location.origin).href;
+    return lib;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 async function openPdfDocument(src, bytes) {
@@ -184,6 +193,22 @@ function textFromItems(items) {
   }
   if (line.length) lines.push(line.join(" "));
   return lines.join("\n");
+}
+
+async function renderViewerPage(app, pageNumber, canvas) {
+  try {
+    return await renderPdfPage(app.pdfDocument, pageNumber, canvas);
+  } catch (err) {
+    if (app) app.page = pageNumber;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const frame = viewerApps().find((row) => row.app === app)?.frame;
+    const shot = viewerSnapshot(frame?.parentElement || document.body);
+    if (!shot) throw err;
+    canvas.width = shot.width;
+    canvas.height = shot.height;
+    canvas.getContext("2d").drawImage(shot, 0, 0);
+    return "";
+  }
 }
 
 async function renderPdfPage(doc, pageNumber, canvas) {
@@ -397,18 +422,25 @@ function PickerApp() {
           this.mode = "images";
           this.pageCount = source.images.length;
         } else {
-          const response = await fetch(source.src);
-          if (!response.ok) throw new Error(`The book file did not load (${response.status}).`);
-          this.bytes = new Uint8Array(await response.arrayBuffer());
-          this.images = indexPdfImages(this.bytes);
-          if (this.images.length) {
-            this.mode = "images-pdf";
-            this.pageCount = this.images.length;
+          const viewer = viewerAppFor(source);
+          if (viewer?.pdfDocument?.numPages) {
+            this.mode = "viewer";
+            this.viewerApp = viewer;
+            this.pageCount = viewer.pdfDocument.numPages;
           } else {
-            this.pdfDoc = await openPdfDocument(source.src, this.bytes);
-            if (this.pdfDoc) {
-              this.mode = "pdfjs";
-              this.pageCount = this.pdfDoc.numPages || 0;
+            const response = await fetch(source.src);
+            if (!response.ok) throw new Error(`The book file did not load (${response.status}).`);
+            this.bytes = new Uint8Array(await response.arrayBuffer());
+            this.images = indexPdfImages(this.bytes);
+            if (this.images.length) {
+              this.mode = "images-pdf";
+              this.pageCount = this.images.length;
+            } else {
+              this.pdfDoc = await openPdfDocument(source.src, this.bytes);
+              if (this.pdfDoc) {
+                this.mode = "pdfjs";
+                this.pageCount = this.pdfDoc.numPages || 0;
+              }
             }
           }
         }
@@ -452,6 +484,8 @@ function PickerApp() {
           const raster = await rasterForImage(this.bytes, this.images[this.pageIndex]);
           if (!raster) throw new Error("That page picture could not be drawn.");
           await drawRaster(canvas, raster);
+        } else if (this.mode === "viewer") {
+          this.pageText = await renderViewerPage(this.viewerApp, this.pageIndex + 1, canvas);
         } else if (this.mode === "pdfjs") {
           this.pageText = await renderPdfPage(this.pdfDoc, this.pageIndex + 1, canvas);
         } else if (this.mode === "snapshot" && this.seedCanvas) {

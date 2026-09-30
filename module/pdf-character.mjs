@@ -153,19 +153,51 @@ function abilityFromLabels(text) {
   return found;
 }
 
+function rankToken(raw) {
+  const attempts = [raw, String(raw || "").replace(/1/g, "I").replace(/0/g, "O").replace(/5/g, "S")];
+  for (const attempt of attempts) {
+    const parsed = parseRankChunk(attempt);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function statisticsSlice(text) {
+  const source = String(text || "");
+  const start = source.search(/\bstatistics\b/i);
+  const body = start >= 0 ? source.slice(start) : source;
+  const end = body.search(/\b(?:background|known powers|talents|contacts)\b/i);
+  return end > 0 ? body.slice(0, end) : body.slice(0, 900);
+}
+
 function abilityFromLetters(text) {
   const found = {};
-  for (const line of String(text || "").split("\n")) {
-    const match = /^\s*([FASERIP])\s+([A-Za-z]{2,12})\s*(?:\(?\s*(\d{1,4})\s*\)?)?\s*$/i.exec(line.trim());
-    if (!match) continue;
-    const parsed = parseRankChunk(match[2]);
+  const region = statisticsSlice(text);
+  const re = /(?:^|\s)([FASERIPl|])\s+([A-Za-z0-9]{2,8})\s*\(\s*(\d{1,4})\s*\)/gi;
+  for (const line of region.split("\n")) {
+    re.lastIndex = 0;
+    let match;
+    while ((match = re.exec(line))) {
+      const letter = match[1].toLowerCase();
+      const key = letter === "l" || letter === "|" ? "intuition" : LETTER_ABILITY[letter];
+      if (!key || found[key]) continue;
+      const parsed = rankToken(match[2]);
+      if (!parsed) continue;
+      found[key] = { id: parsed.id, number: numberFor(parsed.id, match[3]) };
+    }
+  }
+  const missing = ABILITIES.filter((key) => !found[key]);
+  if (missing.length !== 1) return found;
+  for (const line of region.split("\n")) {
+    const alone = /^\s*([A-Za-z0-9]{2,8})\s*\(\s*(\d{1,4})\s*\)\s*$/.exec(line.trim());
+    if (!alone) continue;
+    const parsed = rankToken(alone[1]);
     if (!parsed) continue;
-    const key = LETTER_ABILITY[match[1].toLowerCase()];
-    if (!key || found[key]) continue;
-    found[key] = {
-      id: parsed.id,
-      number: match[3] ? numberFor(parsed.id, match[3]) : parsed.number
-    };
+    const number = numberFor(parsed.id, alone[2]);
+    const duplicate = Object.values(found).some((row) => row.id === parsed.id && row.number === number);
+    if (duplicate) continue;
+    found[missing[0]] = { id: parsed.id, number };
+    break;
   }
   return found;
 }
