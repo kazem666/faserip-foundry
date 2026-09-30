@@ -4,7 +4,7 @@ import { feetPerArea, formatAreaCount, formatMovement } from "./movement.mjs";
 const USE = {
   self: "Click a destination. A place you can see needs no roll. A known place out of sight calls for a FEAT, and a miss scatters one area.",
   other: "Target someone, then click where they appear. They resist with Psyche or Intuition unless you mark them willing.",
-  gateway: "Click two ends within range. Step through from the chat card.",
+  gateway: "Click two ends within range. Both portals stay on the map until someone steps through.",
   dimension: "Roll a FEAT to leave. Return from the chat card."
 };
 
@@ -384,6 +384,108 @@ async function teleportOther(actor, item) {
   return teleportSelf(actor, item, token);
 }
 
+function portalRadius() {
+  return (Number(globalThis.canvas?.grid?.size) || 100) * 0.7;
+}
+
+function portalDrawing(point, label) {
+  const radius = portalRadius();
+  return {
+    x: point.x - radius,
+    y: point.y - radius,
+    shape: { type: "c", width: radius * 2, height: radius * 2, radius },
+    strokeWidth: 8,
+    strokeColor: "#6d28d9",
+    strokeAlpha: 1,
+    fillType: 1,
+    fillColor: "#c4b5fd",
+    fillAlpha: 0.45,
+    text: label,
+    fontSize: Math.max(18, Math.round(radius * 0.45)),
+    textColor: "#1e1b4b",
+    interface: false,
+    hidden: false,
+    locked: true,
+    flags: { faserip: { gatewayPortal: true } }
+  };
+}
+
+function portalFile() {
+  const db = globalThis.Sequencer?.Database;
+  if (typeof db?.entryExists !== "function") return "";
+  const candidates = [
+    "jb2a.portals.vertical.ring.blue",
+    "jb2a.portals.horizontal.ring.blue",
+    "jb2a.magic_signs.circle.02.conjuration.loop.blue",
+    "jb2a.energy_field.circle.blue"
+  ];
+  return candidates.find((file) => {
+    try { return db.entryExists(file); } catch { return false; }
+  }) || "";
+}
+
+async function placePortals(first, second) {
+  const scene = globalThis.canvas?.scene;
+  const portalIds = [];
+  const effectNames = [];
+  if (scene?.createEmbeddedDocuments) {
+    try {
+      const docs = await scene.createEmbeddedDocuments("Drawing", [
+        portalDrawing(first, "A"),
+        portalDrawing(second, "B")
+      ]);
+      for (const doc of docs) if (doc?.id) portalIds.push(doc.id);
+    } catch (err) {
+      console.warn("FASERIP | gateway portals", err);
+      globalThis.ui?.notifications?.warn("The portals could not be drawn on the map.");
+    }
+  }
+  const file = portalFile();
+  const Sequence = globalThis.Sequence;
+  if (file && typeof Sequence === "function") {
+    for (const [end, point] of [["a", first], ["b", second]]) {
+      const name = `faserip-gate-${end}-${globalThis.foundry?.utils?.randomID?.() || Math.random().toString(36).slice(2)}`;
+      try {
+        await new Sequence().effect().file(file).atLocation(point).scale(0.4).persist(true).name(name).play();
+        effectNames.push(name);
+      } catch (err) {
+        console.warn("FASERIP | gateway effect", err);
+      }
+    }
+  }
+  return { portalIds, effectNames };
+}
+
+async function removePortals(gate) {
+  const ids = gate?.portalIds || [];
+  const scene = globalThis.canvas?.scene;
+  if (ids.length && scene?.deleteEmbeddedDocuments) {
+    try { await scene.deleteEmbeddedDocuments("Drawing", ids); } catch (err) {
+      console.warn("FASERIP | gateway portals", err);
+    }
+  }
+  const names = gate?.effectNames || [];
+  const endEffects = globalThis.Sequencer?.EffectManager?.endEffects;
+  if (names.length && typeof endEffects === "function") {
+    try { await endEffects({ name: names }); } catch (err) {
+      console.warn("FASERIP | gateway effect", err);
+    }
+  }
+}
+
+async function finishGate(message, line) {
+  const gate = message.getFlag?.("faserip", "gateway") ?? message.flags?.faserip?.gateway;
+  await removePortals(gate);
+  try { await message.setFlag("faserip", "gateClosed", true); } catch (err) {
+    console.warn("FASERIP | gateway", err);
+  }
+  const closed = String(message.content || "").replace(
+    /<div class="feat-actions">[\s\S]*<\/div>/,
+    `<p class="fall-line">${esc(line)}</p>`
+  );
+  try { await message.update({ content: closed }); } catch { /* the flag still blocks another step */ }
+}
+
 async function openGateway(actor, item) {
   const hero = tokenForActor(actor, { controlled: true });
   const from = hero ? centerOf(hero) : null;
@@ -394,7 +496,8 @@ async function openGateway(actor, item) {
   if (!second) return null;
   if (!(await checkReach(first, second, item))) return null;
   const sceneId = globalThis.canvas?.scene?.id || "";
-  const line = `${actor.name} opens a gateway. Step through from either end.`;
+  const portals = await placePortals(first, second);
+  const line = `${actor.name} opens a gateway. The portals stay until someone steps through.`;
   const buttons = `<div class="feat-actions"><button type="button" data-faserip-gate="step">Step through</button><button type="button" data-faserip-gate="close">Close</button></div>`;
   await note(actor, hero, card(item.name, actor.name, line, buttons), {
     gateway: {
@@ -403,7 +506,9 @@ async function openGateway(actor, item) {
       ay: first.y,
       bx: second.x,
       by: second.y,
-      ownerId: actor.uuid || actor.id
+      ownerId: actor.uuid || actor.id,
+      portalIds: portals.portalIds,
+      effectNames: portals.effectNames
     }
   });
   await playJump(actor, item);
@@ -467,7 +572,10 @@ async function stepThrough(message) {
   }
   const dest = ends[at === 0 ? 1 : 0];
   const moved = await blinkToken(token, dest);
-  if (moved) globalThis.ui?.notifications?.info(`${token.actor?.name || token.name} steps through.`);
+  if (!moved) return;
+  const name = token.actor?.name || token.name;
+  globalThis.ui?.notifications?.info(`${name} steps through.`);
+  await finishGate(message, `${name} steps through. The portals close.`);
 }
 
 async function closeGate(message) {
@@ -475,14 +583,7 @@ async function closeGate(message) {
     globalThis.ui?.notifications?.warn("Only the Judge can close this gateway.");
     return;
   }
-  try {
-    await message.setFlag("faserip", "gateClosed", true);
-  } catch (err) {
-    console.warn("FASERIP | gateway", err);
-  }
-  const root = message.content || "";
-  const closed = root.replace(/<div class="feat-actions">[\s\S]*<\/div>/, "<p class=\"fall-line\">The gateway is closed.</p>");
-  try { await message.update({ content: closed }); } catch { /* the flag still blocks another step */ }
+  await finishGate(message, "The gateway is closed.");
 }
 
 async function returnFrom(message) {
