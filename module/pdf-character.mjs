@@ -64,12 +64,27 @@ const SECTION_FOR = {
   limitations: "weakness",
   "known powers": "powers",
   "special powers": "powers",
+  statistics: "skip",
   history: "history",
   biography: "history",
   background: "history",
+  "role-playing notes": "history",
+  "role playing notes": "history",
   notes: "notes",
   note: "notes"
 };
+
+const LETTER_ABILITY = {
+  f: "fighting",
+  a: "agility",
+  s: "strength",
+  e: "endurance",
+  r: "reason",
+  i: "intuition",
+  p: "psyche"
+};
+
+const IDENTITY_LINE = /^(real name|public identity|public name|secret identity|true name|occupation|legal status|identity|place of birth|marital status|known relatives|base of operations|past group affiliations|present group affiliation|group affiliation|former aliases|aliases|height|weight|hair|eyes|calling|origin(?: of power)?)\s*:/i;
 
 function loosen(text) {
   return String(text || "")
@@ -138,6 +153,60 @@ function abilityFromLabels(text) {
   return found;
 }
 
+function abilityFromLetters(text) {
+  const found = {};
+  for (const line of String(text || "").split("\n")) {
+    const match = /^\s*([FASERIP])\s+([A-Za-z]{2,12})\s*(?:\(?\s*(\d{1,4})\s*\)?)?\s*$/i.exec(line.trim());
+    if (!match) continue;
+    const parsed = parseRankChunk(match[2]);
+    if (!parsed) continue;
+    const key = LETTER_ABILITY[match[1].toLowerCase()];
+    if (!key || found[key]) continue;
+    found[key] = {
+      id: parsed.id,
+      number: match[3] ? numberFor(parsed.id, match[3]) : parsed.number
+    };
+  }
+  return found;
+}
+
+function sliceEntry(text) {
+  const lines = String(text || "").split("\n");
+  const starts = [];
+  lines.forEach((line, index) => {
+    if (/^statistics\b/i.test(line.trim())) starts.push(index);
+  });
+  if (starts.length <= 1) return text;
+  let best = starts[0];
+  let bestScore = -1;
+  for (let index = 0; index < starts.length; index++) {
+    const start = starts[index];
+    const end = starts[index + 1] ?? lines.length;
+    const score = Object.keys(abilityFromLetters(lines.slice(start, end).join("\n"))).length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = start;
+    }
+  }
+  const next = starts.find((start) => start > best);
+  return lines.slice(Math.max(0, best - 2), next ?? lines.length).join("\n");
+}
+
+function nameAboveStatistics(text) {
+  const lines = String(text || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  for (let index = 1; index < lines.length; index++) {
+    if (!/^statistics\b/i.test(lines[index])) continue;
+    const prev = lines[index - 1].replace(/\s+/g, " ");
+    if (prev.length < 2 || prev.length > 40) continue;
+    const letters = prev.replace(/[^A-Za-z]/g, "");
+    if (letters.length < 2 || letters.length < prev.length * 0.6) continue;
+    if (sectionHeader(prev) || IDENTITY_LINE.test(prev)) continue;
+    if (!/[A-Za-z]/.test(prev)) continue;
+    return prev;
+  }
+  return "";
+}
+
 function abilityFromRankLine(text) {
   for (const line of String(text || "").split("\n")) {
     const tokens = line.trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
@@ -162,7 +231,7 @@ function titleName(text) {
     const trimmed = line.trim().replace(/\s+/g, " ");
     if (trimmed.length < 2 || trimmed.length > 48) continue;
     const letters = trimmed.replace(/[^A-Za-z]/g, "");
-    if (letters.length < 2 || letters.length < trimmed.length * 0.5) continue;
+    if (letters.length < 2 || letters.length < trimmed.length * 0.6) continue;
     if (sectionHeader(trimmed)) continue;
     if (/^(health|karma|resources|popularity|faserip|known|powers|talents|contacts|weapons|equipment|weakness|history|background|character|sheet|hero|page|abilities|ability|statistics|stats|limitation|limitations)\b/i.test(trimmed)) continue;
     if (ABILITIES.some((key) => new RegExp(`^${ABILITY_LABEL[key]}\\b`, "i").test(trimmed))) continue;
@@ -249,11 +318,12 @@ function splitEntryLine(line) {
 
 function sectionHeader(line) {
   const trimmed = line.trim();
-  const headed = /^([A-Za-z]+(?:\s+[A-Za-z]+)?)\s*[:\-–—]\s*(.*)$/.exec(trimmed);
-  const alone = /^([A-Za-z]+(?:\s+[A-Za-z]+)?)\s*$/.exec(trimmed);
+  const title = "([A-Za-z]+(?:[-\\s]+[A-Za-z]+){0,3})";
+  const headed = new RegExp(`^${title}\\s*[:\\-–—]\\s*(.*)$`, "i").exec(trimmed);
+  const alone = new RegExp(`^${title}\\s*$`, "i").exec(trimmed);
   const match = headed || alone;
   if (!match) return null;
-  const key = SECTION_FOR[match[1].toLowerCase()];
+  const key = SECTION_FOR[match[1].toLowerCase().replace(/\s+/g, " ")];
   if (!key) return null;
   return { key, rest: match[2] || "" };
 }
@@ -276,36 +346,137 @@ function readSections(text) {
 }
 
 function absorb(buckets, section, line) {
+  if (section === "skip") return;
+  const clean = line.replace(/\s+/g, " ").trim();
+  if (!clean) return;
+  if (section === "history" && IDENTITY_LINE.test(clean)) return;
   if (section === "weakness" || section === "history" || section === "notes") {
-    buckets[section].push(line.replace(/\s+/g, " ").trim());
+    buckets[section].push(clean);
     return;
   }
-  for (const part of splitEntryLine(line)) {
+  if (section === "powers" || section === "talents" || section === "contacts") {
+    buckets[section].push(clean);
+    return;
+  }
+  for (const part of splitEntryLine(clean)) {
     const entry = entryFromLine(part);
     if (entry) buckets[section].push(entry);
   }
 }
 
-export function parseCharacterText(text, { filename = "", mechanicsOnly = false } = {}) {
-  const source = loosen(text);
+function madeItem(name, blob) {
+  const parsed = parseRankChunk(blob || name);
+  const clean = cleanName(name);
+  if (!clean || clean.length < 2 || clean.length > 48) return null;
+  if (clean.split(/\s+/).length > 6) return null;
+  const id = parsed?.id || "typical";
+  return { name: clean, rank: id, number: parsed?.number || rankValue(id) };
+}
+
+function parseNamedBlocks(lines) {
+  const blocks = [];
+  let title = "";
+  let body = [];
+  const flush = () => {
+    const made = madeItem(title || body.join(" ").split(/[.:]/)[0], body.join(" ") || title);
+    if (made) blocks.push(made);
+    title = "";
+    body = [];
+  };
+  for (const line of lines) {
+    const headed = /^([A-Za-z][^:]{1,42}):\s*(.*)$/.exec(line.trim());
+    if (headed && !IDENTITY_LINE.test(`${headed[1]}:`) && !/^(health|karma|resources|popularity)$/i.test(headed[1])) {
+      if (title || body.length) flush();
+      title = headed[1];
+      if (headed[2]) body.push(headed[2]);
+    } else body.push(line.trim());
+  }
+  if (title || body.length) flush();
+  return blocks;
+}
+
+function parseTalentBlocks(lines) {
+  const text = lines.join(" ");
+  const found = [];
+  const re = /\b([A-Za-z]+(?:\s+(?!talents?\b)[A-Za-z]+){0,2})\s+talents?\b/gi;
+  let match;
+  while ((match = re.exec(text))) {
+    const label = match[1].replace(/^(?:(?:the|a|an|has|and|of|for|with)\s+)+/i, "");
+    const made = madeItem(label, label);
+    if (made && !found.some((row) => row.name.toLowerCase() === made.name.toLowerCase())) found.push(made);
+  }
+  return found.length ? found : parseNamedBlocks(lines);
+}
+
+function parseContactBlocks(lines) {
+  const lead = lines.join(" ").split(/\s+\b(?:is|are|was|were)\b/)[0];
+  const named = lead.split(/[,;]/).map((part) => madeItem(part.split(/[.:]/)[0], part)).filter(Boolean);
+  if (named.length) return named;
+  return parseNamedBlocks(lines);
+}
+
+function dossier(text) {
+  const map = {};
+  const re = /^(real name|public identity|public name|secret identity|true name|occupation|legal status|identity|place of birth|marital status|known relatives|base of operations|past group affiliations|present group affiliation|group affiliation|former aliases|aliases|height|weight|hair|eyes|calling|origin(?: of power)?)\s*:\s*(.*)$/i;
+  let key = "";
+  for (const raw of String(text || "").split("\n")) {
+    const line = raw.trim();
+    const match = re.exec(line);
+    if (match) {
+      key = match[1].toLowerCase();
+      map[key] = match[2].trim();
+      continue;
+    }
+    if (key && /^[a-z(]/.test(line) && (map[key] || "").length < 180 && !sectionHeader(line)) {
+      map[key] = `${map[key]} ${line}`.trim();
+    } else if (line) key = "";
+  }
+  const take = (label) => String(map[label] || "").replace(/\s+/g, " ").trim().slice(0, 240);
+  return {
+    public: take("public identity") || take("public name"),
+    secret: take("real name") || take("secret identity") || take("true name"),
+    secretId: /secret|unknown/i.test(map.identity || ""),
+    origin: take("origin") || take("origin of power"),
+    occupation: take("occupation"),
+    legalStatus: take("legal status"),
+    placeOfBirth: take("place of birth"),
+    maritalStatus: take("marital status"),
+    knownRelatives: take("known relatives"),
+    baseOfOperations: take("base of operations"),
+    pastGroups: take("past group affiliations"),
+    group: take("present group affiliation") || take("group affiliation"),
+    aliases: take("former aliases") || take("aliases"),
+    height: take("height"),
+    weight: take("weight"),
+    hair: take("hair"),
+    eyes: take("eyes"),
+    calling: take("calling")
+  };
+}
+
+export function parseCharacterText(text, { filename = "", mechanicsOnly = false, fullSheet = false } = {}) {
+  const source = sliceEntry(loosen(text));
   const labeled = abilityFromLabels(source);
+  const letters = abilityFromLetters(source);
   const row = abilityFromRow(source);
   const lineRanks = abilityFromRankLine(source);
   const abilities = {};
   ABILITIES.forEach((key, index) => {
     const fromRow = row ? { id: row[index].id, number: row[index].number } : null;
     const fromLine = lineRanks ? { id: lineRanks[index].id, number: lineRanks[index].number } : null;
-    abilities[key] = labeled[key] || fromRow || fromLine;
+    abilities[key] = labeled[key] || letters[key] || fromRow || fromLine;
   });
   const found = ABILITIES.filter((key) => abilities[key]).length;
   const sections = readSections(source);
+  const facts = dossier(source);
   const named = field(source, /\b(?:hero name|character name|name)\b\s*[:\-]\s*([^\n]+)/i);
-  const fileName = mechanicsOnly ? "" : String(filename || "").replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim();
+  const fileName = mechanicsOnly || fullSheet ? "" : String(filename || "").replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim();
   const resources = parseRankChunk(field(source, /\bresources\b\s*[:\-]\s*([^\n]+)/i) || "");
   const popularityMatch = /\b(?:popularity|pop)\b\s*[:\-]\s*(-?\d+)/i.exec(source);
   const weakness = sections.weakness.join(" ");
+  const keepStory = fullSheet || !mechanicsOnly;
   return {
-    name: (named || titleName(source) || fileName || "Imported Hero").slice(0, 80),
+    name: (nameAboveStatistics(source) || named || titleName(source) || fileName || "Imported Hero").slice(0, 80),
     abilities,
     found,
     resources: resources?.id || "",
@@ -313,26 +484,15 @@ export function parseCharacterText(text, { filename = "", mechanicsOnly = false 
     popularity: popularityMatch ? Number(popularityMatch[1]) : null,
     health: pool(source, "health"),
     karma: pool(source, "karma"),
-    identity: {
-      public: field(source, /\b(?:public identity|public name)\b\s*[:\-]\s*([^\n]+)/i),
-      secret: field(source, /\b(?:secret identity|real name|true name)\b\s*[:\-]\s*([^\n]+)/i),
-      origin: field(source, /\borigin(?:\s+of\s+power)?\b\s*[:\-]\s*([^\n]+)/i),
-      height: field(source, /\bheight\b\s*[:\-]\s*([^\n]+)/i),
-      weight: field(source, /\bweight\b\s*[:\-]\s*([^\n]+)/i),
-      hair: field(source, /\bhair\b\s*[:\-]\s*([^\n]+)/i),
-      eyes: field(source, /\beyes\b\s*[:\-]\s*([^\n]+)/i),
-      group: field(source, /\b(?:group|team)\b\s*[:\-]\s*([^\n]+)/i),
-      calling: field(source, /\bcalling\b\s*[:\-]\s*([^\n]+)/i),
-      occupation: field(source, /\boccupation\b\s*[:\-]\s*([^\n]+)/i)
-    },
-    powers: sections.powers,
-    talents: sections.talents,
-    contacts: sections.contacts,
+    identity: facts,
+    powers: parseNamedBlocks(sections.powers),
+    talents: parseTalentBlocks(sections.talents),
+    contacts: parseContactBlocks(sections.contacts),
     weapons: sections.weapons,
     equipment: sections.equipment,
-    weakness: mechanicsOnly && weakness.length > 90 ? "" : weakness,
-    history: mechanicsOnly ? "" : sections.history.join(" "),
-    notes: mechanicsOnly ? "" : sections.notes.join(" ")
+    weakness: !keepStory && weakness.length > 90 ? "" : weakness.slice(0, 2000),
+    history: keepStory ? sections.history.join(" ").slice(0, 4000) : "",
+    notes: keepStory ? sections.notes.join(" ").slice(0, 2000) : ""
   };
 }
 
@@ -346,6 +506,8 @@ export function heroSummary(hero) {
   return [
     hero.name,
     ranks,
+    hero.identity?.secret ? `Real name ${hero.identity.secret}` : "",
+    hero.identity?.occupation ? `Occupation ${hero.identity.occupation}` : "",
     hero.health ? `Health ${hero.health.value}${hero.health.max !== hero.health.value ? ` / ${hero.health.max}` : ""}` : "",
     hero.karma ? `Karma ${hero.karma.value}${hero.karma.max !== hero.karma.value ? ` / ${hero.karma.max}` : ""}` : "",
     list("Powers", hero.powers),

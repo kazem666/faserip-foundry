@@ -74,8 +74,8 @@ async function confirmHero(hero) {
   return choice === "create" ? hero : null;
 }
 
-export async function importHeroFromText(text, filename, { mechanicsOnly = false } = {}) {
-  const hero = parseCharacterText(text, { filename, mechanicsOnly });
+export async function importHeroFromText(text, filename, { mechanicsOnly = false, fullSheet = false } = {}) {
+  const hero = parseCharacterText(text, { filename, mechanicsOnly, fullSheet });
   if (!hero.found && !hero.powers.length && !hero.talents.length) return { hero, actor: null, empty: true };
   if (hero.found < 4) {
     ui.notifications?.warn(`Found ${hero.found} of 7 abilities. The sheet will still be created from what could be read.`);

@@ -189,7 +189,7 @@ function textFromItems(items) {
 async function renderPdfPage(doc, pageNumber, canvas) {
   const page = await doc.getPage(pageNumber);
   const base = page.getViewport({ scale: 1 });
-  const viewport = page.getViewport({ scale: Math.min(2, 1600 / base.width) });
+  const viewport = page.getViewport({ scale: Math.min(3, 2200 / base.width) });
   canvas.width = Math.floor(viewport.width);
   canvas.height = Math.floor(viewport.height);
   await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
@@ -215,6 +215,40 @@ async function createOcr() {
     corePath: `https://cdn.jsdelivr.net/npm/tesseract.js-core@${version}/tesseract-core-simd-lstm.wasm.js`,
     langPath: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0"
   });
+}
+
+function sharpen(source) {
+  const scale = source.width < 1400 ? 2 : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.floor(source.width * scale));
+  canvas.height = Math.max(1, Math.floor(source.height * scale));
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = image.data;
+  for (let i = 0; i < data.length; i += 4) {
+    let tone = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    tone = Math.max(0, Math.min(255, (tone - 28) * 1.4));
+    data[i] = data[i + 1] = data[i + 2] = tone;
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+async function readScan(worker, canvas) {
+  const image = sharpen(canvas);
+  const read = async (mode) => {
+    await worker.setParameters({ tessedit_pageseg_mode: mode });
+    const result = await worker.recognize(image);
+    return result?.data?.text || "";
+  };
+  const block = await read("6");
+  if (parseCharacterText(block, { fullSheet: true }).found >= 5) return block;
+  const column = await read("4");
+  const blockScore = parseCharacterText(block, { fullSheet: true }).found;
+  const columnScore = parseCharacterText(column, { fullSheet: true }).found;
+  return columnScore > blockScore ? column : block;
 }
 
 function pointOn(canvas, event) {
@@ -273,7 +307,7 @@ function PickerApp() {
           <label>Page <input class="page-num" type="number" min="1" value="1"> / <span class="page-count">0</span></label>
           <button type="button" data-action="next">Next</button>
         </div>
-        <p class="faserip-page-hint">Drag a box around one character. Leave the page clear to read the whole page.</p>
+        <p class="faserip-page-hint">Box one character, from the name through Contacts. A page often holds more than one.</p>
         <div class="faserip-page-stage">
           <canvas class="page-image"></canvas>
           <canvas class="page-box"></canvas>
@@ -514,22 +548,20 @@ function PickerApp() {
       try {
         let text = "";
         const whole = !this.selection;
-        if (whole && this.pageText && parseCharacterText(this.pageText, { mechanicsOnly: true }).found >= 2) {
+        if (whole && this.pageText && parseCharacterText(this.pageText, { fullSheet: true }).found >= 4) {
           text = this.pageText;
         } else {
           this.#status("Reading the scan. The first one can take a moment.");
-          const worker = await ocrWorker();
-          const result = await worker.recognize(this.#crop());
-          text = result?.data?.text || "";
+          text = await readScan(await ocrWorker(), this.#crop());
         }
-        const preview = parseCharacterText(text, { mechanicsOnly: true });
+        const preview = parseCharacterText(text, { fullSheet: true });
         if (!preview.found && !preview.powers.length && !preview.talents.length) {
           ui.notifications?.warn("That box did not show ability ranks. Drag a box around the stat line and try again.");
           this.#status("No ranks in that selection.");
           return;
         }
         const label = this.source()?.label || "journal";
-        await importHeroFromText(text, label, { mechanicsOnly: true });
+        await importHeroFromText(text, label, { fullSheet: true });
       } catch (err) {
         console.error("FASERIP | journal read", err);
         ui.notifications?.error(err.message === "The scan reader did not start."
