@@ -36,28 +36,9 @@ function optionList(list) {
   return list.map((n) => "<option value='" + String(n) + "'>" + n + "</option>").join("");
 }
 
-export class FaseripActorSheet extends ActorSheetBase {
-  static get defaultOptions() {
-    const base = foundry.utils.mergeObject(super.defaultOptions, {
-      classes: ["faserip", "sheet", "actor"],
-      template: "systems/faserip/templates/actor/character-sheet.hbs",
-      width: 900,
-      height: 820,
-      resizable: true,
-      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "record" }],
-      dragDrop: [{ dragSelector: ".item, .record-card", dropSelector: null }],
-      submitOnChange: true,
-      submitOnClose: false
-    });
-    return base;
-  }
-
-  get actor() {
-    return this.document ?? super.actor;
-  }
-
-  async _updateObject(event, formData) {
-    const rolled = this.actor?.getFlag?.("faserip", "rolledStats") || this.actor?.flags?.faserip?.rolledStats;
+function guardSheetUpdate(actor, formData) {
+  if (!formData) return formData;
+  const rolled = actor?.getFlag?.("faserip", "rolledStats") || actor?.flags?.faserip?.rolledStats;
     if (rolled?.abilities && formData) {
       const stale = ABILITIES.filter((key) => {
         const rank = formData[`system.abilities.${key}.rank`] ?? formData.system?.abilities?.[key]?.rank;
@@ -82,26 +63,24 @@ export class FaseripActorSheet extends ActorSheetBase {
       const rank = formData?.[`system.abilities.${key}.rank`] ?? formData?.system?.abilities?.[key]?.rank;
       return sum + abilityNumber({ rank, number });
     }, 0);
-    const sourceHealth = this.actor?._source?.system?.health || {};
-    const sourceKarma = this.actor?._source?.system?.karma || {};
+    const sourceHealth = actor?._source?.system?.health || {};
+    const sourceKarma = actor?._source?.system?.karma || {};
     const phys = pool(["fighting", "agility", "strength", "endurance"]);
     const ment = pool(["reason", "intuition", "psyche"]);
     const submittedHealth = Number(formData?.["system.health.value"]);
     const submittedKarma = Number(formData?.["system.karma.value"]);
     if (formData && Number(sourceHealth.value) === Number(sourceHealth.max) && phys > 0 && submittedHealth === Number(sourceHealth.value)) {
-      const mult = this.actor.getFlag?.("faserip", "doubleHealth") ? 2 : 1;
+      const mult = actor.getFlag?.("faserip", "doubleHealth") ? 2 : 1;
       formData["system.health.value"] = phys * mult;
     }
     if (formData && Number(sourceKarma.value) === Number(sourceKarma.max) && ment > 0 && submittedKarma === Number(sourceKarma.value)) {
       formData["system.karma.value"] = ment;
     }
-    return super._updateObject(event, formData);
-  }
+  return formData;
+}
 
-  async getData(options) {
-    const context = await super.getData(options);
-    try {
-      const actor = this.actor;
+export async function fillActorSheetContext(sheet, context) {
+    const actor = sheet.actor;
       context.actor = actor;
       context.system = actor.system;
       context.ranks = RANKS;
@@ -232,7 +211,7 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.upbSettingOn = isUpbEnabled();
       context.powerSlotsUsed = context.powers.reduce((sum, p) => sum + Math.max(0, Number(p.slotsTaken || 1)), 0);
       context.cssClass = context.cssClass || "editable";
-      context.editable = this.isEditable;
+      context.editable = sheet.isEditable;
       const battle = actor.getFlag("faserip", "battle");
       const { describeCondition } = await import("../battle-results.mjs");
       context.conditionText = describeCondition(actor);
@@ -244,6 +223,38 @@ export class FaseripActorSheet extends ActorSheetBase {
       context.situations = situationMod.SITUATIONS;
       context.situation = situationMod.currentSituation().id;
       context.poisoned = !!actor.getFlag("faserip", "poison");
+  return context;
+}
+
+class FaseripActorSheetLegacy extends ActorSheetBase {
+  static get defaultOptions() {
+    const base = foundry.utils.mergeObject(super.defaultOptions, {
+      classes: ["faserip", "sheet", "actor"],
+      template: "systems/faserip/templates/actor/character-sheet.hbs",
+      width: 900,
+      height: 820,
+      resizable: true,
+      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "record" }],
+      dragDrop: [{ dragSelector: ".item, .record-card", dropSelector: null }],
+      submitOnChange: true,
+      submitOnClose: false
+    });
+    return base;
+  }
+
+  get actor() {
+    return this.document ?? super.actor;
+  }
+
+  async _updateObject(event, formData) {
+    guardSheetUpdate(this.actor, formData);
+    return super._updateObject(event, formData);
+  }
+
+  async getData(options) {
+    const context = await super.getData(options);
+    try {
+      await fillActorSheetContext(this, context);
     } catch (err) {
       console.error("FASERIP | actor sheet getData failed", err);
       ui.notifications?.error(`FASERIP sheet data error: ${err.message}`);
@@ -529,12 +540,19 @@ export class FaseripActorSheet extends ActorSheetBase {
 
   async _onRollResources(event) {
     event.preventDefault();
-    return promptFeatRoll({
+    const { resourcesUsed, stampResources } = await import("../clock.mjs");
+    if (resourcesUsed(this.actor)) {
+      ui.notifications?.warn(`${this.actor.name} already called on Resources this week.`);
+      return;
+    }
+    const rolled = await promptFeatRoll({
       actor: this.actor,
       rankId: this.actor.system.resources?.rank ?? "typical",
       label: "Resources",
       karmaMode: "resources"
     });
+    if (rolled) await stampResources(this.actor);
+    return rolled;
   }
 
   async _onRollPopularity(event) {
@@ -896,6 +914,79 @@ export class FaseripActorSheet extends ActorSheetBase {
   }
 }
 
+function showSheetTab(root, tab) {
+  if (!root?.querySelectorAll) return;
+  root.querySelectorAll(".sheet-tabs [data-tab]").forEach((el) => {
+    el.classList.toggle("active", el.dataset.tab === tab);
+  });
+  root.querySelectorAll(".sheet-body > .tab").forEach((el) => {
+    el.classList.toggle("active", el.dataset.tab === tab);
+  });
+}
+
 export function buildActorSheetClass() {
-  return FaseripActorSheet;
+  const Mixin = globalThis.foundry?.applications?.api?.HandlebarsApplicationMixin;
+  const V2 = globalThis.foundry?.applications?.sheets?.ActorSheetV2;
+  if (typeof Mixin !== "function" || typeof V2 !== "function") return FaseripActorSheetLegacy;
+  const actions = {
+    sheetTab(event, target) {
+      event?.preventDefault?.();
+      const tab = target?.dataset?.tab || "record";
+      this._faseripTab = tab;
+      showSheetTab(this.element, tab);
+    }
+  };
+  for (const key of Object.getOwnPropertyNames(FaseripActorSheetLegacy.prototype)) {
+    if (!key.startsWith("_on")) continue;
+    const action = key.slice(3, 4).toLowerCase() + key.slice(4);
+    actions[action] = function (event, target) {
+      if (event && target) {
+        try { Object.defineProperty(event, "currentTarget", { configurable: true, value: target }); } catch { /* use the event target */ }
+      }
+      return FaseripActorSheetLegacy.prototype[key].call(this, event);
+    };
+  }
+  return class FaseripActorSheet extends Mixin(V2) {
+    static DEFAULT_OPTIONS = {
+      classes: ["faserip", "sheet", "actor"],
+      tag: "form",
+      position: { width: 900, height: 820 },
+      window: { resizable: true, icon: "fa-solid fa-mask" },
+      form: { submitOnChange: true, closeOnSubmit: false },
+      actions,
+      dragDrop: [{ dragSelector: ".item, .record-card", dropSelector: null }]
+    };
+
+    static PARTS = {
+      body: {
+        template: "systems/faserip/templates/actor/character-sheet.hbs",
+        scrollable: [""]
+      }
+    };
+
+    async _prepareContext(options) {
+      const context = await super._prepareContext(options);
+      try {
+        await fillActorSheetContext(this, context);
+      } catch (err) {
+        console.error("FASERIP | actor sheet context failed", err);
+        ui.notifications?.error(`FASERIP sheet data error: ${err.message}`);
+      }
+      return context;
+    }
+
+    async _processSubmitData(event, form, submitData) {
+      guardSheetUpdate(this.actor, submitData);
+      return super._processSubmitData(event, form, submitData);
+    }
+
+    _onRender(context, options) {
+      super._onRender?.(context, options);
+      showSheetTab(this.element, this._faseripTab || "record");
+    }
+
+    _formEl(name) {
+      return this.element?.querySelector?.(`[name="${name}"]`);
+    }
+  };
 }

@@ -81,7 +81,7 @@ export function senseUseTitle(name) {
     combat: "Use substitutes this rank for Intuition when it is higher, including initiative. Use again returns to Intuition.",
     computer: "The next Reason FEAT uses this rank for a machine or system.",
     emotion: "Whisper the strong feelings of people in range.",
-    energy: "Whisper who in range is carrying an energy power.",
+    energy: "Whisper who in range is carrying an energy power, and mark those tokens on your sight. Use again turns that sight off.",
     magic: "Whisper who in range reads as magical.",
     magnetic: "Whisper who in range is carrying metal or a magnetic power.",
     mutant: "Whisper who in range has a mutant origin.",
@@ -386,10 +386,30 @@ export async function useSensePower(actor, item) {
   if (!actor || !kind) return null;
   if (kind === "guard") return guard(actor, item);
   if (kind === "keen") return keen(actor, item);
-  if (kind === "heat" || kind === "uv") return toggleVision(actor, item, { kind, visionMode: "darkvision" });
+  if (kind === "heat" || kind === "uv") {
+    const { visionModeId, detectionId } = await import("./detection.mjs");
+    const mode = kind === "heat" ? "faseripHeat" : "faseripUv";
+    return toggleVision(actor, item, {
+      kind,
+      visionMode: visionModeId(mode),
+      detection: mode === "faseripHeat" ? detectionId("faseripHeat", "") : ""
+    });
+  }
   if (kind === "far") return toggleVision(actor, item, { kind, far: true, range: senseFeet(rankOf(item)) * 4 });
-  if (kind === "true") return toggleVision(actor, item, { kind, detection: "seeInvisibility" });
-  if (kind === "radar") return toggleVision(actor, item, { kind, detection: "feelTremor" });
+  if (kind === "true") {
+    const { detectionId } = await import("./detection.mjs");
+    return toggleVision(actor, item, { kind, detection: detectionId("faseripTrue", "seeInvisibility") });
+  }
+  if (kind === "radar") {
+    const { detectionId } = await import("./detection.mjs");
+    return toggleVision(actor, item, { kind, detection: detectionId("faseripRadar", "feelTremor") });
+  }
+  if (kind === "energy") {
+    const { detectionId } = await import("./detection.mjs");
+    const id = detectionId("faseripEnergy", "");
+    if (id) await toggleVision(actor, item, { kind, detection: id });
+    return scan(actor, item, kind);
+  }
   if (kind === "circle") return toggleVision(actor, item, { kind, angle: 360, flag: "circularVision" });
   if (kind === "cosmic") return askAndRead(actor, item, "What are you asking?");
   if (kind === "combat") return combat(actor, item);

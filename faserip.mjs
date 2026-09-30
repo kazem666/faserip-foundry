@@ -22,6 +22,12 @@ import { registerOffensive } from "./module/offensive.mjs";
 import { registerDefense } from "./module/defense.mjs";
 import { registerRanged } from "./module/ranged.mjs";
 import { registerConditionEffects } from "./module/battle-results.mjs";
+import { registerEffects } from "./module/effects.mjs";
+import { registerZones } from "./module/zones.mjs";
+import { registerDetection } from "./module/detection.mjs";
+import { registerHud } from "./module/hud.mjs";
+import { registerClock } from "./module/clock.mjs";
+import { rollItemAction } from "./module/item-actions.mjs";
 import { registerAutoAnimations } from "./module/auto-animations.mjs";
 import { generateHero, writeGeneratedItem, persistGenerationStats, reapplyRolledStats } from "./module/chargen.mjs";
 import { promptGeneration } from "./module/hero-dice.mjs";
@@ -30,7 +36,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.17.73";
+const VERSION = "1.17.74";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -317,6 +323,11 @@ function makeGenerateHeroMenu() {
   };
 }
 
+function isApplicationV2(Sheet) {
+  const Base = foundry.applications?.api?.ApplicationV2;
+  return typeof Base === "function" && Sheet?.prototype instanceof Base;
+}
+
 function registerSheets(ActorSheetClass, ItemSheetClass) {
   const ActorsCol = getActorsCollection();
   const ItemsCol = getItemsCollection();
@@ -331,12 +342,12 @@ function registerSheets(ActorSheetClass, ItemSheetClass) {
     if (V2A) DocumentSheetConfig?.unregisterSheet?.(ActorDoc, "core", V2A);
     if (V2I) DocumentSheetConfig?.unregisterSheet?.(ItemDoc, "core", V2I);
   } catch {}
-  if (ActorsCol?.registerSheet) {
+  if (!isApplicationV2(ActorSheetClass) && ActorsCol?.registerSheet) {
     ActorsCol.registerSheet("faserip", ActorSheetClass, {
       types: ["hero", "npc"], makeDefault: true, label: "FASERIP Character Sheet"
     });
   }
-  if (ItemsCol?.registerSheet) {
+  if (!isApplicationV2(ItemSheetClass) && ItemsCol?.registerSheet) {
     ItemsCol.registerSheet("faserip", ItemSheetClass, {
       makeDefault: true, label: "FASERIP Item Sheet"
     });
@@ -408,7 +419,15 @@ Hooks.once("init", () => {
     registerDefense();
     registerRanged();
     registerConditionEffects();
+    registerEffects();
+    registerZones();
+    registerDetection();
+    registerHud();
+    registerClock();
     registerAutoAnimations();
+    globalThis.game.faserip = Object.assign(globalThis.game.faserip || {}, {
+      rollItem: (actor, item) => rollItemAction(actor, item, {})
+    });
     try {
       Handlebars.registerHelper("eq", (a, b) => a === b);
       Handlebars.registerHelper("gt", (a, b) => Number(a) > Number(b));

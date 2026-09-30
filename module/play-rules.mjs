@@ -76,7 +76,11 @@ export function readPending(actor) {
 
 export async function writePending(actor, patch) {
   if (!actor?.setFlag) return null;
-  return actor.setFlag("faserip", "pending", { ...readPending(actor), ...patch });
+  const next = { ...readPending(actor), ...patch };
+  const saved = await actor.setFlag("faserip", "pending", next);
+  const { syncShiftEffects } = await import("./effects.mjs");
+  await syncShiftEffects(actor, next);
+  return saved;
 }
 
 export function formatPending(pending) {

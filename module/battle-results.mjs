@@ -119,6 +119,16 @@ async function syncStatuses(actor, state) {
     if (hasStatus(actor, id) === active) continue;
     try {
       await actor.toggleStatusEffect(id, { active, overlay: id === "unconscious" || id === "dead" });
+      if (!active) continue;
+      const rounds = Number(readBattle(actor)?.rounds || 0);
+      if (!(rounds > 0)) continue;
+      const effect = [...(actor.effects ?? [])].find((entry) => entry.statuses?.has?.(id) || entry.getFlag?.("core", "statusId") === id);
+      const combat = globalThis.game?.combat;
+      if (effect) {
+        await effect.update({
+          duration: { rounds, startRound: combat?.round ?? null, combat: combat?.id || null }
+        });
+      }
     } catch (err) {
       console.warn("FASERIP | status", id, err);
     }

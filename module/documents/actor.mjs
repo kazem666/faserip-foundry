@@ -185,7 +185,8 @@ export class FaseripActor extends Actor {
   }
 
   async recover() {
-    if (this.system.condition?.recoveredToday) {
+    const { recoveryUsed, stampRecovery } = await import("../clock.mjs");
+    if (recoveryUsed(this)) {
       ui.notifications.warn(`${this.name} already used Recovery today.`);
       return;
     }
@@ -197,6 +198,7 @@ export class FaseripActor extends Actor {
     }
     const amount = this.getAbilityNumber("endurance");
     await this.heal(amount);
+    await stampRecovery(this);
     return this.update({ "system.condition.recoveredToday": true });
   }
 

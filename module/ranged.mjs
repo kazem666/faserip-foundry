@@ -353,7 +353,19 @@ async function sheet(actor, item, spec) {
   });
   const parts = [];
   if (drawingIds?.length) parts.push({ docType: "Drawing", ids: drawingIds });
-  if (spec.walk) {
+  const { circleTemplateData, coveredBy, zoneBehaviorData } = await import("./zones.mjs");
+  const templateIds = await askJudge("embed", {
+    sceneId,
+    docType: "MeasuredTemplate",
+    data: [circleTemplateData(point, radius, spec.fill, spec.text)]
+  });
+  if (templateIds?.length) parts.push({ docType: "MeasuredTemplate", ids: templateIds });
+  const zone = spec.zone || (spec.walk ? "ice" : spec.dark ? "" : "fire");
+  if (spec.walk || zone) {
+    const behaviors = [];
+    if (spec.walk) behaviors.push({ name: spec.text, type: "modifyMovementCost", system: { difficulties: { walk: spec.walk } } });
+    const hazard = zoneBehaviorData(zone || "ice", rankOf(item));
+    if (hazard) behaviors.push(hazard);
     const regionIds = await askJudge("embed", {
       sceneId,
       docType: "Region",
@@ -361,11 +373,7 @@ async function sheet(actor, item, spec) {
         name: spec.text,
         color: spec.fill,
         shapes: [{ type: "ellipse", x: point.x, y: point.y, radiusX: radius, radiusY: radius }],
-        behaviors: [{
-          name: spec.text,
-          type: "modifyMovementCost",
-          system: { difficulties: { walk: spec.walk } }
-        }],
+        behaviors,
         flags: { faserip: { ranged: spec.text } }
       }]
     });
@@ -394,7 +402,8 @@ async function sheet(actor, item, spec) {
     globalThis.ui?.notifications?.warn("That patch could not be placed.");
     return null;
   }
-  await postCard(actor, spec.line, parts, effectName ? [effectName] : []);
+  const coverage = coveredBy(point, radius);
+  await postCard(actor, `${spec.line} ${coverage}`, parts, effectName ? [effectName] : []);
   globalThis.ui?.notifications?.info(spec.line);
   return true;
 }
@@ -722,6 +731,7 @@ export async function useRangedPower(actor, item) {
         stroke: "#0284c7",
         textColor: "#0c4a6e",
         walk: 2,
+        zone: "ice",
         art: ["jb2a.wall_of_force.horizontal.blue", "jb2a.ice_spikes.radial.white"],
         line: `${who(actor)} lays a sheet of ice. Walking on it is slow.`
       });
@@ -758,6 +768,7 @@ export async function useRangedPower(actor, item) {
         fill: plasma ? "#fdba74" : "#86efac",
         stroke: plasma ? "#c2410c" : "#166534",
         textColor: plasma ? "#431407" : "#052e16",
+        zone: plasma ? "fire" : "radiation",
         art: plasma
           ? ["jb2a.energy_field.circle.orange", "jb2a.wall_of_fire.horizontal.orange"]
           : ["jb2a.energy_field.circle.green", "jb2a.energy_beam"],

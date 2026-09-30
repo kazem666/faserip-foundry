@@ -190,7 +190,7 @@ async function perform(data) {
       }
       return true;
     }
-    if (data.action === "weather") return applyWeather(data.mode, data.sceneId);
+    if (data.action === "weather") return applyWeather(data.mode, data.sceneId, data.rank);
     if (data.action === "gust") {
       const actor = await fromUuid(data.actorUuid);
       const target = await fromUuid(data.targetUuid);
@@ -388,8 +388,32 @@ async function ignite(actor, item) {
     globalThis.ui?.notifications?.warn("That flame could not be lit.");
     return null;
   }
+  const { zoneBehaviorData, circleTemplateData } = await import("./zones.mjs");
+  const radius = (poolSquares(rankOf(item)) * gridSize()) / 2;
+  const hazard = zoneBehaviorData("fire", rankOf(item));
+  const parts = [{ docType: "AmbientLight", ids }];
+  const templateIds = await askJudge("embed", {
+    sceneId: sceneOf()?.id,
+    docType: "MeasuredTemplate",
+    data: [circleTemplateData(point, radius, "#ff7a18", "Flame")]
+  });
+  if (templateIds?.length) parts.push({ docType: "MeasuredTemplate", ids: templateIds });
+  if (hazard) {
+    const regionIds = await askJudge("embed", {
+      sceneId: sceneOf()?.id,
+      docType: "Region",
+      data: [{
+        name: "Flame",
+        color: "#ff7a18",
+        shapes: [{ type: "ellipse", x: point.x, y: point.y, radiusX: radius, radiusY: radius }],
+        behaviors: [hazard],
+        flags: { faserip: { matter: "fire" } }
+      }]
+    });
+    if (regionIds?.length) parts.push({ docType: "Region", ids: regionIds });
+  }
   const line = `${who(actor)} lights a flame with ${item.name}.`;
-  await postCard(actor, line, "Extinguish", [{ docType: "AmbientLight", ids }]);
+  await postCard(actor, line, "Extinguish", parts);
   globalThis.ui?.notifications?.info(line);
   return true;
 }
@@ -439,14 +463,22 @@ async function pool(actor, item, spec = {}) {
       flags: { faserip: { matter: "water" } }
     }]
   });
+  const { circleTemplateData, coveredBy } = await import("./zones.mjs");
+  const templateIds = await askJudge("embed", {
+    sceneId: sceneOf()?.id,
+    docType: "MeasuredTemplate",
+    data: [circleTemplateData(point, radius, spec.fill || "#38bdf8", label)]
+  });
   const parts = [];
   if (drawingIds?.length) parts.push({ docType: "Drawing", ids: drawingIds });
+  if (templateIds?.length) parts.push({ docType: "MeasuredTemplate", ids: templateIds });
   if (regionIds?.length) parts.push({ docType: "Region", ids: regionIds });
   if (!parts.length) {
     globalThis.ui?.notifications?.warn("That water could not be shaped.");
     return null;
   }
-  const line = spec.line || `${who(actor)} pools water with ${item.name}. Walking through it costs double.`;
+  const coverage = coveredBy(point, radius);
+  const line = `${spec.line || `${who(actor)} pools water with ${item.name}. Walking through it costs double.`} ${coverage}`;
   await postCard(actor, line, spec.button || "Dry up", parts);
   globalThis.ui?.notifications?.info(line);
   return true;
@@ -478,7 +510,7 @@ function weatherKey(preferred) {
   return names.find((key) => key.toLowerCase().includes(preferred)) || "";
 }
 
-async function applyWeather(mode, sceneId) {
+async function applyWeather(mode, sceneId, rank = "typical") {
   const scene = globalThis.game?.scenes?.get?.(sceneId) || sceneOf();
   if (!scene) return "";
   const saved = scene.getFlag?.("faserip", "sky");
@@ -505,6 +537,12 @@ async function applyWeather(mode, sceneId) {
   if (mode === "clear") update["flags.faserip.-=sky"] = null;
   else if (!saved) update["flags.faserip.sky"] = current;
   await scene.update(update);
+  try {
+    const { syncWeatherZone } = await import("./zones.mjs");
+    await syncWeatherZone(scene, mode, rank);
+  } catch (err) {
+    console.warn("FASERIP | weather zone", err);
+  }
   const label = mode === "clear" ? "clear" : mode;
   return `The sky turns ${label}.`;
 }
@@ -513,7 +551,7 @@ async function shiftWeather(actor, item) {
   const mode = await chooseSky();
   if (!mode) return null;
   if (mode === "wind") return gust(actor, item);
-  const line = await askJudge("weather", { mode, sceneId: sceneOf()?.id });
+  const line = await askJudge("weather", { mode, sceneId: sceneOf()?.id, rank: rankOf(item) });
   if (!line) {
     globalThis.ui?.notifications?.warn(`${item.name} could not change the sky.`);
     return null;

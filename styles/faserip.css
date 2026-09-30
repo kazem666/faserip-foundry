@@ -1187,3 +1187,19 @@ button.faserip-import-pdf,
     grid-template-columns: 1fr;
   }
 }
+#token-hud .faserip-hud {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+#token-hud .faserip-hud-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #c4a574;
+  border-radius: 4px;
+  background: #241910;
+  color: #f6f1e4;
+  cursor: pointer;
+}

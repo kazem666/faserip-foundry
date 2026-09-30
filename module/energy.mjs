@@ -640,11 +640,36 @@ async function placeField(actor, item, spec) {
     });
     if (regionIds?.length) parts.push({ docType: "Region", ids: regionIds });
   }
+  const { circleTemplateData, coveredBy, zoneBehaviorData } = await import("./zones.mjs");
+  const templateIds = await askJudge("embed", {
+    sceneId,
+    docType: "MeasuredTemplate",
+    data: [circleTemplateData(point, radius, spec.fill, spec.text)]
+  });
+  if (templateIds?.length) parts.push({ docType: "MeasuredTemplate", ids: templateIds });
+  if (spec.zone) {
+    const hazard = zoneBehaviorData(spec.zone, rankOf(item));
+    if (hazard) {
+      const regionIds = await askJudge("embed", {
+        sceneId,
+        docType: "Region",
+        data: [{
+          name: spec.text,
+          color: spec.fill,
+          shapes: [{ type: "ellipse", x: point.x, y: point.y, radiusX: radius, radiusY: radius }],
+          behaviors: [hazard],
+          flags: { faserip: { energy: spec.zone } }
+        }]
+      });
+      if (regionIds?.length) parts.push({ docType: "Region", ids: regionIds });
+    }
+  }
   if (!parts.length) {
     globalThis.ui?.notifications?.warn("That field could not be placed.");
     return null;
   }
-  await postCard(actor, spec.line, parts);
+  const coverage = coveredBy(point, radius);
+  await postCard(actor, `${spec.line} ${coverage}`, parts);
   if (spec.deaf) {
     const tokens = globalThis.canvas?.tokens?.placeables ?? [];
     for (const token of tokens) {
