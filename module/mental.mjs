@@ -52,20 +52,20 @@ export function mentalKind(name) {
 
 export function mentalUseTitle(name) {
   const kind = mentalKind(name);
-  if (kind === "telepathy") return "Send a thought to a target. An unwilling mind resists with Psyche.";
+  if (kind === "telepathy") return "Send a thought, or listen for one. An unwilling mind resists with Psyche.";
   if (kind === "image") return "Pick a picture and click where the image appears. Dismiss on the chat card removes it.";
-  if (kind === "tk") return "Target a token, then click where it moves. The spot has to be in range.";
+  if (kind === "tk") return "Move a token to a clicked spot, or hurl it away. The spot has to be in range.";
   if (kind === "mind") return "Give a target a command. They resist with Psyche unless marked willing. Use again can release them.";
   if (kind === "emotion") return "Lay fear, rage, or calm on a target. Fear is −1 column on attacks. Rage is +1. They resist with Psyche.";
-  if (kind === "field") return "Use raises a force field that soaks at this rank. Use again lowers it.";
-  if (kind === "animal") return "Target an animal and steer it. It resists with Intuition unless marked willing. Use again releases it.";
+  if (kind === "field") return "Raise a personal shield that soaks at this rank, or click two points for a barrier. Use again lowers the shield.";
+  if (kind === "animal") return "Speak with an animal, or steer it. It resists steering with Intuition unless marked willing. Use again releases it.";
   if (kind === "machine") return "The next Reason FEAT uses this Power rank instead.";
-  if (kind === "empathy" || kind === "animal-empathy") return "Read a target's current feeling and how hurt they are. The note is whispered to you and the Judge.";
+  if (kind === "empathy" || kind === "animal-empathy") return "Read a target's feeling and how hurt they are. A yellow or red FEAT asks the Judge to say why. The note is whispered.";
   if (kind === "screen") return "Use raises a mental shield. A psionic blast at or under this rank does not get through. Use again lowers it.";
   if (kind === "probe") return "Ask a question of a target's mind. They resist with Psyche unless marked willing.";
   if (kind === "animate") return "Pick a picture and click where it comes to life. Its Strength is this rank. Dismiss removes it.";
   if (kind === "possession") return "Occupy a target after a Psyche resist. Use again returns you to your body.";
-  if (kind === "transfer") return "Move one power off a target onto you. They resist with Psyche. Use again gives it back.";
+  if (kind === "transfer") return "Move one power onto you, or swap places and looks as a mind exchange. They resist with Psyche. Use again undoes it.";
   if (kind === "astral") return "Use steps out of the body. The token can pass through walls until Use returns you.";
   if (kind === "precog") return "Ask about a possible future, then roll. The color is how clear the glimpse is.";
   if (kind === "postcog") return "Ask about a past event, then roll. The color is how clear the trace is.";
@@ -465,8 +465,24 @@ async function slide(doc, x, y) {
 }
 
 async function telepathy(actor, item) {
+  const mode = await choose(item.name, "Send a thought, or listen for one.", [
+    { action: "send", label: "Send" },
+    { action: "listen", label: "Listen" },
+    { action: "cancel", label: "Cancel" }
+  ]);
+  if (!mode) return null;
   const target = needTarget(actor, item);
   if (!target) return null;
+  if (mode === "listen") {
+    const held = await resisted(target, item, ["psyche"]);
+    if (held !== false) return held ? true : null;
+    const thought = target.getFlag?.("faserip", "command")?.text
+      || target.getFlag?.("faserip", "emotion")
+      || "a surface thought";
+    await whisper(actor, target, `<p><strong>${esc(item.name)}</strong> listens to ${esc(target.name)}. You catch: ${esc(thought)}. The Judge fills in the rest.</p>`);
+    globalThis.ui?.notifications?.info(`${who(actor)} listens to ${target.name}.`);
+    return true;
+  }
   const text = await askText(item.name, `Thought for ${target.name}`);
   if (!text) return null;
   const held = await resisted(target, item, ["psyche"]);
@@ -507,8 +523,22 @@ async function image(actor, item) {
 
 async function telekinesis(actor, item) {
   if (!needScene()) return null;
+  const mode = await choose(item.name, "Move the target to a spot, or hurl them away.", [
+    { action: "move", label: "Move" },
+    { action: "hurl", label: "Hurl" },
+    { action: "cancel", label: "Cancel" }
+  ]);
+  if (!mode) return null;
   const target = needTarget(actor, item);
   if (!target) return null;
+  if (mode === "hurl") {
+    const { shoveActor } = await import("./movement.mjs");
+    const squares = Math.max(1, Number(THROW_RANGE[rankOf(item)]) || 1);
+    const shove = await shoveActor(target, actor, squares, "back");
+    const landed = shove?.squares ? `${shove.squares} square${shove.squares === 1 ? "" : "s"}` : "no open square";
+    globalThis.ui?.notifications?.info(`${item.name} hurls ${target.name} (${landed}).`);
+    return true;
+  }
   const doc = tokenFor(target)?.document;
   if (!doc) return null;
   const point = await pickMapPoint(`${item.name}: click where ${target.name} moves. Right-click cancels.`);
@@ -582,6 +612,13 @@ async function emotion(actor, item) {
 }
 
 async function field(actor, item) {
+  const mode = await choose(item.name, "A shield soaks on you. A barrier is a wall on the map.", [
+    { action: "shield", label: "Shield" },
+    { action: "barrier", label: "Barrier" },
+    { action: "cancel", label: "Cancel" }
+  ]);
+  if (mode === "barrier") return forceBarrier(actor, item);
+  if (!mode) return null;
   const on = !item.system?.forceField;
   try {
     await item.update({ "system.forceField": on });
@@ -594,9 +631,49 @@ async function field(actor, item) {
   return true;
 }
 
+async function forceBarrier(actor, item) {
+  if (!needScene()) return null;
+  const start = await pickMapPoint(`${item.name}: click one end of the barrier. Right-click cancels.`);
+  if (!start || !nearEnough(actor, item, start)) return null;
+  const end = await pickMapPoint(`${item.name}: click the other end. Right-click cancels.`);
+  if (!end || !nearEnough(actor, item, end)) return null;
+  const ids = await askJudge("embed", {
+    sceneId: sceneOf()?.id,
+    docType: "Wall",
+    data: [{
+      c: [Math.round(start.x), Math.round(start.y), Math.round(end.x), Math.round(end.y)],
+      move: 20,
+      sight: 20,
+      light: 20,
+      sound: 20
+    }]
+  });
+  if (!ids?.length) {
+    globalThis.ui?.notifications?.warn("That barrier could not be raised.");
+    return null;
+  }
+  const line = `${who(actor)} raises a barrier with ${item.name}.`;
+  await postCard(actor, line, { parts: [{ docType: "Wall", ids }] });
+  globalThis.ui?.notifications?.info(line);
+  return true;
+}
+
 async function animal(actor, item) {
   const target = needTarget(actor, item);
   if (!target) return null;
+  const mode = await choose(item.name, "Speak with them, or steer them.", [
+    { action: "speak", label: "Speak" },
+    { action: "steer", label: "Steer" },
+    { action: "cancel", label: "Cancel" }
+  ]);
+  if (!mode) return null;
+  if (mode === "speak") {
+    const text = await askText(item.name, `Say to ${target.name}`);
+    if (!text) return null;
+    await whisper(actor, target, `<p><strong>${esc(item.name)}</strong> to ${esc(target.name)}: ${esc(text)}</p>`);
+    globalThis.ui?.notifications?.info(`${who(actor)} speaks with ${target.name}.`);
+    return true;
+  }
   if (target.getFlag?.("faserip", "obeys")) {
     await owned(target, "flag", { uuid: target.uuid, key: "obeys", unset: true });
     await setStatus(target, "obeys", false);
@@ -629,6 +706,21 @@ async function empathy(actor, item, animals) {
   const mood = feeling || (animals ? "no strong animal mood" : "no strong emotion");
   const hurt = state && state !== "ok" ? ` They are ${state}.` : "";
   await whisper(actor, null, `<p><strong>${esc(item.name)}</strong>: ${esc(target.name)} feels ${esc(mood)}. They seem ${esc(body)}.${esc(hurt)}</p>`);
+  try {
+    const { rollFeat } = await import("./dice/universal-table.mjs");
+    const message = await rollFeat({
+      actor,
+      rankId: rankOf(item),
+      label: item.name,
+      skipCondition: true
+    });
+    const color = message?.flags?.faserip?.color;
+    if (color === "yellow" || color === "red") {
+      await whisper(actor, null, `<p><strong>${esc(item.name)}</strong>: a clearer read of ${esc(target.name)}. The Judge says why they feel that way.</p>`);
+    }
+  } catch (err) {
+    console.warn("FASERIP | empathy", err);
+  }
   globalThis.ui?.notifications?.info(`${who(actor)} reads ${target.name}.`);
   return true;
 }
@@ -730,8 +822,74 @@ async function possession(actor, item) {
   return true;
 }
 
+async function swapMinds(actor, item) {
+  const target = needTarget(actor, item);
+  if (!target) return null;
+  const held = await resisted(target, item, ["psyche"]);
+  if (held !== false) return held ? true : null;
+  const a = tokenFor(actor, { controlled: true })?.document;
+  const b = tokenFor(target)?.document;
+  if (!a || !b) {
+    globalThis.ui?.notifications?.warn("Both tokens need to be on the map.");
+    return null;
+  }
+  const record = {
+    host: target.uuid,
+    ax: a.x,
+    ay: a.y,
+    bx: b.x,
+    by: b.y,
+    aSrc: a.texture?.src || "",
+    bSrc: b.texture?.src || ""
+  };
+  const movedA = await owned(a, "token", {
+    uuid: a.uuid,
+    update: { x: record.bx, y: record.by, "texture.src": record.bSrc }
+  });
+  const movedB = await owned(b, "token", {
+    uuid: b.uuid,
+    update: { x: record.ax, y: record.ay, "texture.src": record.aSrc }
+  });
+  if (!movedA || !movedB) return null;
+  await actor.setFlag?.("faserip", "mindSwap", record);
+  globalThis.ui?.notifications?.info(`${who(actor)} and ${target.name} exchange places and looks. Use again to undo it.`);
+  return true;
+}
+
+async function restoreMinds(actor, item, saved) {
+  const host = await fromUuid(saved.host);
+  const a = tokenFor(actor, { controlled: true })?.document;
+  const b = tokenFor(host)?.document || host?.getActiveTokens?.()?.[0]?.document;
+  if (a) {
+    await owned(a, "token", {
+      uuid: a.uuid,
+      update: { x: saved.ax, y: saved.ay, "texture.src": saved.aSrc || a.texture?.src }
+    });
+  }
+  if (b) {
+    await owned(b, "token", {
+      uuid: b.uuid,
+      update: { x: saved.bx, y: saved.by, "texture.src": saved.bSrc || b.texture?.src }
+    });
+  }
+  await actor.unsetFlag?.("faserip", "mindSwap");
+  globalThis.ui?.notifications?.info(`${item.name} puts both minds back.`);
+  return true;
+}
+
 async function transfer(actor, item) {
+  const swapped = actor.getFlag?.("faserip", "mindSwap");
+  if (swapped) return restoreMinds(actor, item, swapped);
   const saved = actor.getFlag?.("faserip", "transfer");
+  if (!saved?.itemId) {
+    const mode = await choose(item.name, "Move a power, or exchange places and looks.", [
+      { action: "power", label: "Power" },
+      { action: "minds", label: "Minds" },
+      { action: "cancel", label: "Cancel" }
+    ]);
+    if (mode === "minds") return swapMinds(actor, item);
+    if (!mode) return null;
+  }
   if (saved?.itemId) {
     const held = actor.items?.get?.(saved.itemId);
     const host = await fromUuid(saved.hostUuid);

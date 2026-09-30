@@ -99,10 +99,12 @@ export function movementModes(actor) {
     }
   }
   const tempo = actor?.getFlag?.("faserip", "tempo") || "";
-  const scale = tempo === "slow" ? 0.5 : tempo === "fast" ? 2 : 1;
-  if (scale !== 1) {
+  const scale = tempo === "slow" ? 0.5 : tempo === "fast" ? 2 : tempo === "stop" ? 0.25 : 1;
+  const heavy = actor?.getFlag?.("faserip", "density") === "solid" ? 0.5 : 1;
+  const combined = scale * heavy;
+  if (combined !== 1) {
     for (const key of Object.keys(modes)) {
-      if (Number.isFinite(modes[key])) modes[key] = Math.max(0, modes[key] * scale);
+      if (Number.isFinite(modes[key])) modes[key] = Math.max(0, modes[key] * combined);
     }
   }
   return modes;
@@ -649,6 +651,29 @@ export function pickMapPoint(hint) {
   });
 }
 
+async function scatterLanding(actor, doc) {
+  try {
+    const { rollFeat } = await import("./dice/universal-table.mjs");
+    const message = await rollFeat({
+      actor,
+      rankId: actor?.getAbilityRank?.("agility") || "typical",
+      label: "Landing",
+      skipCondition: true
+    });
+    const color = message?.flags?.faserip?.color;
+    if (color !== "white") return;
+    const grid = Number(globalThis.canvas?.grid?.size) || 100;
+    const angle = Math.random() * Math.PI * 2;
+    await doc.update({
+      x: Math.round(doc.x + Math.cos(angle) * grid),
+      y: Math.round(doc.y + Math.sin(angle) * grid)
+    });
+    globalThis.ui?.notifications?.info("The landing scatters one square.");
+  } catch (err) {
+    console.warn("FASERIP | landing", err);
+  }
+}
+
 async function leapNow(actor, item) {
   const doc = controlledDoc(actor);
   if (!doc) {
@@ -683,11 +708,13 @@ async function leapNow(actor, item) {
         { x: corner.x, y: corner.y, elevation: doc.elevation ?? 0, action: "jump", snapped: false, explicit: true }
       ], { showRuler: false });
       if (moved !== false) {
+        await scatterLanding(actor, doc);
         globalThis.ui?.notifications?.info(`${actor?.name || "The hero"} leaps ${formatMovement(feetToAreas(feet))}.`);
         return true;
       }
     }
     await doc.update({ x: corner.x, y: corner.y, movementAction: "jump" });
+    await scatterLanding(actor, doc);
     globalThis.ui?.notifications?.info(`${actor?.name || "The hero"} leaps ${formatMovement(feetToAreas(feet))}.`);
     return true;
   } catch (err) {

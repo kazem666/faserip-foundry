@@ -155,6 +155,11 @@ export async function rollFeat({
     combat.damageAmount = null;
     ui.notifications?.info(healthNote);
   } else if (target && combat.damageEnergy && target.getFlag?.("faserip", "reflecting") && actor && actor.id !== target.id) {
+    const bounce = target.getFlag?.("faserip", "reflecting");
+    const aimed = bounce && typeof bounce === "object" && bounce.uuid
+      ? globalThis.fromUuidSync?.(bounce.uuid)
+      : null;
+    const victim = aimed || actor;
     try { await target.unsetFlag("faserip", "reflecting"); } catch { /* the bounce still resolves */ }
     try {
       if ([...(target.effects ?? [])].some((effect) => effect.statuses?.has?.("reflect") || effect.getFlag?.("core", "statusId") === "reflect")) {
@@ -162,22 +167,22 @@ export async function rollFeat({
       }
     } catch { /* the flag is already cleared */ }
     const amount = Number(combat.damageAmount) || 0;
-    if (amount > 0 && (actor.isOwner || game.user?.isGM)) {
-      const before = Number(actor.system?.health?.value ?? 0);
-      const protection = soakAmount(actor, { energy: true, useForceField: false, bonusArmor: 0 });
+    if (amount > 0 && victim && (victim.isOwner || game.user?.isGM)) {
+      const before = Number(victim.system?.health?.value ?? 0);
+      const protection = soakAmount(victim, { energy: true, useForceField: false, bonusArmor: 0 });
       try {
-        taken = await actor.applyDamage(amount, { energy: true, protection });
-        const after = Number(actor.system?.health?.value ?? before);
+        taken = await victim.applyDamage(amount, { energy: true, protection });
+        const after = Number(victim.system?.health?.value ?? before);
         damageApplied = true;
         healthNote = taken > 0
-          ? `${target.name} reflects the energy. ${actor.name} Health ${before} → ${after} (−${taken}).`
-          : `${target.name} reflects the energy. ${actor.name} loses no Health.`;
+          ? `${target.name} reflects the energy. ${victim.name} Health ${before} → ${after} (−${taken}).`
+          : `${target.name} reflects the energy. ${victim.name} loses no Health.`;
       } catch (err) {
         console.warn("FASERIP | reflect", err);
-        healthNote = `${target.name} reflects the energy toward ${actor.name}.`;
+        healthNote = `${target.name} reflects the energy toward ${victim?.name || actor.name}.`;
       }
     } else {
-      healthNote = `${target.name} reflects the energy toward ${actor.name}.`;
+      healthNote = `${target.name} reflects the energy toward ${victim?.name || actor.name}.`;
     }
     ui.notifications?.info(healthNote);
   } else if (target && combat.damageAmount != null && workflowActive("autoApplyDamage")) {

@@ -59,16 +59,16 @@ export function energyKind(name) {
 
 export function energyUseTitle(name) {
   const kind = energyKind(name);
-  if (kind === "magnet") return "Target someone in range. Use pulls them toward you.";
+  if (kind === "magnet") return "Pull a target toward you, or push them away.";
   if (kind === "electric") return "Target someone. They resist with Endurance. A failed resist stuns them for 1 round.";
-  if (kind === "light") return "Target someone to blind or restore them. With no target, click a spot to brighten or darken it.";
-  if (kind === "sound") return "Blast shoves a target. Silence deafens them until Use clears it. They resist with Endurance.";
-  if (kind === "dark") return "Click a spot to lay a dark field. Dismiss on the chat card removes it.";
-  if (kind === "gravity") return "Place heavy or light gravity, or drop a targeted flyer to the ground. They resist a drop with Strength or Endurance.";
+  if (kind === "light") return "Blind a target, brighten or darken a spot, or bend light to turn unseen.";
+  if (kind === "sound") return "Blast shoves a target. Silence deafens one person. Quiet lays a silent patch and deafens whoever is in it.";
+  if (kind === "dark") return "Lay a dark field, snare someone with a tendril, or blast them backward.";
+  if (kind === "gravity") return "Place heavy or light gravity, ease someone's falls, or drop a flyer. They resist a drop with Strength or Endurance.";
   if (kind === "probability") return "Favor gives someone +1 column on their next roll. Foul gives −1. One use, then it is spent.";
   if (kind === "nullify") return "Target someone and suppress one power. They resist with Psyche. Use again can release it.";
-  if (kind === "reflect") return "Use readies a bounce. The next energy attack that hits you strikes the attacker instead, then this turns off.";
-  if (kind === "time") return "Hasten doubles a target's movement. Slow halves it. They resist with Psyche or Intuition unless marked willing.";
+  if (kind === "reflect") return "Use readies a bounce. If someone is targeted, the energy goes to them. Otherwise it hits the attacker, then turns off.";
+  if (kind === "time") return "Hasten, slow, stop, or mark a spot and loop a target back to it. They resist with Psyche or Intuition unless marked willing.";
   return "";
 }
 
@@ -388,8 +388,21 @@ async function slide(doc, x, y) {
 }
 
 async function pull(actor, item) {
+  const mode = await choose(item.name, "Pull them closer, or push them away.", [
+    { action: "pull", label: "Pull" },
+    { action: "push", label: "Push" },
+    { action: "cancel", label: "Cancel" }
+  ]);
+  if (!mode) return null;
   const target = needTarget(actor, item);
   if (!target) return null;
+  if (mode === "push") {
+    const squares = pullSquares(rankOf(item));
+    const shove = await shoveActor(target, actor, squares, "back");
+    const landed = shove?.squares ? `${shove.squares} square${shove.squares === 1 ? "" : "s"}` : "no open square";
+    globalThis.ui?.notifications?.info(`${item.name} pushes ${target.name} (${landed}).`);
+    return true;
+  }
   const doc = tokenFor(target)?.document;
   const fromToken = tokenFor(actor, { controlled: true });
   const from = centerOf(fromToken);
@@ -439,6 +452,13 @@ async function blind(actor, item) {
   const target = combatTarget(actor.id || "");
   if (target) {
     if (!targetInReach(actor, item, target)) return null;
+    const mode = await choose(item.name, "Blind them, or bend light around yourself.", [
+      { action: "blind", label: "Blind" },
+      { action: "bend", label: "Bend" },
+      { action: "cancel", label: "Cancel" }
+    ]);
+    if (mode === "bend") return bendLight(actor, item);
+    if (!mode) return null;
     const id = blindId();
     const on = hasStatus(target, id);
     if (!on) {
@@ -453,11 +473,13 @@ async function blind(actor, item) {
     globalThis.ui?.notifications?.info(on ? `${target.name} can see again.` : `${item.name} blinds ${target.name}.`);
     return true;
   }
-  const mode = await choose(item.name, "Brighten or darken a spot.", [
+  const mode = await choose(item.name, "Brighten, darken, or bend light around yourself.", [
     { action: "bright", label: "Brighten" },
     { action: "dim", label: "Darken" },
+    { action: "bend", label: "Bend" },
     { action: "cancel", label: "Cancel" }
   ]);
+  if (mode === "bend") return bendLight(actor, item);
   if (!mode) return null;
   if (mode === "bright") {
     return placeField(actor, item, {
@@ -479,13 +501,32 @@ async function blind(actor, item) {
   });
 }
 
+async function bendLight(actor, item) {
+  const { toggleInvisible } = await import("./body-form.mjs");
+  const on = await toggleInvisible(actor);
+  globalThis.ui?.notifications?.info(on
+    ? `${item.name} bends light. ${who(actor)} is unseen.`
+    : `${item.name} lets the light fall normally. ${who(actor)} can be seen.`);
+  return true;
+}
+
 async function sound(actor, item) {
-  const mode = await choose(item.name, "A blast shoves. Silence deafens.", [
+  const mode = await choose(item.name, "A blast shoves. Silence deafens one person. Quiet deafens a patch.", [
     { action: "blast", label: "Blast" },
     { action: "silence", label: "Silence" },
+    { action: "quiet", label: "Quiet" },
     { action: "cancel", label: "Cancel" }
   ]);
   if (!mode) return null;
+  if (mode === "quiet") {
+    return placeField(actor, item, {
+      line: `${who(actor)} lays a silent patch with ${item.name}.`,
+      fill: "#cbd5e1",
+      stroke: "#64748b",
+      text: "Quiet",
+      deaf: true
+    });
+  }
   const target = needTarget(actor, item);
   if (!target) return null;
   if (mode === "blast") {
@@ -587,11 +628,48 @@ async function placeField(actor, item, spec) {
     return null;
   }
   await postCard(actor, spec.line, parts);
+  if (spec.deaf) {
+    const tokens = globalThis.canvas?.tokens?.placeables ?? [];
+    for (const token of tokens) {
+      const spot = centerOf(token);
+      const person = token.actor;
+      if (!spot || !person) continue;
+      if (Math.hypot(spot.x - point.x, spot.y - point.y) > radius) continue;
+      await setStatus(person, "deaf", true, false);
+    }
+  }
   globalThis.ui?.notifications?.info(spec.line);
   return true;
 }
 
 async function dark(actor, item) {
+  const mode = await choose(item.name, "A field darkens a patch. A tendril slows someone. A blast shoves them.", [
+    { action: "field", label: "Field" },
+    { action: "tendril", label: "Tendril" },
+    { action: "blast", label: "Blast" },
+    { action: "cancel", label: "Cancel" }
+  ]);
+  if (!mode) return null;
+  if (mode === "tendril" || mode === "blast") {
+    const target = needTarget(actor, item);
+    if (!target) return null;
+    if (mode === "blast") {
+      const squares = pullSquares(rankOf(item));
+      const shove = await shoveActor(target, actor, squares, "back");
+      const landed = shove?.squares ? `${shove.squares} square${shove.squares === 1 ? "" : "s"}` : "no open square";
+      globalThis.ui?.notifications?.info(`${item.name} blasts ${target.name} (${landed}).`);
+      return true;
+    }
+    const held = await theyHold(target, rankOf(item), ["strength", "endurance"], `Resist ${item.name}`);
+    if (held) {
+      globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
+      return true;
+    }
+    const ok = await owned(target, "flag", { uuid: target.uuid, key: "tempo", value: "slow" });
+    if (!ok) return null;
+    globalThis.ui?.notifications?.info(`${item.name} snares ${target.name}. Movement is halved.`);
+    return true;
+  }
   return placeField(actor, item, {
     line: `${who(actor)} lays a dark field with ${item.name}.`,
     region: { mode: 0, modifier: 0.9 },
@@ -606,10 +684,24 @@ async function gravity(actor, item) {
   const mode = await choose(item.name, "Weigh an area, or drop someone who is aloft.", [
     { action: "heavy", label: "Heavy" },
     { action: "light", label: "Light" },
+    { action: "ease", label: "Ease" },
     { action: "drop", label: "Drop" },
     { action: "cancel", label: "Cancel" }
   ]);
   if (!mode) return null;
+  if (mode === "ease") {
+    const target = needTarget(actor, item);
+    if (!target) return null;
+    const on = !!target.getFlag?.("faserip", "softFall");
+    const ok = await owned(target, "flag", on
+      ? { uuid: target.uuid, key: "softFall", unset: true }
+      : { uuid: target.uuid, key: "softFall", value: true });
+    if (!ok) return null;
+    globalThis.ui?.notifications?.info(on
+      ? `${target.name} falls at full weight again.`
+      : `${item.name} eases ${target.name}. Falls deal half damage.`);
+    return true;
+  }
   if (mode === "drop") {
     const target = needTarget(actor, item);
     if (!target) return null;
@@ -718,12 +810,19 @@ async function nullify(actor, item) {
 
 async function reflect(actor, item) {
   const on = !!(actor.getFlag?.("faserip", "reflecting"));
+  const aimed = combatTarget(actor.id || "");
+  const value = aimed && aimed.id !== actor.id ? { uuid: aimed.uuid } : true;
   const flag = await owned(actor, "flag", on
     ? { uuid: actor.uuid, key: "reflecting", unset: true }
-    : { uuid: actor.uuid, key: "reflecting", value: true });
+    : { uuid: actor.uuid, key: "reflecting", value });
   if (!flag) return null;
   await setStatus(actor, "reflect", !on, false);
-  globalThis.ui?.notifications?.info(on ? `${item.name} is off.` : `${item.name} is ready. The next energy hit bounces back.`);
+  const aimedName = value?.uuid ? aimed?.name : "";
+  globalThis.ui?.notifications?.info(on
+    ? `${item.name} is off.`
+    : aimedName
+      ? `${item.name} is ready. The next energy hit goes to ${aimedName}.`
+      : `${item.name} is ready. The next energy hit bounces back.`);
   return true;
 }
 
@@ -733,7 +832,9 @@ async function time(actor, item) {
   const current = target.getFlag?.("faserip", "tempo") || "";
   const buttons = [
     { action: "fast", label: "Hasten" },
-    { action: "slow", label: "Slow" }
+    { action: "slow", label: "Slow" },
+    { action: "stop", label: "Stop" },
+    { action: "loop", label: "Loop" }
   ];
   if (current) buttons.push({ action: "restore", label: "Restore" });
   buttons.push({ action: "cancel", label: "Cancel" });
@@ -750,7 +851,8 @@ async function time(actor, item) {
       }
     }
   }
-  const next = mode === "fast" ? "fast" : mode === "slow" ? "slow" : "";
+  if (mode === "loop") return markLoop(target, item);
+  const next = mode === "fast" ? "fast" : mode === "slow" ? "slow" : mode === "stop" ? "stop" : "";
   const ok = next
     ? await owned(target, "flag", { uuid: target.uuid, key: "tempo", value: next })
     : await owned(target, "flag", { uuid: target.uuid, key: "tempo", unset: true });
@@ -759,8 +861,27 @@ async function time(actor, item) {
     ? `${target.name} hastens. Movement is doubled.`
     : next === "slow"
       ? `${target.name} slows. Movement is halved.`
-      : `${target.name} returns to normal speed.`;
+      : next === "stop"
+        ? `${target.name} crawls. Movement is a quarter of normal.`
+        : `${target.name} returns to normal speed.`;
   globalThis.ui?.notifications?.info(`${item.name}: ${line}`);
+  return true;
+}
+
+async function markLoop(target, item) {
+  const doc = tokenFor(target)?.document;
+  if (!doc) return null;
+  const saved = target.getFlag?.("faserip", "timeLoop");
+  if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+    const ok = await askJudge("token", { uuid: doc.uuid, update: { x: saved.x, y: saved.y } });
+    if (!ok) return null;
+    await owned(target, "flag", { uuid: target.uuid, key: "timeLoop", unset: true });
+    globalThis.ui?.notifications?.info(`${item.name} snaps ${target.name} back.`);
+    return true;
+  }
+  const ok = await owned(target, "flag", { uuid: target.uuid, key: "timeLoop", value: { x: doc.x, y: doc.y } });
+  if (!ok) return null;
+  globalThis.ui?.notifications?.info(`${item.name} marks ${target.name}. Use again and choose Loop to snap them back.`);
   return true;
 }
 

@@ -55,13 +55,14 @@ export function matterKind(name) {
 
 export function matterUseTitle(name) {
   const kind = matterKind(name);
-  if (kind === "earth") return "Click two points to raise a wall that blocks movement and sight. Drop on the chat card removes it.";
-  if (kind === "air") return "Target someone in range. Use shoves them away from you.";
+  if (kind === "earth") return "Choose a wall, a pit, or a hurl that shoves someone. Drop or Fill on the chat card removes a wall or pit.";
+  if (kind === "air") return "Gust shoves a target. Buffer raises a wall of air you can see through.";
   if (kind === "fire") return "Target a token to light or extinguish it, or click a spot to start a flame. Extinguish is on the chat card.";
-  if (kind === "water") return "Click a spot to pool water. Walking through it costs double. Dry up is on the chat card.";
-  if (kind === "weather") return "Choose clear, rain, fog, or storm for this scene.";
-  if (kind === "density") return "Target someone. Use cycles solid, diffuse, then normal. They resist with Strength or Endurance unless marked willing.";
-  if (kind === "body" || kind === "animal") return "Target someone and pick a picture. Use again restores their look. They resist with Endurance or Psyche unless marked willing.";
+  if (kind === "water") return "Pool water that slows walking, or send a wave that shoves someone. Dry up removes a pool.";
+  if (kind === "weather") return "Choose clear, rain, fog, storm, or a wind that shoves a target.";
+  if (kind === "density") return "Target someone. Use cycles solid, diffuse, then normal. Solid is tougher and slower. They resist with Strength or Endurance unless marked willing.";
+  if (kind === "body") return "Turn a target into a likeness, a gas, or a liquid. They resist with Endurance or Psyche. Use again restores them.";
+  if (kind === "animal") return "Target someone and pick an animal picture. Use again restores their look. They resist with Endurance or Psyche unless marked willing.";
   return "";
 }
 
@@ -199,8 +200,15 @@ async function perform(data) {
     if (data.action === "density") {
       const actor = await fromUuid(data.uuid);
       if (!actor) return "";
-      await setDensityMode(actor, data.mode || "");
+      await setDensityMode(actor, data.mode || "", data.rankId || "");
       return data.mode || "";
+    }
+    if (data.action === "flag") {
+      const actor = await fromUuid(data.uuid);
+      if (!actor) return false;
+      if (data.unset) await actor.unsetFlag("faserip", data.key);
+      else await actor.setFlag("faserip", data.key, data.value);
+      return true;
     }
     if (data.action === "token") {
       const doc = await fromUuid(data.uuid);
@@ -266,7 +274,7 @@ async function postCard(actor, line, button, parts) {
   });
 }
 
-async function raiseEarth(actor, item) {
+async function raiseEarth(actor, item, opts = {}) {
   const start = await pickMapPoint(`${item.name}: click one end of the wall. Right-click cancels.`);
   if (!start || !nearEnough(actor, item, start)) return null;
   const raw = await pickMapPoint(`${item.name}: click the other end.`);
@@ -285,9 +293,9 @@ async function raiseEarth(actor, item) {
     data: [{
       c: [Math.round(start.x), Math.round(start.y), Math.round(end.x), Math.round(end.y)],
       move: moveNormal(),
-      sight: senseNormal(),
-      light: senseNormal(),
-      sound: senseNormal(),
+      sight: opts.seeThrough ? 0 : senseNormal(),
+      light: opts.seeThrough ? 0 : senseNormal(),
+      sound: opts.seeThrough ? 0 : senseNormal(),
       flags: { faserip: { matter: "earth" } }
     }]
   });
@@ -295,8 +303,10 @@ async function raiseEarth(actor, item) {
     globalThis.ui?.notifications?.warn("That wall could not be raised.");
     return null;
   }
-  const line = `${who(actor)} raises a wall with ${item.name}.`;
-  await postCard(actor, line, "Drop wall", [{ docType: "Wall", ids }]);
+  const line = opts.seeThrough
+    ? `${who(actor)} raises a buffer of air with ${item.name}. You can see through it.`
+    : `${who(actor)} raises a wall with ${item.name}.`;
+  await postCard(actor, line, opts.seeThrough ? "Drop buffer" : "Drop wall", [{ docType: "Wall", ids }]);
   globalThis.ui?.notifications?.info(line);
   return true;
 }
@@ -382,12 +392,13 @@ async function ignite(actor, item) {
   return true;
 }
 
-function waterDifficulties() {
-  return { walk: 2 };
+function waterDifficulties(walk = 2) {
+  return { walk };
 }
 
-async function pool(actor, item) {
-  const point = await pickMapPoint(`${item.name}: click where the water pools. Right-click cancels.`);
+async function pool(actor, item, spec = {}) {
+  const label = spec.text || "Water";
+  const point = await pickMapPoint(`${item.name}: click where the ${label.toLowerCase()} goes. Right-click cancels.`);
   if (!point || !nearEnough(actor, item, point)) return null;
   const radius = (poolSquares(rankOf(item)) * gridSize()) / 2;
   const drawingIds = await askJudge("embed", {
@@ -398,14 +409,14 @@ async function pool(actor, item) {
       y: point.y - radius,
       shape: { type: "e", width: radius * 2, height: radius * 2 },
       strokeWidth: 4,
-      strokeColor: "#0284c7",
+      strokeColor: spec.stroke || "#0284c7",
       strokeAlpha: 1,
       fillType: 1,
-      fillColor: "#38bdf8",
+      fillColor: spec.fill || "#38bdf8",
       fillAlpha: 0.45,
-      text: "Water",
+      text: label,
       fontSize: Math.max(16, Math.round(radius * 0.35)),
-      textColor: "#0c4a6e",
+      textColor: spec.textColor || "#0c4a6e",
       interface: false,
       hidden: false,
       flags: { faserip: { matter: "water" } }
@@ -415,13 +426,13 @@ async function pool(actor, item) {
     sceneId: sceneOf()?.id,
     docType: "Region",
     data: [{
-      name: "Water",
-      color: "#0ea5e9",
+      name: label,
+      color: spec.fill || "#0ea5e9",
       shapes: [{ type: "ellipse", x: point.x, y: point.y, radiusX: radius, radiusY: radius }],
       behaviors: [{
         name: "Wade",
         type: "modifyMovementCost",
-        system: { difficulties: waterDifficulties() }
+        system: { difficulties: waterDifficulties(spec.walk || 2) }
       }],
       flags: { faserip: { matter: "water" } }
     }]
@@ -433,8 +444,8 @@ async function pool(actor, item) {
     globalThis.ui?.notifications?.warn("That water could not be shaped.");
     return null;
   }
-  const line = `${who(actor)} pools water with ${item.name}. Walking through it costs double.`;
-  await postCard(actor, line, "Dry up", parts);
+  const line = spec.line || `${who(actor)} pools water with ${item.name}. Walking through it costs double.`;
+  await postCard(actor, line, spec.button || "Dry up", parts);
   globalThis.ui?.notifications?.info(line);
   return true;
 }
@@ -449,7 +460,8 @@ async function chooseSky() {
       { action: "clear", label: "Clear", callback: () => "clear" },
       { action: "rain", label: "Rain", default: true, callback: () => "rain" },
       { action: "fog", label: "Fog", callback: () => "fog" },
-      { action: "storm", label: "Storm", callback: () => "storm" }
+      { action: "storm", label: "Storm", callback: () => "storm" },
+      { action: "wind", label: "Wind", callback: () => "wind" }
     ],
     rejectClose: false
   });
@@ -498,6 +510,7 @@ async function applyWeather(mode, sceneId) {
 async function shiftWeather(actor, item) {
   const mode = await chooseSky();
   if (!mode) return null;
+  if (mode === "wind") return gust(actor, item);
   const line = await askJudge("weather", { mode, sceneId: sceneOf()?.id });
   if (!line) {
     globalThis.ui?.notifications?.warn(`${item.name} could not change the sky.`);
@@ -571,7 +584,7 @@ async function changeDensity(actor, item) {
     }
   }
   const next = nextDensity(target.getFlag?.("faserip", "density") || "");
-  const applied = await askJudge("density", { uuid: target.uuid, mode: next });
+  const applied = await askJudge("density", { uuid: target.uuid, mode: next, rankId: rankOf(item) });
   if (applied == null) return null;
   const state = next === "solid" ? "solid" : next === "diffuse" ? "diffuse" : "normal";
   globalThis.ui?.notifications?.info(`${item.name} leaves ${target.name} ${state}.`);
@@ -602,7 +615,7 @@ function pickImage(current) {
   });
 }
 
-async function changeForm(actor, item) {
+async function changeForm(actor, item, kind = "") {
   const target = combatTarget(actor.id || "");
   if (!target || !targetInReach(actor, item, target)) return null;
   const doc = tokenFor(target)?.document;
@@ -612,11 +625,12 @@ async function changeForm(actor, item) {
   }
   const saved = doc.getFlag?.("faserip", "forcedFace");
   if (saved?.src) {
-    const ok = await askJudge("token", {
-      uuid: doc.uuid,
-      update: { "texture.src": saved.src, "flags.faserip.-=forcedFace": null }
-    });
+    const update = { "texture.src": saved.src, "flags.faserip.-=forcedFace": null };
+    if (saved.alpha != null) update.alpha = saved.alpha;
+    const ok = await askJudge("token", { uuid: doc.uuid, update });
     if (!ok) return null;
+    if (saved.form === "gas") await askJudge("density", { uuid: target.uuid, mode: "", rankId: "" });
+    if (saved.form === "liquid") await askJudge("flag", { uuid: target.uuid, key: "tempo", unset: true });
     globalThis.ui?.notifications?.info(`${item.name} restores ${target.name}.`);
     return true;
   }
@@ -626,6 +640,32 @@ async function changeForm(actor, item) {
     const held = await theyHold(target, rankOf(item), ["endurance", "psyche"], `Resist ${item.name}`);
     if (held) {
       globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
+      return true;
+    }
+  }
+  if (kind === "body") {
+    const shape = await chooseMode(item.name, [
+      { action: "likeness", label: "Likeness" },
+      { action: "gas", label: "Gas" },
+      { action: "liquid", label: "Liquid" },
+      { action: "cancel", label: "Cancel" }
+    ]);
+    if (!shape) return null;
+    if (shape === "gas" || shape === "liquid") {
+      const original = doc.texture?.src || "";
+      if (shape === "gas") await askJudge("density", { uuid: target.uuid, mode: "diffuse", rankId: rankOf(item) });
+      else await askJudge("flag", { uuid: target.uuid, key: "tempo", value: "slow" });
+      const ok = await askJudge("token", {
+        uuid: doc.uuid,
+        update: {
+          alpha: shape === "gas" ? 0.55 : 0.8,
+          "flags.faserip.forcedFace": { src: original, form: shape, alpha: doc.alpha ?? 1 }
+        }
+      });
+      if (!ok) return null;
+      globalThis.ui?.notifications?.info(shape === "gas"
+        ? `${target.name} becomes a gas and can pass through walls.`
+        : `${target.name} becomes a liquid and moves slowly.`);
       return true;
     }
   }
@@ -641,6 +681,24 @@ async function changeForm(actor, item) {
   return true;
 }
 
+async function chooseMode(title, buttons) {
+  const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
+  if (!DialogV2?.wait) return buttons[0]?.action || "";
+  const result = await DialogV2.wait({
+    window: { title },
+    content: "<p>Choose what this power does.</p>",
+    buttons: buttons.map((button, index) => ({
+      action: button.action,
+      label: button.label,
+      default: index === 0,
+      callback: () => button.action
+    })),
+    rejectClose: false
+  });
+  if (!result || result === "cancel") return "";
+  return result;
+}
+
 export async function useMatterPower(actor, item) {
   const kind = matterKind(item?.name);
   if (!actor || !kind) return null;
@@ -648,13 +706,52 @@ export async function useMatterPower(actor, item) {
     globalThis.ui?.notifications?.warn("Open a scene first.");
     return null;
   }
-  if (kind === "earth") return raiseEarth(actor, item);
-  if (kind === "air") return gust(actor, item);
+  if (kind === "earth") {
+    const mode = await chooseMode(item.name, [
+      { action: "wall", label: "Wall" },
+      { action: "pit", label: "Pit" },
+      { action: "hurl", label: "Hurl" },
+      { action: "cancel", label: "Cancel" }
+    ]);
+    if (!mode) return null;
+    if (mode === "pit") {
+      return pool(actor, item, {
+        text: "Pit",
+        fill: "#78350f",
+        stroke: "#451a03",
+        textColor: "#fef3c7",
+        walk: 3,
+        button: "Fill",
+        line: `${who(actor)} opens a pit with ${item.name}. Crossing it is slow.`
+      });
+    }
+    if (mode === "hurl") return gust(actor, item);
+    return raiseEarth(actor, item);
+  }
+  if (kind === "air") {
+    const mode = await chooseMode(item.name, [
+      { action: "gust", label: "Gust" },
+      { action: "buffer", label: "Buffer" },
+      { action: "cancel", label: "Cancel" }
+    ]);
+    if (!mode) return null;
+    if (mode === "buffer") return raiseEarth(actor, item, { seeThrough: true });
+    return gust(actor, item);
+  }
   if (kind === "fire") return ignite(actor, item);
-  if (kind === "water") return pool(actor, item);
+  if (kind === "water") {
+    const mode = await chooseMode(item.name, [
+      { action: "pool", label: "Pool" },
+      { action: "wave", label: "Wave" },
+      { action: "cancel", label: "Cancel" }
+    ]);
+    if (!mode) return null;
+    if (mode === "wave") return gust(actor, item);
+    return pool(actor, item);
+  }
   if (kind === "weather") return shiftWeather(actor, item);
   if (kind === "density") return changeDensity(actor, item);
-  if (kind === "body" || kind === "animal") return changeForm(actor, item);
+  if (kind === "body" || kind === "animal") return changeForm(actor, item, kind);
   return null;
 }
 

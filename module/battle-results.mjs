@@ -17,6 +17,9 @@ export function soakAmount(actor, { energy = false, useForceField = false, bonus
     return energy ? field : Math.max(0, field - 10);
   }
   let armor = Math.max(Number(actor?.getBodyArmor?.() || 0), Number(bonusArmor) || 0);
+  if (actor?.getFlag?.("faserip", "density") === "solid") {
+    armor += Math.max(2, Math.floor(rankValue(actor.getFlag("faserip", "densityRank") || "typical") / 2));
+  }
   if (energy) armor = Math.max(0, armor - 20);
   return armor;
 }

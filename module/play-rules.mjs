@@ -192,6 +192,10 @@ export function combinedShift(actor, { ability = "", effectsColumn = "", target 
     cs -= 1;
     notes.push("Fear −1 CS");
   }
+  if (target?.getFlag?.("faserip", "small") && ATTACK_COLUMNS.has(effectsColumn)) {
+    cs -= 1;
+    notes.push("Tiny target −1 CS");
+  }
   return {
     cs,
     damageCs: situation.damageCs,

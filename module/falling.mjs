@@ -241,8 +241,11 @@ export async function applyFall(tokenDoc, surface = "excellent") {
     if (floors > 0 && outcome.gives) {
       line = `${name} drops ${Math.round(feet)} ft (${floors} floors). The fall is ${outcome.rate} areas, ${rankLabel(outcome.impactId)}. The ${rankLabel(outcome.surface)} surface gives way, so the impact is absorbed.`;
     } else if (floors > 0 && outcome.damage > 0) {
-      const taken = await actor.applyDamage(outcome.damage, { energy: false });
+      const soft = !!actor.getFlag?.("faserip", "softFall");
+      const harm = soft ? Math.floor(outcome.damage / 2) : outcome.damage;
+      const taken = await actor.applyDamage(harm, { energy: false });
       line = `${name} drops ${Math.round(feet)} ft (${floors} floors) onto ${rankLabel(outcome.surface)}. Impact ${rankLabel(outcome.impactId)} gets through for ${taken} Health.`;
+      if (soft) line += " Light gravity cut the impact in half.";
     }
     globalThis.ui?.notifications?.info(line);
     await settleCards(uuid, name, line);

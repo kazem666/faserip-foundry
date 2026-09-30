@@ -1,4 +1,4 @@
-import { ABILITIES, rankIndex, rankLabel, rankValue } from "./config.mjs";
+import { ABILITIES, rankIndex, rankLabel, rankValue, shiftRank } from "./config.mjs";
 import { reachSquares } from "./movement.mjs";
 import { ATTACK_COLUMNS, combatTarget } from "./play-rules.mjs";
 
@@ -46,28 +46,30 @@ export function bodyFormKind(name) {
   if (key === "raise lowest ability") return "raise";
   if (key === "power absorption") return "absorb";
   if (key === "shape-shifting" || key === "body transformation" || key === "animal transformation - self") return "disguise";
+  if (STRETCH_NAME.test(key)) return "squeeze";
   return "";
 }
 
 export function bodyUseTitle(name) {
   const kind = bodyFormKind(name);
-  if (kind === "growth") return "Use toggles a larger token. Use again to return to normal size. Shift-click to set Karma or Intensity.";
-  if (kind === "shrink") return "Use toggles a smaller token. Use again to return to normal size. Shift-click to set Karma or Intensity.";
+  if (kind === "growth") return "Use toggles a larger token and raises Strength. Use again restores size and Strength. Shift-click to set Karma or Intensity.";
+  if (kind === "shrink") return "Use toggles a smaller token. Strength drops and attackers take −1 column. Use again restores both. Shift-click to set Karma or Intensity.";
   if (kind === "invisible") return "Use toggles unseen. An attack reveals the hero. Shift-click to set Karma or Intensity.";
   if (kind === "phase") return "Use toggles phasing. The token can walk through walls until Use is pressed again. Shift-click to set Karma or Intensity.";
-  if (kind === "density") return "Use cycles solid, diffuse, then normal. Solid shrugs off some of a slam. Diffuse walks through walls and is easier to shove. Shift-click to set Karma or Intensity.";
+  if (kind === "density") return "Use cycles solid, diffuse, then normal. Solid is tougher and slower. Diffuse walks through walls and is easier to shove. Shift-click to set Karma or Intensity.";
   if (kind === "blend") return "Use fades the token into the background. Moving reveals it. Shift-click to set Karma or Intensity.";
   if (kind === "imitation") return "Use copies a targeted token's picture, or asks for an image. Use again restores the original. Shift-click to set Karma or Intensity.";
   if (kind === "disguise") return "Use asks for a new token image. Use again restores the original. Shift-click to set Karma or Intensity.";
   if (kind === "alter") return "Use swaps to the other face. The first use asks for that picture. Shift-click to set Karma or Intensity.";
   if (kind === "raise") return "Use lifts the lowest ability up to this Power rank. Use again puts it back. Shift-click to set Karma or Intensity.";
-  if (kind === "absorb") return "Use copies a power from a touched target. Use again drops the copy. Shift-click to set Karma or Intensity.";
+  if (kind === "absorb") return "Use copies a power from a touched target. They resist with Psyche. Use again drops the copy. Shift-click to set Karma or Intensity.";
+  if (kind === "squeeze") return "Use flattens the token so it can slip through a gap. Melee still stretches toward a target. Use again restores the shape.";
   return "";
 }
 
 export function stretchPowerTitle(name) {
   if (!STRETCH_NAME.test(powerKey(name))) return "";
-  return "Melee reach follows this rank. Slugfest, grabs, and other close attacks stretch the token toward the target, then it snaps back.";
+  return "Melee reach follows this rank. Slugfest, grabs, and other close attacks stretch the token toward the target, then it snaps back. Use flattens the token to slip through a gap, and Use again restores it.";
 }
 
 export function growthSquares(rankId) {
@@ -227,7 +229,65 @@ export async function toggleBodySize(actor, kind) {
       console.warn("FASERIP | body size", err);
     }
   }
+  await syncSizeStrength(actor, kind, !turningOff);
   return !turningOff;
+}
+
+async function syncSizeStrength(actor, kind, active) {
+  const saved = actor.getFlag?.("faserip", "sizeStrength");
+  if (saved?.rank) {
+    try {
+      await actor.update({
+        "system.abilities.strength.rank": saved.rank,
+        "system.abilities.strength.number": saved.number ?? 0
+      });
+      await actor.unsetFlag("faserip", "sizeStrength");
+      await actor.unsetFlag("faserip", "small");
+    } catch (err) {
+      console.warn("FASERIP | size strength", err);
+    }
+  }
+  if (!active) return;
+  const current = actor.getAbilityRank?.("strength") || "typical";
+  const slot = actor.system?.abilities?.strength || {};
+  const steps = kind === "growth"
+    ? Math.min(3, Math.max(1, Math.floor((growthSquares(sizeRank(actor, "growth")) - 1) / 2)))
+    : -1;
+  const next = shiftRank(current, steps);
+  try {
+    await actor.setFlag("faserip", "sizeStrength", { rank: slot.rank || current, number: slot.number ?? 0 });
+    await actor.update({
+      "system.abilities.strength.rank": next,
+      "system.abilities.strength.number": rankValue(next)
+    });
+    if (kind === "shrink") await actor.setFlag("faserip", "small", true);
+  } catch (err) {
+    console.warn("FASERIP | size strength", err);
+  }
+}
+
+async function toggleSqueeze(actor, item) {
+  const docs = activeDocs(actor);
+  if (!docs.length) {
+    globalThis.ui?.notifications?.warn(`${who(actor)} needs a token on the map.`);
+    return "";
+  }
+  const squeezed = docs.some((doc) => doc.getFlag?.("faserip", "squeezed"));
+  for (const doc of docs) {
+    const saved = doc.getFlag?.("faserip", "squeezed");
+    try {
+      if (squeezed && saved) {
+        await doc.update({ width: saved.width, height: saved.height });
+        await doc.unsetFlag("faserip", "squeezed");
+      } else if (!squeezed) {
+        await doc.setFlag("faserip", "squeezed", { width: doc.width, height: doc.height });
+        await doc.update({ width: Math.max(0.3, doc.width * 0.4) });
+      }
+    } catch (err) {
+      console.warn("FASERIP | squeeze", err);
+    }
+  }
+  return squeezed ? `${item.name} is off. ${who(actor)} fills back out.` : `${item.name} flattens ${who(actor)} so they can slip through.`;
 }
 
 function invisibleStatusId() {
@@ -361,7 +421,7 @@ export async function applyBodyPower(actor, item) {
   if (!actor || !kind) return "";
   if (kind === "growth" || kind === "shrink") {
     const on = await toggleBodySize(actor, kind);
-    if (on === true) return kind === "growth" ? `${item.name} is on. ${who(actor)} grows.` : `${item.name} is on. ${who(actor)} shrinks.`;
+    if (on === true) return kind === "growth" ? `${item.name} is on. ${who(actor)} grows, and Strength rises.` : `${item.name} is on. ${who(actor)} shrinks. Strength drops, and attackers take −1 column.`;
     if (on === false) return `${item.name} is off. ${who(actor)} is back to normal size.`;
     return "";
   }
@@ -375,6 +435,7 @@ export async function applyBodyPower(actor, item) {
   if (kind === "disguise" || kind === "imitation" || kind === "alter") return toggleFace(actor, item, kind);
   if (kind === "raise") return toggleRaise(actor, item);
   if (kind === "absorb") return toggleAbsorb(actor, item);
+  if (kind === "squeeze") return toggleSqueeze(actor, item);
   return "";
 }
 
@@ -387,10 +448,15 @@ async function togglePhase(actor, item) {
   return on ? `${item.name} is on. ${who(actor)} can walk through walls.` : `${item.name} is off.`;
 }
 
-export async function setDensityMode(actor, mode) {
+export async function setDensityMode(actor, mode, rankId = "") {
   if (!actor) return;
-  if (mode) await actor.setFlag("faserip", "density", mode);
-  else await actor.unsetFlag("faserip", "density");
+  if (mode) {
+    await actor.setFlag("faserip", "density", mode);
+    if (rankId) await actor.setFlag("faserip", "densityRank", rankId);
+  } else {
+    await actor.unsetFlag("faserip", "density");
+    await actor.unsetFlag("faserip", "densityRank");
+  }
   await syncPhaseMove(actor);
   await syncAlpha(actor);
 }
@@ -399,8 +465,8 @@ async function cycleDensity(actor, item) {
   const order = ["", "solid", "diffuse"];
   const current = actor.getFlag?.("faserip", "density") || "";
   const next = order[(order.indexOf(current) + 1) % order.length];
-  await setDensityMode(actor, next);
-  if (next === "solid") return `${item.name}: solid. Slams shove ${who(actor)} a shorter distance.`;
+  await setDensityMode(actor, next, item?.system?.rank || "typical");
+  if (next === "solid") return `${item.name}: solid. ${who(actor)} is tougher and slower. Slams shove a shorter distance.`;
   if (next === "diffuse") return `${item.name}: diffuse. ${who(actor)} can walk through walls and is easier to slam.`;
   return `${item.name} is off. Density is normal.`;
 }
@@ -573,6 +639,19 @@ function esc(value) {
   }[ch]));
 }
 
+async function absorbResist(target, rankId, label) {
+  const { rollFeat } = await import("./dice/universal-table.mjs");
+  const message = await rollFeat({
+    actor: target,
+    rankId: target.getAbilityRank?.("psyche") || "typical",
+    intensityId: rankId,
+    label: `Resist ${label}`,
+    skipCondition: true
+  });
+  if (!message) return false;
+  return !!(message.getFlag?.("faserip", "intensityPass") ?? message.flags?.faserip?.intensityPass);
+}
+
 async function toggleAbsorb(actor, item) {
   const existing = actor.getFlag?.("faserip", "absorbedPower");
   if (existing) {
@@ -609,6 +688,8 @@ async function toggleAbsorb(actor, item) {
   }
   const picked = await chooseAbsorbed(powers);
   if (!picked) return "";
+  const held = await absorbResist(target, item?.system?.rank || "typical", item?.name || "Power Absorption");
+  if (held) return `${target.name} holds onto ${picked.name}.`;
   const system = typeof picked.system?.toObject === "function" ? picked.system.toObject() : { rank: picked.system?.rank || "typical" };
   system.notes = "A copied power. It lasts until Power Absorption is used again.";
   try {
