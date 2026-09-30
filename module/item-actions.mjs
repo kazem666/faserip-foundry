@@ -9,6 +9,7 @@ import { offensiveKind, offensiveUseTitle, useOffensivePower } from "./offensive
 import { defenseKind, defenseUseTitle, useDefensePower } from "./defense.mjs";
 import { senseKind, senseUseTitle, useSensePower } from "./senses.mjs";
 import { rangedKind, rangedUseTitle, useRangedPower } from "./ranged.mjs";
+import { resistKind, resistUseTitle, useResistPower } from "./resistances.mjs";
 import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
@@ -223,6 +224,11 @@ export function describeItemAction(item) {
     if (defenseTitle) {
       spec.label = "Use";
       spec.title = defenseTitle;
+    }
+    const resistTitle = resistUseTitle(item.name);
+    if (resistTitle) {
+      spec.label = "Use";
+      spec.title = resistTitle;
     }
     const senseTitle = senseUseTitle(item.name);
     if (senseTitle) {
@@ -444,6 +450,7 @@ export async function rollItemAction(actor, item, opts = {}) {
   if (item.type === "power" && mentalKind(item.name)) return useMentalPower(actor, item);
   if (item.type === "power" && offensiveKind(item.name)) return useOffensivePower(actor, item);
   if (item.type === "power" && defenseKind(item.name)) return useDefensePower(actor, item);
+  if (item.type === "power" && resistKind(item.name)) return useResistPower(actor, item);
   if (item.type === "power" && senseKind(item.name)) return useSensePower(actor, item);
   const message = await rollAction(actor, describeItemAction(item), { ...opts, item, label: item.name });
   if (message && item.type === "power" && powerKeepsAloft(item.name)) {

@@ -386,13 +386,26 @@ async function paralyze(actor, item) {
 }
 
 async function harmLiving(actor, item, target, { energy = false, label = "" } = {}) {
+  const full = rankValue(rankOf(item));
+  const { resistHarm } = await import("./resistances.mjs");
+  const harm = resistHarm(target, {
+    name: item.name,
+    rankId: rankOf(item),
+    energy,
+    columnId: energy ? "energy" : "force",
+    amount: full
+  });
+  if (harm.result === "cancel") {
+    globalThis.ui?.notifications?.info(harm.note);
+    return true;
+  }
   const result = await resist(target, rankOf(item), ["endurance"], `Resist ${item.name}`);
   if (!result) return null;
   if (result.held) {
     globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
     return true;
   }
-  const amount = rankValue(rankOf(item));
+  const amount = harm.result === "half" ? harm.amount : full;
   const taken = await owned(target, "harm", { uuid: target.uuid, amount, energy });
   if (label) globalThis.ui?.notifications?.info(`${label} (${taken ?? 0} Health).`);
   return taken;
@@ -432,13 +445,20 @@ async function acidBurn(actor, item) {
 async function toxin(actor, item) {
   const target = touchTarget(actor);
   if (!target) return null;
+  const full = rankValue(rankOf(item));
+  const { resistHarm } = await import("./resistances.mjs");
+  const harm = resistHarm(target, { name: item.name, rankId: rankOf(item), tags: ["toxin"], amount: full });
+  if (harm.result === "cancel") {
+    globalThis.ui?.notifications?.info(harm.note);
+    return true;
+  }
   const result = await resist(target, rankOf(item), ["endurance"], `Resist ${item.name}`);
   if (!result) return null;
   if (result.held) {
     globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);
     return true;
   }
-  const amount = rankValue(rankOf(item));
+  const amount = harm.result === "half" ? harm.amount : full;
   await owned(target, "harm", { uuid: target.uuid, amount, energy: false });
   const rounds = failRounds(result.color);
   await owned(target, "poison", { uuid: target.uuid, value: { intensityId: rankOf(item), rounds } });

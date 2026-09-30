@@ -415,6 +415,12 @@ async function resisted(target, item, keys) {
   const willing = await askWilling(target.name);
   if (!willing) return null;
   if (willing === "willing") return false;
+  const { resistHarm } = await import("./resistances.mjs");
+  const harm = resistHarm(target, { name: item?.name || "", rankId: rankOf(item) });
+  if (harm.result === "cancel") {
+    globalThis.ui?.notifications?.info(harm.note);
+    return true;
+  }
   const held = await theyHold(target, rankOf(item), keys, `Resist ${item.name}`);
   if (held) {
     globalThis.ui?.notifications?.info(`${target.name} holds against ${item.name}.`);

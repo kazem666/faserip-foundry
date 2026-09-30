@@ -316,6 +316,14 @@ async function scent(actor, item) {
     { action: "cancel", label: "Cancel" }
   ]);
   if (!mode) return null;
+  if (mode !== "calm") {
+    const { resistHarm } = await import("./resistances.mjs");
+    const warded = resistHarm(target, { name: item.name, rankId: rankOf(item), tags: ["emotion"] });
+    if (warded.result === "cancel") {
+      globalThis.ui?.notifications?.info(warded.note);
+      return true;
+    }
+  }
   const result = await resist(target, rankOf(item), ["intuition", "psyche"], `Resist ${item.name}`);
   if (!result) return null;
   if (result.held) {

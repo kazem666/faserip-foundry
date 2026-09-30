@@ -688,6 +688,9 @@ async function toggleAbsorb(actor, item) {
   }
   const picked = await chooseAbsorbed(powers);
   if (!picked) return "";
+  const { resistHarm } = await import("./resistances.mjs");
+  const warded = resistHarm(target, { name: item?.name || "Power Absorption", rankId: item?.system?.rank || "typical" });
+  if (warded.result === "cancel") return warded.note;
   const held = await absorbResist(target, item?.system?.rank || "typical", item?.name || "Power Absorption");
   if (held) return `${target.name} holds onto ${picked.name}.`;
   const system = typeof picked.system?.toObject === "function" ? picked.system.toObject() : { rank: picked.system?.rank || "typical" };

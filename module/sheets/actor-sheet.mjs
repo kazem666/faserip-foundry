@@ -824,6 +824,12 @@ export class FaseripActorSheet extends ActorSheetBase {
     });
     if (!form) return;
     const intensityId = formValue(form, "rank") || "excellent";
+    const { resistHarm } = await import("../resistances.mjs");
+    const warded = resistHarm(this.actor, { name: "Poison", rankId: intensityId, tags: ["toxin"] });
+    if (warded.result === "cancel") {
+      ui.notifications?.info(warded.note);
+      return;
+    }
     const message = await promptFeatRoll({
       actor: this.actor,
       rankId: this.actor.getAbilityRank("endurance"),

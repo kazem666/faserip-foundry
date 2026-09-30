@@ -1,4 +1,5 @@
 import { MATERIAL_EXAMPLES, RANKS, THROW_RANGE, rankIndex, rankLabel } from "./config.mjs";
+import { resistHarm } from "./resistances.mjs";
 import { abilityForColumn, combatTarget } from "./play-rules.mjs";
 import { fieldSquares, pullSquares } from "./energy.mjs";
 import { setBattleState } from "./battle-results.mjs";
@@ -570,6 +571,11 @@ async function nullShot(actor, item) {
       if (!ok) return null;
     }
     globalThis.ui?.notifications?.info(`${item.name} releases ${target.name}.`);
+    return true;
+  }
+  const warded = resistHarm(target, { name: item.name, rankId: rankOf(item), tags: ["power"] });
+  if (warded.result === "cancel") {
+    globalThis.ui?.notifications?.info(warded.note);
     return true;
   }
   const picked = open.length === 1 ? open[0] : await choosePower(open, item.name);

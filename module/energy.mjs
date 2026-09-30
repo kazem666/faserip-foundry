@@ -813,6 +813,12 @@ async function nullify(actor, item) {
     globalThis.ui?.notifications?.info(`${item.name} releases ${target.name}.`);
     return true;
   }
+  const { resistHarm } = await import("./resistances.mjs");
+  const warded = resistHarm(target, { name: item.name, rankId: rankOf(item), tags: ["power"] });
+  if (warded.result === "cancel") {
+    globalThis.ui?.notifications?.info(warded.note);
+    return true;
+  }
   const picked = await choosePower(open, item.name);
   if (!picked) return null;
   const heldResist = await theyHold(target, rankOf(item), ["psyche"], `Resist ${item.name}`);

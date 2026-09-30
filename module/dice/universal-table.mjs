@@ -14,6 +14,7 @@ import { playComicHit } from "../comic-hit.mjs";
 import { playFeatVfx } from "../vfx.mjs";
 import { attackOutOfRange, closeCharge } from "../movement.mjs";
 import { psiScreenBlocks } from "../mental.mjs";
+import { resistHarm } from "../resistances.mjs";
 import {
   applyCheckResult,
   collapseAtZero,
@@ -149,7 +150,29 @@ export async function rollFeat({
   let damageApplied = false;
   let taken = null;
   let effectBlocked = false;
-  if (target && psiScreenBlocks(target, item, effectiveId)) {
+  let resistNote = "";
+  if (target && combat.damageAmount != null && !psiScreenBlocks(target, item, effectiveId)) {
+    const harm = resistHarm(target, {
+      name: item?.name || label || "",
+      rankId: effectiveId,
+      columnId,
+      energy: !!combat.damageEnergy,
+      amount: Number(combat.damageAmount) || 0
+    });
+    if (harm.result === "cancel") {
+      healthNote = harm.note;
+      combat.checkColumn = "";
+      combat.damageAmount = null;
+      effectBlocked = true;
+      ui.notifications?.info(healthNote);
+    } else if (harm.result === "half") {
+      combat.damageAmount = harm.amount;
+      resistNote = harm.note;
+    }
+  }
+  if (healthNote && effectBlocked && combat.damageAmount == null) {
+    /* the resistance already reported the miss */
+  } else if (target && psiScreenBlocks(target, item, effectiveId)) {
     healthNote = `${target.name}'s Psi-Screen holds.`;
     combat.checkColumn = "";
     combat.damageAmount = null;
@@ -209,6 +232,7 @@ export async function rollFeat({
           : amount > 0
             ? `${target.name} loses no Health. Armor or a force field stopped ${amount}.`
             : `${target.name} takes no Health from this hit.`;
+        if (resistNote) healthNote = `${resistNote} ${healthNote}`;
         if (combat.checkColumn && workflowActive("autoBattleResults") && !through) {
           combat.checkColumn = "";
           effectBlocked = true;
