@@ -11,7 +11,10 @@ const pdfDocs = new Map();
 
 function fileURL(src) {
   const value = String(src || "");
-  if (/^(https?:|data:|blob:|\/)/.test(value)) return value;
+  if (/^(https?:|data:|blob:)/.test(value)) return value;
+  const route = globalThis.foundry?.utils?.getRoute;
+  if (typeof route === "function") return route(value);
+  if (value.startsWith("/")) return value;
   return `/${value}`;
 }
 
@@ -205,7 +208,9 @@ function ocrWorker() {
 async function createOcr() {
   const version = "5.1.1";
   const mod = await import(/* @vite-ignore */ `https://cdn.jsdelivr.net/npm/tesseract.js@${version}/dist/tesseract.esm.min.js`);
-  return mod.createWorker("eng", 1, {
+  const api = typeof mod.createWorker === "function" ? mod : mod.default;
+  if (typeof api?.createWorker !== "function") throw new Error("The scan reader did not start.");
+  return api.createWorker("eng", 1, {
     workerPath: `https://cdn.jsdelivr.net/npm/tesseract.js@${version}/dist/worker.min.js`,
     corePath: `https://cdn.jsdelivr.net/npm/tesseract.js-core@${version}/tesseract-core-simd-lstm.wasm.js`,
     langPath: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0"
@@ -527,7 +532,9 @@ function PickerApp() {
         await importHeroFromText(text, label, { mechanicsOnly: true });
       } catch (err) {
         console.error("FASERIP | journal read", err);
-        ui.notifications?.error("That page could not be read. The first scan needs a connection, then box the stat line and try again.");
+        ui.notifications?.error(err.message === "The scan reader did not start."
+          ? err.message
+          : "That page could not be read. Box the stat line and try again.");
       } finally {
         this.busy = false;
       }
