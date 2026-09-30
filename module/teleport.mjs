@@ -4,7 +4,7 @@ import { feetPerArea, formatAreaCount, formatMovement } from "./movement.mjs";
 const USE = {
   self: "Click a destination. A place you can see needs no roll. A known place out of sight calls for a FEAT, and a miss scatters one area.",
   other: "Target someone, then click where they appear. They resist with Psyche or Intuition unless you mark them willing.",
-  gateway: "Click two ends within range. Both portals stay on the map until someone steps through.",
+  gateway: "Click the entrance, then the exit. Each portal appears as you click it and stays until Close. Walking into the entrance comes out the exit.",
   dimension: "Roll a FEAT to leave. Return from the chat card."
 };
 
@@ -390,15 +390,16 @@ function portalRadius() {
 
 function portalDrawing(point, label) {
   const radius = portalRadius();
+  const exit = label === "Out";
   return {
     x: point.x - radius,
     y: point.y - radius,
     shape: { type: "c", width: radius * 2, height: radius * 2, radius },
     strokeWidth: 8,
-    strokeColor: "#6d28d9",
+    strokeColor: exit ? "#d97706" : "#6d28d9",
     strokeAlpha: 1,
     fillType: 1,
-    fillColor: "#c4b5fd",
+    fillColor: exit ? "#fde68a" : "#c4b5fd",
     fillAlpha: 0.45,
     text: label,
     fontSize: Math.max(18, Math.round(radius * 0.45)),
@@ -424,33 +425,28 @@ function portalFile() {
   }) || "";
 }
 
-async function placePortals(first, second) {
-  const scene = globalThis.canvas?.scene;
+async function placePortal(point, label) {
   const portalIds = [];
   const effectNames = [];
+  const scene = globalThis.canvas?.scene;
   if (scene?.createEmbeddedDocuments) {
     try {
-      const docs = await scene.createEmbeddedDocuments("Drawing", [
-        portalDrawing(first, "A"),
-        portalDrawing(second, "B")
-      ]);
+      const docs = await scene.createEmbeddedDocuments("Drawing", [portalDrawing(point, label)]);
       for (const doc of docs) if (doc?.id) portalIds.push(doc.id);
     } catch (err) {
-      console.warn("FASERIP | gateway portals", err);
-      globalThis.ui?.notifications?.warn("The portals could not be drawn on the map.");
+      console.warn("FASERIP | gateway portal", err);
+      globalThis.ui?.notifications?.warn("That portal could not be drawn on the map.");
     }
   }
   const file = portalFile();
   const Sequence = globalThis.Sequence;
   if (file && typeof Sequence === "function") {
-    for (const [end, point] of [["a", first], ["b", second]]) {
-      const name = `faserip-gate-${end}-${globalThis.foundry?.utils?.randomID?.() || Math.random().toString(36).slice(2)}`;
-      try {
-        await new Sequence().effect().file(file).atLocation(point).scale(0.4).persist(true).name(name).play();
-        effectNames.push(name);
-      } catch (err) {
-        console.warn("FASERIP | gateway effect", err);
-      }
+    const name = `faserip-gate-${label}-${globalThis.foundry?.utils?.randomID?.() || Math.random().toString(36).slice(2)}`;
+    try {
+      await new Sequence().effect().file(file).atLocation(point).scale(0.4).persist(true).name(name).play();
+      effectNames.push(name);
+    } catch (err) {
+      console.warn("FASERIP | gateway effect", err);
     }
   }
   return { portalIds, effectNames };
@@ -489,16 +485,24 @@ async function finishGate(message, line) {
 async function openGateway(actor, item) {
   const hero = tokenForActor(actor, { controlled: true });
   const from = hero ? centerOf(hero) : null;
-  const first = await pickPoint(`${item.name}: click the first end, or right-click to cancel. Reach ${rangeText(rankOf(item))}.`);
+  const first = await pickPoint(`${item.name}: click the entrance, or right-click to cancel. Reach ${rangeText(rankOf(item))}.`);
   if (!first) return null;
   if (from && !(await checkReach(from, first, item))) return null;
-  const second = await pickPoint(`${item.name}: click the other end.`);
-  if (!second) return null;
-  if (!(await checkReach(first, second, item))) return null;
+  const entrance = await placePortal(first, "In");
+  let second = null;
+  while (!second) {
+    const point = await pickPoint(`${item.name}: click the exit. Right-click cancels and removes the entrance.`);
+    if (!point) {
+      await removePortals(entrance);
+      return null;
+    }
+    if (!(await checkReach(first, point, item))) continue;
+    second = point;
+  }
+  const exit = await placePortal(second, "Out");
   const sceneId = globalThis.canvas?.scene?.id || "";
-  const portals = await placePortals(first, second);
-  const line = `${actor.name} opens a gateway. The portals stay until someone steps through.`;
-  const buttons = `<div class="feat-actions"><button type="button" data-faserip-gate="step">Step through</button><button type="button" data-faserip-gate="close">Close</button></div>`;
+  const line = `${actor.name} opens a gateway. Walk into the entrance to come out the exit. Close removes both portals.`;
+  const buttons = `<div class="feat-actions"><button type="button" data-faserip-gate="close">Close</button></div>`;
   await note(actor, hero, card(item.name, actor.name, line, buttons), {
     gateway: {
       sceneId,
@@ -507,8 +511,8 @@ async function openGateway(actor, item) {
       bx: second.x,
       by: second.y,
       ownerId: actor.uuid || actor.id,
-      portalIds: portals.portalIds,
-      effectNames: portals.effectNames
+      portalIds: [...entrance.portalIds, ...exit.portalIds],
+      effectNames: [...entrance.effectNames, ...exit.effectNames]
     }
   });
   await playJump(actor, item);
@@ -548,34 +552,56 @@ async function leaveDimension(actor, item) {
   return true;
 }
 
-async function stepThrough(message) {
-  const gate = message.getFlag?.("faserip", "gateway") ?? message.flags?.faserip?.gateway;
-  if (!gate || message.getFlag?.("faserip", "gateClosed")) return;
-  if (gate.sceneId && globalThis.canvas?.scene?.id && gate.sceneId !== globalThis.canvas.scene.id) {
-    globalThis.ui?.notifications?.warn("That gateway is on another scene.");
+const crossing = new Set();
+
+function gateKeeper(doc) {
+  const users = globalThis.game?.users;
+  const gm = users?.find?.((user) => user.isGM && user.active);
+  if (gm) return globalThis.game.user?.id === gm.id;
+  const owners = users?.filter?.((user) => user.active && doc?.testUserPermission?.(user, "OWNER")) ?? [];
+  owners.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  return owners[0]?.id === globalThis.game.user?.id;
+}
+
+function openGates() {
+  const sceneId = globalThis.canvas?.scene?.id || "";
+  const gates = [];
+  for (const message of globalThis.game?.messages?.contents ?? []) {
+    if (message.getFlag?.("faserip", "gateClosed")) continue;
+    const gate = message.getFlag?.("faserip", "gateway") ?? message.flags?.faserip?.gateway;
+    if (!gate || gate.sceneId !== sceneId) continue;
+    if (!Number.isFinite(gate.ax) || !Number.isFinite(gate.bx)) continue;
+    gates.push(gate);
+  }
+  return gates;
+}
+
+function enteredPortal(doc, point) {
+  const here = centerOf({ document: doc });
+  if (!here || !point) return false;
+  const size = Number(globalThis.canvas?.grid?.size) || 100;
+  const reach = portalRadius() + ((doc.width || 1) * size) / 2;
+  return Math.hypot(here.x - point.x, here.y - point.y) <= reach;
+}
+
+async function onTokenMoved(doc) {
+  if (!doc || crossing.has(doc.id) || !gateKeeper(doc)) return;
+  const token = doc.object || globalThis.canvas?.tokens?.get?.(doc.id);
+  if (!token) return;
+  for (const gate of openGates()) {
+    if (!enteredPortal(doc, { x: gate.ax, y: gate.ay })) continue;
+    crossing.add(doc.id);
+    try {
+      const moved = await blinkToken(token, { x: gate.bx, y: gate.by });
+      if (moved) {
+        const name = token.actor?.name || token.name || "A token";
+        globalThis.ui?.notifications?.info(`${name} comes out the exit portal.`);
+      }
+    } finally {
+      crossing.delete(doc.id);
+    }
     return;
   }
-  const ends = [{ x: gate.ax, y: gate.ay }, { x: gate.bx, y: gate.by }];
-  const tokens = globalThis.canvas?.tokens?.controlled ?? [];
-  const token = tokens[0] || tokenForActor(globalThis.game?.user?.character, { controlled: true });
-  if (!token) {
-    globalThis.ui?.notifications?.warn("Select the token that steps through.");
-    return;
-  }
-  const here = centerOf(token);
-  if (!here) return;
-  const near = feetPerArea();
-  const at = ends.findIndex((end) => distanceFeet(here, end) <= near + near * 0.05);
-  if (at < 0) {
-    globalThis.ui?.notifications?.warn("Step onto one end of the gateway first.");
-    return;
-  }
-  const dest = ends[at === 0 ? 1 : 0];
-  const moved = await blinkToken(token, dest);
-  if (!moved) return;
-  const name = token.actor?.name || token.name;
-  globalThis.ui?.notifications?.info(`${name} steps through.`);
-  await finishGate(message, `${name} steps through. The portals close.`);
 }
 
 async function closeGate(message) {
@@ -626,10 +652,6 @@ export function bindTeleportChat(message, html) {
   const spot = message.getFlag?.("faserip", "returnSpot") ?? message.flags?.faserip?.returnSpot;
   if (!gate && !spot) return;
   cardEl.dataset.teleportBound = "1";
-  cardEl.querySelector("[data-faserip-gate='step']")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    stepThrough(message);
-  });
   cardEl.querySelector("[data-faserip-gate='close']")?.addEventListener("click", (event) => {
     event.preventDefault();
     closeGate(message);
@@ -645,4 +667,8 @@ export function registerTeleport() {
   if (!Hooks || Hooks._faseripTeleport) return;
   Hooks._faseripTeleport = true;
   Hooks.on("renderChatMessageHTML", bindTeleportChat);
+  Hooks.on("updateToken", (doc, changes) => {
+    if (!changes || !("x" in changes || "y" in changes)) return;
+    onTokenMoved(doc).catch((err) => console.warn("FASERIP | gateway", err));
+  });
 }
