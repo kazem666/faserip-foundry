@@ -173,18 +173,7 @@
         <button type="button" data-action="poison">Poison</button>
         <button type="button" data-action="treatPoison">Treat poison</button>
         <button type="button" data-action="escapeFate">Escape to 100 Karma</button>
-        {{#if isGM}}<button type="button" data-action="award">Award</button>
-        <label>Situation
-          <select name="situationId">
-            {{#each situations as |row|}}
-            <option value="{{row.id}}" {{#if (eq row.id ../situation)}}selected{{/if}}>{{row.label}}</option>
-            {{/each}}
-          </select>
-        </label>
-        <button type="button" data-action="setSituation">Set situation</button>
-        <button type="button" data-action="randomEvent">Random event</button>
-        <button type="button" data-action="cityEncounter">City encounter</button>
-        {{/if}}
+        {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
         {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
         <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
         <label>Battle Effects

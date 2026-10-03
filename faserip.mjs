@@ -26,6 +26,7 @@ import { registerEffects } from "./module/effects.mjs";
 import { registerZones } from "./module/zones.mjs";
 import { registerMagic } from "./module/magic.mjs";
 import { registerEncounters } from "./module/encounters.mjs";
+import { registerJudgeControls, openJudgeControls } from "./module/apps/judge-app.mjs";
 import { registerDetection } from "./module/detection.mjs";
 import { registerHud } from "./module/hud.mjs";
 import { registerClock } from "./module/clock.mjs";
@@ -38,7 +39,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.4";
+const VERSION = "1.18.5";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -425,6 +426,7 @@ Hooks.once("init", () => {
     registerZones();
     registerMagic();
     registerEncounters();
+    registerJudgeControls();
     registerDetection();
     registerHud();
     registerClock();
@@ -478,7 +480,7 @@ Hooks.once("init", () => {
       rollFeat, promptFeatRoll, generateHero, promptGeneration, createActorWizard, promptPdfImport: launchPdfImport, promptJournalImport: launchJournalImport, writeGeneratedItem, persistGenerationStats, reapplyRolledStats,
       ranks: RANKS, abilities: ABILITIES, battleEffects: BATTLE_EFFECTS,
       rankLabel, shiftRank, intensityNeeded, initiativeModifier,
-      toggleUniversalTable, openUniversalTable: showRollOnTable,
+      toggleUniversalTable, openUniversalTable: showRollOnTable, openJudgeControls,
       ensureCatalogPacks, fillWorldDefinitions, seedRollTables, buildCatalogItemData, describeCatalogItem,
       ActorSheet: FaseripActorSheet, ItemSheet: FaseripItemSheet
     };

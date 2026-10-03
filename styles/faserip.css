@@ -1203,3 +1203,47 @@ button.faserip-import-pdf,
   color: #f6f1e4;
   cursor: pointer;
 }
+.faserip-judge-app .window-content {
+  background: #f6f1e4;
+  color: #141414;
+  font-family: "Source Sans 3", sans-serif;
+}
+.faserip-judge {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 2px 8px;
+}
+.faserip-judge section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.faserip-judge h3 {
+  margin: 0;
+  font-family: Oswald, sans-serif;
+  letter-spacing: 0.04em;
+}
+.faserip-judge .hint {
+  margin: 0;
+  font-size: 0.92rem;
+}
+.faserip-judge label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+}
+.faserip-judge select,
+.faserip-judge button {
+  font: inherit;
+}
+.faserip-judge button {
+  align-self: flex-start;
+  border: 1px solid #1b1b1b;
+  border-radius: 4px;
+  background: #241910;
+  color: #f6f1e4;
+  padding: 6px 12px;
+  cursor: pointer;
+}

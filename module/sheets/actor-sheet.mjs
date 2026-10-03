@@ -226,9 +226,6 @@ export async function fillActorSheetContext(sheet, context) {
       context.conditionHours = battle?.state === "unconscious" && battle?.unit === "hours";
       context.groupMember = !!actor.getFlag("faserip", "groupMember");
       try { context.groupKarma = game.settings.get("faserip", "groupKarma") || 0; } catch { context.groupKarma = 0; }
-      const situationMod = await import("../situation.mjs");
-      context.situations = situationMod.SITUATIONS;
-      context.situation = situationMod.currentSituation().id;
       context.poisoned = !!actor.getFlag("faserip", "poison");
   return context;
 }
@@ -326,9 +323,6 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("addPower", this._onAddPower);
     on("addTalent", this._onAddTalent);
     on("addContact", this._onAddContact);
-    on("setSituation", this._onSetSituation);
-    on("randomEvent", this._onRandomEvent);
-    on("cityEncounter", this._onCityEncounter);
     on("holdBreath", this._onHoldBreath);
     on("drown", this._onDrown);
     on("poison", this._onPoison);
@@ -811,24 +805,6 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       karmaMode: "none",
       whisperGM: true
     });
-  }
-
-  async _onSetSituation(event) {
-    event.preventDefault();
-    const { setSituation } = await import("../situation.mjs");
-    return setSituation(this._formEl("situationId")?.value || "");
-  }
-
-  async _onRandomEvent(event) {
-    event.preventDefault();
-    const { rollRandomEvent } = await import("../situation.mjs");
-    return rollRandomEvent();
-  }
-
-  async _onCityEncounter(event) {
-    event.preventDefault();
-    const { rollCityEncounter } = await import("../encounters.mjs");
-    return rollCityEncounter(this.actor);
   }
 
   async _onHoldBreath(event) {
