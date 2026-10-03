@@ -37,7 +37,8 @@ export function bodyFormKind(name) {
   const key = powerKey(name);
   if (key === "growth") return "growth";
   if (key === "shrinking") return "shrink";
-  if (key === "invisibility") return "invisible";
+  if (key === "invisibility" || key === "invisibility - self") return "invisible";
+  if (key === "alteration - appearance" || key === "alteration") return "imitation";
   if (key === "phasing") return "phase";
   if (key === "density manipulation - self") return "density";
   if (key === "blending") return "blend";

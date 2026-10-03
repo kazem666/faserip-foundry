@@ -64,9 +64,22 @@ async function applyZone(behavior, event, when) {
   const stamp = `${regionId}:${round}:${when}`;
   if (token.getFlag?.("faserip", "zoneHit") === stamp) return;
   try { await token.setFlag?.("faserip", "zoneHit", stamp); } catch { /* the effect still runs */ }
-  if (zone === "ice" || zone === "weather" || zone === "storm") {
-    const line = zone === "ice" ? `${actor.name} steps onto the ice.` : `${actor.name} is in the weather.`;
+  if (zone === "ice" || zone === "weather" || zone === "storm" || zone === "illusion" || zone === "animate" || zone === "mark") {
+    const line = zone === "ice"
+      ? `${actor.name} steps onto the ice.`
+      : zone === "illusion"
+        ? `${actor.name} is inside an illusion. Intuition can test it.`
+        : zone === "animate"
+          ? `${actor.name} is in the animated area.`
+          : zone === "mark"
+            ? `${actor.name} is inside the working.`
+            : `${actor.name} is in the weather.`;
     globalThis.ui?.notifications?.info(line);
+    return;
+  }
+  if (zone === "bind") {
+    try { await actor.setFlag("faserip", "stuck", true); } catch { /* the note still lands */ }
+    globalThis.ui?.notifications?.info(`${actor.name} is caught in the rings.`);
     return;
   }
   if (when === "enter" && globalThis.game?.combat) return;

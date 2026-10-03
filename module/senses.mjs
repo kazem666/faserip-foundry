@@ -82,7 +82,7 @@ export function senseUseTitle(name) {
     computer: "The next Reason FEAT uses this rank for a machine or system.",
     emotion: "Whisper the strong feelings of people in range.",
     energy: "Whisper who in range is carrying an energy power, and mark those tokens on your sight. Use again turns that sight off.",
-    magic: "Whisper who in range reads as magical.",
+    magic: "Whisper who in range reads as magical, and mark invisible creatures on sight. Use again turns that sight off.",
     magnetic: "Whisper who in range is carrying metal or a magnetic power.",
     mutant: "Whisper who in range has a mutant origin.",
     psionic: "Whisper who in range has a mental power.",
@@ -403,6 +403,12 @@ export async function useSensePower(actor, item) {
   if (kind === "radar") {
     const { detectionId } = await import("./detection.mjs");
     return toggleVision(actor, item, { kind, detection: detectionId("faseripRadar", "feelTremor") });
+  }
+  if (kind === "magic") {
+    const { detectionId } = await import("./detection.mjs");
+    const id = detectionId("faseripMagic", "seeInvisibility");
+    if (id) await toggleVision(actor, item, { kind, detection: id });
+    return scan(actor, item, kind);
   }
   if (kind === "energy") {
     const { detectionId } = await import("./detection.mjs");

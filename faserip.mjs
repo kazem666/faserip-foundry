@@ -24,6 +24,7 @@ import { registerRanged } from "./module/ranged.mjs";
 import { registerConditionEffects } from "./module/battle-results.mjs";
 import { registerEffects } from "./module/effects.mjs";
 import { registerZones } from "./module/zones.mjs";
+import { registerMagic } from "./module/magic.mjs";
 import { registerDetection } from "./module/detection.mjs";
 import { registerHud } from "./module/hud.mjs";
 import { registerClock } from "./module/clock.mjs";
@@ -36,7 +37,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.2";
+const VERSION = "1.18.3";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -421,6 +422,7 @@ Hooks.once("init", () => {
     registerConditionEffects();
     registerEffects();
     registerZones();
+    registerMagic();
     registerDetection();
     registerHud();
     registerClock();

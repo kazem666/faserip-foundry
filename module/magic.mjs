@@ -4,6 +4,7 @@
  */
 
 import { colorForRoll, rankIndex, rankLabel, rankValue } from "./config.mjs";
+import { combatTarget, writePending } from "./play-rules.mjs";
 import { MAGIC_EFFECTS, romLimitFor, startingMastery } from "./data/rom.mjs";
 import { worldDay } from "./clock.mjs";
 import { formValue, promptForm } from "./foundry-api.mjs";
@@ -434,4 +435,382 @@ export async function promptDrawCache(actor) {
 export function resistLine(actor, target, item) {
   if (!isRomPower(item) || magicEnergy(item) === "dimensional") return "";
   return psycheNote(actor, target);
+}
+
+const SPELL_MODE = {
+  armor: "armor",
+  "alteration - appearance": "appearance",
+  alteration: "appearance",
+  "invisibility - self": "invisible",
+  invisibility: "invisible",
+  levitation: "levitate",
+  "eldritch beam": "beam",
+  "eldritch beams": "beam",
+  "matter animation": "animate",
+  animation: "animate",
+  shield: "shield",
+  "shield - individual": "shield",
+  illusion: "illusion",
+  bind: "bind",
+  bands: "bind",
+  banishment: "banish",
+  entreaty: "entreat"
+};
+
+const AREA_MODE = new Set(["beam", "animate", "shield", "illusion", "bind"]);
+const ZONE_FOR = { beam: "mark", animate: "animate", illusion: "illusion", bind: "bind", shield: "" };
+
+function spellKey(name) {
+  return String(name || "")
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/[—–]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function spellMode(item) {
+  return SPELL_MODE[spellKey(item?.name)] || "";
+}
+
+function rollColor(result) {
+  if (!result || result === true) return "";
+  return result.getFlag?.("faserip", "color") || result.flags?.faserip?.color || "";
+}
+
+function liveEffect(actor, itemId) {
+  return [...(actor?.effects ?? [])].find((effect) => effect.getFlag?.("faserip", "magicItem") === itemId && !effect.disabled) || null;
+}
+
+function effectDuration(rankId) {
+  const text = String(romLimitFor(rankId).duration || "");
+  const combat = globalThis.game?.combat;
+  if (/permanent/i.test(text)) return {};
+  const count = Number(text.match(/\d+/)?.[0] || 1);
+  if (/hour/i.test(text)) return { seconds: 3600, startTime: globalThis.game?.time?.worldTime ?? 0 };
+  if (/day/i.test(text)) return { seconds: 86400, startTime: globalThis.game?.time?.worldTime ?? 0 };
+  if (/month/i.test(text)) return { seconds: 86400 * 30, startTime: globalThis.game?.time?.worldTime ?? 0 };
+  if (/year/i.test(text)) return { seconds: 86400 * 365, startTime: globalThis.game?.time?.worldTime ?? 0 };
+  return { rounds: /round/i.test(text) ? count : 1, startRound: combat?.round ?? null, combat: combat?.id || null };
+}
+
+function areaSquares(rankId) {
+  const area = String(romLimitFor(rankId).area || "");
+  if (/touch/i.test(area)) return 0;
+  if (/user|same/i.test(area)) return 1;
+  const count = Number(area.match(/(\d+)/)?.[1] || 0);
+  if (count > 0 && /area/i.test(area)) return count;
+  return 0;
+}
+
+function gridSize() {
+  return Number(globalThis.canvas?.grid?.size) || 100;
+}
+
+function tokenCenter(actor) {
+  const token = actor?.getActiveTokens?.(true)?.[0] || actor?.getActiveTokens?.()?.[0];
+  if (!token) return null;
+  const doc = token.document || token;
+  return {
+    token,
+    doc,
+    scene: doc.parent || globalThis.canvas?.scene,
+    x: token.center?.x ?? token.x,
+    y: token.center?.y ?? token.y
+  };
+}
+
+const magicWaiters = new Map();
+
+function requestId() {
+  return globalThis.foundry?.utils?.randomID?.() || Math.random().toString(36).slice(2);
+}
+
+async function performMagic(data) {
+  const scene = globalThis.game?.scenes?.get?.(data.sceneId) || globalThis.canvas?.scene;
+  try {
+    if (data.action === "embed") {
+      if (!scene?.createEmbeddedDocuments) return [];
+      const docs = await scene.createEmbeddedDocuments(data.docType, data.data || []);
+      return docs.map((doc) => doc.id).filter(Boolean);
+    }
+    if (data.action === "remove") {
+      if (!scene?.deleteEmbeddedDocuments || !data.ids?.length) return false;
+      await scene.deleteEmbeddedDocuments(data.docType, data.ids);
+      return true;
+    }
+    if (data.action === "hide") {
+      const token = scene?.tokens?.get?.(data.tokenId);
+      if (!token) return false;
+      await token.update({ hidden: !!data.hidden });
+      return true;
+    }
+    if (data.action === "stuck") {
+      const target = globalThis.game?.actors?.get?.(data.actorId);
+      if (!target) return false;
+      if (data.active) await target.setFlag("faserip", "stuck", true);
+      else await target.unsetFlag("faserip", "stuck");
+      return true;
+    }
+  } catch (err) {
+    console.warn("FASERIP | magic scene", err);
+  }
+  return null;
+}
+
+async function askMagic(action, payload) {
+  if (globalThis.game?.user?.isGM) return performMagic({ action, ...payload });
+  if (!globalThis.game?.socket) {
+    globalThis.ui?.notifications?.warn("The Judge needs to be online for that.");
+    return null;
+  }
+  return new Promise((resolve) => {
+    const id = requestId();
+    const timer = setTimeout(() => {
+      magicWaiters.delete(id);
+      globalThis.ui?.notifications?.warn("The Judge needs to be online for that.");
+      resolve(null);
+    }, 5000);
+    magicWaiters.set(id, (result) => {
+      clearTimeout(timer);
+      resolve(result ?? null);
+    });
+    globalThis.game.socket.emit("system.faserip", { system: "magic", action, requestId: id, ...payload });
+  });
+}
+
+export function registerMagic() {
+  if (globalThis.game?.socket && !globalThis.game.faserip?._magicSocket) {
+    globalThis.game.faserip = globalThis.game.faserip || {};
+    globalThis.game.faserip._magicSocket = true;
+    globalThis.game.socket.on("system.faserip", async (data) => {
+      if (data?.system !== "magic") return;
+      if (data.action === "reply") {
+        const waiter = magicWaiters.get(data.requestId);
+        if (!waiter) return;
+        magicWaiters.delete(data.requestId);
+        waiter(data.result);
+        return;
+      }
+      if (!globalThis.game.user?.isGM) return;
+      if (data.action === "embed" || data.action === "remove" || data.action === "hide" || data.action === "stuck") {
+        const result = await performMagic(data);
+        globalThis.game.socket.emit("system.faserip", {
+          system: "magic",
+          action: "reply",
+          requestId: data.requestId,
+          result
+        });
+      }
+    });
+  }
+  const Hooks = globalThis.Hooks;
+  if (!Hooks || Hooks._faseripMagicEffect) return;
+  Hooks._faseripMagicEffect = true;
+  const finish = (effect) => {
+    clearMagicEffect(effect).catch((err) => console.warn("FASERIP | magic effect", err));
+  };
+  Hooks.on("deleteActiveEffect", finish);
+  Hooks.on("updateActiveEffect", (effect, changes) => {
+    if (changes?.disabled) finish(effect);
+  });
+}
+
+export async function dismissMagicSpell(actor, item) {
+  const effects = [];
+  const own = liveEffect(actor, item?.id);
+  if (own) effects.push(own);
+  for (const other of globalThis.game?.actors ?? []) {
+    if (other?.id === actor?.id) continue;
+    const effect = liveEffect(other, item?.id);
+    if (effect) effects.push(effect);
+  }
+  if (!effects.length) return false;
+  for (const effect of effects) {
+    try { await effect.delete(); } catch (err) {
+      console.warn("FASERIP | dismiss working", err);
+    }
+  }
+  globalThis.ui?.notifications?.info(`${item.name} ends.`);
+  return true;
+}
+
+export async function clearMagicEffect(effect) {
+  const work = effect?.getFlag?.("faserip", "magicWork") || effect?.flags?.faserip?.magicWork;
+  if (!work || effect._faseripMagicCleared) return;
+  effect._faseripMagicCleared = true;
+  const actor = effect.parent;
+  const mode = work.mode;
+  if (actor && work.itemId) {
+    const item = actor.items?.get?.(work.itemId);
+    if (item && (mode === "armor" || mode === "shield")) {
+      const field = mode === "armor" ? "system.bodyArmor" : "system.forceField";
+      try { await item.update({ [field]: false }); } catch { /* the effect is already going */ }
+    }
+  }
+  if (actor && mode === "levitate") {
+    const { powerKeepsAloft, setFlying } = await import("./falling.mjs");
+    const other = [...(actor.items ?? [])].some((item) => item.id !== work.itemId && powerKeepsAloft(item.name));
+    if (!other) await setFlying(actor, false);
+  }
+  if (actor && mode === "shield") {
+    try {
+      const { playShieldArt } = await import("./vfx.mjs");
+      await playShieldArt(actor, false);
+    } catch { /* the field is already down */ }
+  }
+  if (mode === "bind") {
+    for (const id of work.targetIds || []) {
+      await askMagic("stuck", { actorId: id, active: false });
+    }
+  }
+  if (work.sceneId && work.templateIds?.length) {
+    await askMagic("remove", { sceneId: work.sceneId, docType: "MeasuredTemplate", ids: work.templateIds });
+  }
+  if (work.sceneId && work.regionIds?.length) {
+    await askMagic("remove", { sceneId: work.sceneId, docType: "Region", ids: work.regionIds });
+  }
+  if (work.sceneId && work.tokenId && work.hidden) {
+    await askMagic("hide", { sceneId: work.sceneId, tokenId: work.tokenId, hidden: false });
+  }
+}
+
+async function placeArea(actor, item, mode) {
+  const aimed = mode === "beam" ? tokenCenter(combatTarget(actor?.id)) : null;
+  const where = aimed || tokenCenter(actor);
+  if (!where?.scene) return null;
+  const { squaresPerArea } = await import("./movement.mjs");
+  const { circleTemplateData, coveredBy, zoneBehaviorData } = await import("./zones.mjs");
+  const squares = Math.max(areaSquares(item.system?.rank), mode === "shield" ? 1 : 0);
+  if (!(squares > 0) && mode !== "shield") return null;
+  const span = (squares > 0 ? squares : 1) * squaresPerArea();
+  const radius = (span * gridSize()) / 2;
+  const colors = { beam: "#c084fc", animate: "#a16207", shield: "#38bdf8", illusion: "#f472b6", bind: "#fbbf24" };
+  const color = colors[mode] || "#c084fc";
+  const templateIds = await askMagic("embed", {
+    sceneId: where.scene.id,
+    docType: "MeasuredTemplate",
+    data: [circleTemplateData({ x: where.x, y: where.y }, radius, color, item.name)]
+  });
+  let regionIds = [];
+  const zone = ZONE_FOR[mode];
+  if (zone) {
+    const behavior = zoneBehaviorData(zone, item.system?.rank || "typical");
+    if (behavior) {
+      regionIds = await askMagic("embed", {
+        sceneId: where.scene.id,
+        docType: "Region",
+        data: [{
+          name: item.name,
+          color,
+          shapes: [{ type: "ellipse", x: where.x, y: where.y, radiusX: radius, radiusY: radius }],
+          behaviors: [behavior],
+          flags: { faserip: { magicZone: zone } }
+        }]
+      }) || [];
+    }
+  }
+  const names = [];
+  for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+    const center = token.center || { x: token.x, y: token.y };
+    if (Math.hypot(center.x - where.x, center.y - where.y) <= radius && token.actor) names.push(token.actor);
+  }
+  return {
+    sceneId: where.scene.id,
+    templateIds: templateIds || [],
+    regionIds,
+    note: coveredBy({ x: where.x, y: where.y }, radius),
+    inside: names
+  };
+}
+
+async function markEffect(actor, item, mode, work = {}) {
+  if (!actor?.createEmbeddedDocuments) return null;
+  const rankId = item.system?.rank || "typical";
+  const [effect] = await actor.createEmbeddedDocuments("ActiveEffect", [{
+    name: item.name,
+    img: "icons/svg/aura.svg",
+    disabled: false,
+    duration: effectDuration(rankId),
+    flags: {
+      faserip: {
+        magicItem: item.id,
+        magicWork: { mode, itemId: item.id, ...work }
+      }
+    }
+  }]);
+  return effect || null;
+}
+
+export async function automateMagicSpell(actor, item, result) {
+  const mode = spellMode(item);
+  if (!actor || !mode || !result) return;
+  if (mode === "invisible" || mode === "appearance") return;
+  const color = rollColor(result);
+  if (color === "white") return;
+  const rankId = item.system?.rank || "typical";
+  const amount = magicHarm(rankId);
+  if (mode === "armor" || mode === "shield") {
+    const field = mode === "armor" ? "system.bodyArmor" : "system.forceField";
+    try { await item.update({ [field]: true, "system.number": amount }); } catch (err) {
+      console.warn("FASERIP | magic ward", err);
+    }
+    const area = mode === "shield" ? await placeArea(actor, item, mode) : null;
+    await markEffect(actor, item, mode, area ? {
+      sceneId: area.sceneId,
+      templateIds: area.templateIds,
+      regionIds: area.regionIds
+    } : {});
+    if (mode === "shield") {
+      try {
+        const { playShieldArt } = await import("./vfx.mjs");
+        await playShieldArt(actor, true);
+      } catch { /* the ward still soaks */ }
+    }
+    const soak = mode === "armor" ? "physical damage. Energy attacks ignore 20 of that." : "as a force field.";
+    globalThis.ui?.notifications?.info(`${item.name} is up. It soaks ${amount} ${soak}${area?.note ? " " + area.note : ""}`);
+    return;
+  }
+  if (mode === "levitate") {
+    const { setFlying } = await import("./falling.mjs");
+    await setFlying(actor, true);
+    await markEffect(actor, item, mode);
+    globalThis.ui?.notifications?.info(`${actor.name} rises on ${item.name}.`);
+    return;
+  }
+  if (mode === "entreat") {
+    await writePending(actor, { nextCs: 1, nextNote: "Entreaty +1 CS" });
+    globalThis.ui?.notifications?.info(`${item.name} lends ${actor.name} +1 CS on the next roll.`);
+    return;
+  }
+  if (mode === "banish") {
+    const target = combatTarget(actor.id);
+    const spot = tokenCenter(target);
+    if (!target || !spot?.doc) {
+      globalThis.ui?.notifications?.warn("Target a token to banish.");
+      return;
+    }
+    await askMagic("hide", { sceneId: spot.scene?.id, tokenId: spot.doc.id, hidden: true });
+    await markEffect(target, item, mode, { sceneId: spot.scene?.id, tokenId: spot.doc.id, hidden: true });
+    globalThis.ui?.notifications?.info(`${target.name} is banished for the working's duration.`);
+    return;
+  }
+  if (!AREA_MODE.has(mode)) return;
+  const area = await placeArea(actor, item, mode);
+  if (!area) return;
+  const targetIds = [];
+  if (mode === "bind") {
+    for (const target of area.inside || []) {
+      if (!target?.id || target.id === actor.id) continue;
+      const held = await askMagic("stuck", { actorId: target.id, active: true });
+      if (held) targetIds.push(target.id);
+    }
+  }
+  await markEffect(actor, item, mode, {
+    sceneId: area.sceneId,
+    templateIds: area.templateIds,
+    regionIds: area.regionIds,
+    targetIds
+  });
+  globalThis.ui?.notifications?.info(`${item.name} covers the area. ${area.note}`);
 }

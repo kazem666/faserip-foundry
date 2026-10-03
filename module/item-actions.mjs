@@ -454,12 +454,14 @@ export async function rollItemAction(actor, item, opts = {}) {
   if (!item) return null;
   let rom = null;
   if (item.type === "power" && isRomPower(item)) {
-    const { prepareMagicCast, commitMagicCast } = await import("./magic.mjs");
+    const { dismissMagicSpell, prepareMagicCast, commitMagicCast, automateMagicSpell } = await import("./magic.mjs");
+    if (await dismissMagicSpell(actor, item)) return true;
     rom = await prepareMagicCast(actor, item);
     if (!rom) return null;
     const result = await runItemAction(actor, item, opts);
     if (result) {
       await commitMagicCast(actor, item, rom);
+      await automateMagicSpell(actor, item, result);
       if (result === true && rom.note) ui.notifications?.info(rom.note);
     }
     return result;

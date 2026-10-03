@@ -67,6 +67,7 @@ export function registerDetection() {
   addDetection(Detection, "faseripRadar", "Radar", { walls: false, type: "other" });
   addDetection(Detection, "faseripEnergy", "Energy Detection", { walls: true, type: "sight" });
   addDetection(Detection, "faseripTrue", "True Sight", { walls: true, type: "sight" });
+  addDetection(Detection, "faseripMagic", "Magic Sight", { walls: true, type: "sight" });
   } catch (err) {
     console.warn("FASERIP | detection modes", err);
   }
