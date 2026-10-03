@@ -47,7 +47,7 @@ function panelHtml() {
     <div class="faserip-judge">
       <section>
         <h3>Situation</h3>
-        <p class="hint">This applies to FEATs while the workflow is on. Night vision ignores darkness. Water powers ignore underwater.</p>
+        <p class="hint">This applies to FEATs while the workflow is on. Night vision ignores darkness. Water powers ignore underwater. Rain, fog, cold, heat, darkness, and underwater also play on the scene when Gambit's FXMaster is on.</p>
         <label>Situation <select name="situation">${situations}</select></label>
         <button type="button" data-action="setSituation">Set situation</button>
       </section>
