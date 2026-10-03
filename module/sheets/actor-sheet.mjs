@@ -328,6 +328,7 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("addContact", this._onAddContact);
     on("setSituation", this._onSetSituation);
     on("randomEvent", this._onRandomEvent);
+    on("cityEncounter", this._onCityEncounter);
     on("holdBreath", this._onHoldBreath);
     on("drown", this._onDrown);
     on("poison", this._onPoison);
@@ -822,6 +823,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     event.preventDefault();
     const { rollRandomEvent } = await import("../situation.mjs");
     return rollRandomEvent();
+  }
+
+  async _onCityEncounter(event) {
+    event.preventDefault();
+    const { rollCityEncounter } = await import("../encounters.mjs");
+    return rollCityEncounter(this.actor);
   }
 
   async _onHoldBreath(event) {
