@@ -12,6 +12,7 @@ import { magicColumnShift, magicHarm, magicResult, resistLine } from "../magic.m
 import { abilityForColumn, actorFromRef, combatTarget, sceneActorChoices } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
+import { playAttackSound } from "../psfx.mjs";
 import { playFeatVfx } from "../vfx.mjs";
 import { attackOutOfRange, closeCharge } from "../movement.mjs";
 import { psiScreenBlocks } from "../mental.mjs";
@@ -279,6 +280,14 @@ export async function rollFeat({
       effect,
       taken: damageApplied ? taken : null
     });
+    playAttackSound({
+      targetUuid: target.uuid,
+      columnId,
+      color,
+      effect,
+      itemName: item?.name || label || "",
+      magic: !!magic
+    });
   }
   const content = await foundry.applications.handlebars.renderTemplate("systems/faserip/templates/chat/feat-roll.hbs", {
     actorName: actor?.name ?? "",
@@ -325,6 +334,7 @@ export async function rollFeat({
         intensityId: intensityId || null,
         intensityPass,
         effectsColumn: columnId || null,
+        itemName: item?.name || label || "",
         effect,
         targetId: combat.targetId || target?.id || null,
         targetUuid: combat.targetUuid || target?.uuid || null,

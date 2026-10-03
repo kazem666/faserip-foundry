@@ -17,6 +17,7 @@ import { promptJudgeAward } from "../play.mjs";
 import { formatPending, readPending } from "../play-rules.mjs";
 import { describeItemAction, rollItemAction, rollStandardAction, sheetActionGroups } from "../item-actions.mjs";
 import { playComicHit } from "../comic-hit.mjs";
+import { playAttackSound } from "../psfx.mjs";
 import { formatMovement, movementLines } from "../movement.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
@@ -472,6 +473,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       const taken = await this.actor.applyDamage(amount, { energy, useForceField });
       ui.notifications.info(this.actor.name + " takes " + taken + " after armor/fields.");
       playComicHit({ targetUuid: this.actor.uuid, taken, effect: "Hit" });
+      playAttackSound({
+        targetUuid: this.actor.uuid,
+        columnId: energy ? "energy" : "blunt",
+        effect: "Hit",
+        itemName: ""
+      });
       if (Number(this.actor.system?.health?.value) === 0) {
         const { collapseAtZero } = await import("../battle-results.mjs");
         await collapseAtZero(this.actor);

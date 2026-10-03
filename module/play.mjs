@@ -4,6 +4,7 @@ import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pe
 import { powerDamage } from "./item-actions.mjs";
 import { workflowActive, workflowOn } from "./workflow.mjs";
 import { playComicHit } from "./comic-hit.mjs";
+import { playAttackSound } from "./psfx.mjs";
 import { effectGetsThrough, soakAmount } from "./battle-results.mjs";
 
 function esc(value) {
@@ -50,6 +51,14 @@ export async function openCombatChain(message) {
         color: message.getFlag?.("faserip", "color") ?? message.flags?.faserip?.color,
         effect: message.getFlag?.("faserip", "effect") ?? message.flags?.faserip?.effect,
         taken
+      });
+      playAttackSound({
+        targetUuid: target.uuid,
+        columnId: message.getFlag?.("faserip", "effectsColumn") ?? message.flags?.faserip?.effectsColumn,
+        color: message.getFlag?.("faserip", "color") ?? message.flags?.faserip?.color,
+        effect: message.getFlag?.("faserip", "effect") ?? message.flags?.faserip?.effect,
+        itemName: message.getFlag?.("faserip", "itemName") ?? message.flags?.faserip?.itemName ?? "",
+        magic: !!(message.getFlag?.("faserip", "magic") ?? message.flags?.faserip?.magic)
       });
       if (Number(target.system?.health?.value) === 0 && through && checkColumn !== "stunCheck" && checkColumn !== "killCheck") {
         const { collapseAtZero } = await import("./battle-results.mjs");
@@ -109,6 +118,14 @@ export async function applyDamageFromChat(message) {
     color: message.getFlag?.("faserip", "color"),
     effect: message.getFlag?.("faserip", "effect"),
     taken
+  });
+  playAttackSound({
+    targetUuid: target.uuid,
+    columnId: message.getFlag?.("faserip", "effectsColumn"),
+    color: message.getFlag?.("faserip", "color"),
+    effect: message.getFlag?.("faserip", "effect"),
+    itemName: message.getFlag?.("faserip", "itemName") || "",
+    magic: !!message.getFlag?.("faserip", "magic")
   });
   const checkColumn = message.getFlag("faserip", "checkColumn");
   if (through && Number(target.system?.health?.value) === 0 && checkColumn !== "stunCheck" && checkColumn !== "killCheck") {
