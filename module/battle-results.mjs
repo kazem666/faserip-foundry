@@ -226,6 +226,22 @@ function rankIndexSafe(id) {
 }
 
 async function applySlam(actor, color, resultOf) {
+  if (resultOf?.magic) {
+    if (color === "yellow" || color === "red") {
+      await note(`${actor.name} keeps their feet. No Slam.`);
+      return;
+    }
+    if (color === "green") {
+      await note(`${actor.name} is knocked down in the same area.`);
+      return;
+    }
+    const squares = squaresPerArea();
+    const attacker = resultOf?.attackerId ? game.actors?.get?.(resultOf.attackerId) : null;
+    const shove = await shoveActor(actor, attacker, squares, "back");
+    const landed = shove.squares ? `${shove.squares} square${shove.squares === 1 ? "" : "s"} straight back` : "no open square";
+    await note(`${actor.name} is knocked into the next area (${landed}).`);
+    return;
+  }
   if (color === "red") {
     await note(`${actor.name} keeps their feet. No Slam.`);
     return;
@@ -268,7 +284,11 @@ function timedState(state, rounds, extra = {}) {
   return { state, rounds, untilRound: now + rounds, ...extra };
 }
 
-async function applyStun(actor, color) {
+async function applyStun(actor, color, resultOf = null) {
+  if (resultOf?.magic && color !== "white") {
+    await note(`${actor.name} keeps their feet. No Stun.`);
+    return;
+  }
   if (color === "red") {
     await note(`${actor.name} shrugs off the Stun.`);
     return;
@@ -310,7 +330,7 @@ async function applyKill(actor, color, resultOf) {
 export async function applyCheckResult({ actor, color, columnId, resultOf = null } = {}) {
   if (!actor || !workflowActive("autoBattleResults")) return;
   if (columnId === "slamCheck") return applySlam(actor, color, resultOf);
-  if (columnId === "stunCheck") return applyStun(actor, color);
+  if (columnId === "stunCheck") return applyStun(actor, color, resultOf);
   if (columnId === "killCheck") return applyKill(actor, color, resultOf);
 }
 

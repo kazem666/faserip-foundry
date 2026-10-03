@@ -72,7 +72,8 @@ export async function openCombatChain(message) {
       resultOf: {
         attackerId: message.getFlag?.("faserip", "attackerId") ?? message.flags?.faserip?.attackerId ?? "",
         strengthRank: message.getFlag?.("faserip", "strengthRank") ?? message.flags?.faserip?.strengthRank ?? "",
-        sourceColumn: message.getFlag?.("faserip", "effectsColumn") ?? message.flags?.faserip?.effectsColumn ?? ""
+        sourceColumn: message.getFlag?.("faserip", "effectsColumn") ?? message.flags?.faserip?.effectsColumn ?? "",
+        magic: !!(message.getFlag?.("faserip", "magic") ?? message.flags?.faserip?.magic)
       }
     });
   }
@@ -134,7 +135,8 @@ export async function checkFromChat(message) {
     resultOf: {
       attackerId: message.getFlag?.("faserip", "attackerId") || "",
       strengthRank: message.getFlag?.("faserip", "strengthRank") || "",
-      sourceColumn: message.getFlag?.("faserip", "effectsColumn") || ""
+      sourceColumn: message.getFlag?.("faserip", "effectsColumn") || "",
+      magic: !!message.getFlag?.("faserip", "magic")
     }
   });
 }

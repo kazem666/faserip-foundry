@@ -103,6 +103,13 @@ export async function fillActorSheetContext(sheet, context) {
       context.bodyArmor = actor.getBodyArmor();
       context.forceField = actor.getForceField();
       context.healRate = actor.getAbilityNumber("endurance");
+      context.resourceCache = Number(actor.getFlag?.("faserip", "resourceCache") || 0);
+      try {
+        const { magicStudyNote } = await import("../magic.mjs");
+        context.magicStudyNote = magicStudyNote(actor);
+      } catch {
+        context.magicStudyNote = "";
+      }
       context.combatColumns = Object.entries(BATTLE_EFFECTS).map(([id, col]) => ({ id, label: col.label }));
       context.abilities = ABILITIES.map((key) => {
         const rank = actor.getAbilityRank(key);
@@ -667,6 +674,30 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     event.preventDefault();
     const { promptContactAdd } = await import("../advancement.mjs");
     return promptContactAdd(this.actor);
+  }
+
+  async _onLearnWorking(event) {
+    event.preventDefault();
+    const { promptLearnWorking } = await import("../magic.mjs");
+    return promptLearnWorking(this.actor);
+  }
+
+  async _onStudyWorking(event) {
+    event.preventDefault();
+    const { promptStudyWorking } = await import("../magic.mjs");
+    return promptStudyWorking(this.actor);
+  }
+
+  async _onRefineWorking(event) {
+    event.preventDefault();
+    const { promptRefineWorking } = await import("../magic.mjs");
+    return promptRefineWorking(this.actor);
+  }
+
+  async _onDrawCache(event) {
+    event.preventDefault();
+    const { promptDrawCache } = await import("../magic.mjs");
+    return promptDrawCache(this.actor);
   }
 
   async _onEditImage(event) {

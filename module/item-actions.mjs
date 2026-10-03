@@ -14,6 +14,7 @@ import { ultimateSpec } from "./data/ultimate-list.mjs";
 import { powerKeepsAloft } from "./falling.mjs";
 import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs";
 import { applyBodyPower, bodyUseTitle, revealIfAttacking, stretchForStrike, stretchPowerTitle } from "./body-form.mjs";
+import { isRomPower, magicLimitNote, takeMagic } from "./magic.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -236,6 +237,7 @@ export function describeItemAction(item) {
       spec.label = "Use";
       spec.title = senseTitle;
     }
+    if (isRomPower(item)) spec.title = [spec.title, magicLimitNote(item)].filter(Boolean).join(" ");
     if (item.getFlag?.("faserip", "nullified") || item.flags?.faserip?.nullified) {
       spec.label = "Nullified";
       spec.title = "This power is suppressed.";
@@ -358,6 +360,12 @@ export function defenseChoices(actor) {
   return choices;
 }
 
+function magicExtras(item) {
+  const magic = takeMagic(item);
+  if (!magic) return { cs: 0, note: "", magic: false };
+  return { cs: Number(magic.cs) || 0, note: magic.note || "", magic: true };
+}
+
 export async function rollAction(actor, spec, { dialog = false, item = null, label = "" } = {}) {
   const { conditionBlock, isCheckColumn } = await import("./battle-results.mjs");
   if (actor && !isCheckColumn(spec?.column) && conditionBlock(actor)) {
@@ -365,6 +373,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     return null;
   }
   const name = label || item?.name || spec?.label || "FEAT";
+  const magic = magicExtras(item);
   const { promptFeatRoll, rollFeat } = await import("./dice/universal-table.mjs");
   const fast = workflowActive("autoRollAttack") && (game.user?.isGM || workflowOn("playersFastForward"));
   if (dialog || !fast) {
@@ -374,7 +383,10 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
       ability: spec.ability,
       rankId: rankIdForAction(actor, item, spec),
       label: name,
-      defaultColumn: spec.column
+      defaultColumn: spec.column,
+      extraCs: magic.cs,
+      extraNote: magic.note,
+      magic: magic.magic
     });
     if (message) {
       stretchForStrike(actor, spec.column).catch((err) => console.warn("FASERIP | stretch", err));
@@ -419,11 +431,12 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     item,
     rankId: rankIdForAction(actor, item, spec),
     label: name,
-    cs: plan.cs + reactionCs,
+    cs: plan.cs + reactionCs + magic.cs,
     effectsColumn: spec.column,
     targetId: target?.id || "",
     targetUuid: target?.uuid || "",
-    shiftNotes: plan.note,
+    shiftNotes: [plan.note, magic.note].filter(Boolean).join(" "),
+    magic: magic.magic,
     damageCs: plan.damageCs || 0,
     skipCondition: true,
     consumeOutgoing: plan.consumeOutgoing,
@@ -439,6 +452,22 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
 
 export async function rollItemAction(actor, item, opts = {}) {
   if (!item) return null;
+  let rom = null;
+  if (item.type === "power" && isRomPower(item)) {
+    const { prepareMagicCast, commitMagicCast } = await import("./magic.mjs");
+    rom = await prepareMagicCast(actor, item);
+    if (!rom) return null;
+    const result = await runItemAction(actor, item, opts);
+    if (result) {
+      await commitMagicCast(actor, item, rom);
+      if (result === true && rom.note) ui.notifications?.info(rom.note);
+    }
+    return result;
+  }
+  return runItemAction(actor, item, opts);
+}
+
+async function runItemAction(actor, item, opts = {}) {
   if (item.getFlag?.("faserip", "nullified") || item.flags?.faserip?.nullified) {
     ui.notifications?.warn(`${item.name} is nullified.`);
     return null;

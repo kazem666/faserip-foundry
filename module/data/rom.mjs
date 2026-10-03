@@ -255,8 +255,8 @@ export const MAGIC_EFFECTS = {
     blasting: ["Miss", "Hit", "Slam", "Stun"],
     mentalControl: ["Miss", "Hold", "Hold", "Hold"],
     hold: ["Miss", "Miss", "Escape", "Reverse"],
-    psycheFeat: ["Affected", "Same Area", "No Effect", "No Effect"],
-    slam: ["1 area", "No Stun", "No Slam", "No Slam"],
+    psycheFeat: ["Affected", "Affected", "No Effect", "No Effect"],
+    slam: ["1 area", "Same Area", "No Slam", "No Slam"],
     stun: ["1-10 rounds", "No Stun", "No Stun", "No Stun"]
   },
   colors: ["white", "green", "yellow", "red"]
@@ -297,7 +297,18 @@ export function schoolById(id) {
 }
 
 export function romLimitFor(rankId) {
-  return ROM_LIMITS.find((row) => row.id === String(rankId || "").toLowerCase()) || ROM_LIMITS[4];
+  const id = String(rankId || "").toLowerCase();
+  const alias = {
+    shiftx: "shiftX",
+    shifty: "shiftX",
+    shiftz: "shiftX",
+    cl1000: "class1000",
+    cl3000: "class1000",
+    cl5000: "class1000",
+    beyond: "class1000"
+  };
+  const key = alias[id] || id;
+  return ROM_LIMITS.find((row) => row.id.toLowerCase() === key.toLowerCase()) || ROM_LIMITS[4];
 }
 
 export function startingMastery(spellCount = 3) {

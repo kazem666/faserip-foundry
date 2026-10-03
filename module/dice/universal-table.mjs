@@ -8,6 +8,7 @@ import {
   battleResult,
   rankValue
 } from "../config.mjs";
+import { magicColumnShift, magicHarm, magicResult, resistLine } from "../magic.mjs";
 import { abilityForColumn, actorFromRef, combatTarget, sceneActorChoices } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
@@ -72,7 +73,8 @@ export async function rollFeat({
   resultOf = null,
   damageCs = 0,
   lineCheck = false,
-  whisperGM = false
+  whisperGM = false,
+  magic = false
 } = {}) {
   const columnIdEarly = resolveBattleColumn(effectsColumn);
   if (!skipCondition && actor && !isCheckColumn(columnIdEarly) && conditionBlock(actor)) {
@@ -82,7 +84,13 @@ export async function rollFeat({
   let columnShift = Number(cs) || 0;
   if (lure) columnShift += 2;
   if (shieldRank) columnShift -= 2;
-  const effectiveId = shiftRank(rankId, columnShift);
+  let baseRank = rankId;
+  if (magic) {
+    const adjusted = magicColumnShift(baseRank, columnShift);
+    baseRank = adjusted.rankId;
+    columnShift = adjusted.cs;
+  }
+  const effectiveId = shiftRank(baseRank, columnShift);
   let spend = allowKarma ? (Number(karma) || 0) : 0;
   if (spend > 0 && spend < 10) {
     ui.notifications.warn("Karma spent to modify a roll must be at least 10.");
@@ -123,10 +131,21 @@ export async function rollFeat({
     else intensityPass = color === "red";
   }
   const columnId = resolveBattleColumn(effectsColumn);
-  const effect = columnId ? battleResult(columnId, color) : "";
-  const effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
+  let effect = columnId ? battleResult(columnId, color) : "";
+  let effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
+  if (magic) {
+    const rewritten = magicResult(columnId, color);
+    if (rewritten) {
+      effect = rewritten;
+      effectLabel = "Magic Effects";
+    }
+  }
 
   const target = actorFromRef(targetUuid || targetId);
+  if (magic) {
+    const resist = resistLine(actor, target, item);
+    if (resist) shiftNotes = [shiftNotes, resist].filter(Boolean).join(" ");
+  }
   if (!whisperGM && !lineCheck && !isCheckColumn(columnId)) {
     playFeatVfx({ actor, target, item, columnId, color, label });
   }
@@ -143,6 +162,7 @@ export async function rollFeat({
     });
     combat = combatFlags({ actor, item, target, columnId, effect });
   }
+  if (magic && combat.damageAmount != null) combat.damageAmount = magicHarm(effectiveId);
   if (damageCs && combat.damageAmount) combat.damageAmount = shiftDamageAmount(combat.damageAmount, damageCs);
   if (blindside) combat.checkColumn = "";
   const shieldValue = shieldRank ? rankValue(shieldRank) : 0;
@@ -316,7 +336,8 @@ export async function rollFeat({
         attackerId: actor?.id || null,
         strengthRank: actor?.getAbilityRank?.("strength") || null,
         bonusArmor: shieldValue || 0,
-        effectBlocked
+        effectBlocked,
+        magic: !!magic
       }
     }
   };
@@ -354,7 +375,10 @@ export async function promptFeatRoll({
   holdPending = false,
   karmaMode = "normal",
   resultOf = null,
-  whisperGM = false
+  whisperGM = false,
+  extraCs = 0,
+  extraNote = "",
+  magic = false
 } = {}) {
   if (actor && !isCheckColumn(defaultColumn) && conditionBlock(actor)) {
     ui.notifications?.warn(conditionBlock(actor));
@@ -424,8 +448,8 @@ export async function promptFeatRoll({
     });
     const input = root.querySelector('[name="cs"]');
     const hint = root.querySelector(".shift-hint");
-    if (input && !input.dataset.edited) input.value = plan.cs;
-    if (hint) hint.textContent = plan.note || "Talents and saved defense shifts land here. Edit the number to override this roll.";
+    if (input && !input.dataset.edited) input.value = plan.cs + (Number(extraCs) || 0);
+    if (hint) hint.textContent = [plan.note, extraNote].filter(Boolean).join(" ") || "Talents and saved defense shifts land here. Edit the number to override this roll.";
   };
 
   Hooks.once("renderDialogV2", (app) => {
@@ -489,7 +513,7 @@ export async function promptFeatRoll({
     target,
     item
   });
-  const cs = csInput?.dataset.edited ? typedCs : plan.cs;
+  const cs = csInput?.dataset.edited ? typedCs : plan.cs + (Number(extraCs) || 0);
   return rollFeat({
     actor,
     item,
@@ -501,7 +525,8 @@ export async function promptFeatRoll({
     effectsColumn,
     targetId: target?.id || "",
     targetUuid: target?.uuid || "",
-    shiftNotes: plan.note,
+    shiftNotes: [plan.note, extraNote].filter(Boolean).join(" "),
+    magic,
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming,
     damageCs: plan.damageCs || 0,
