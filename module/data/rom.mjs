@@ -49,6 +49,116 @@ export const ROM_WIELDER_TALENT_COUNT = [
   { lo: 71, hi: 100, count: 3 }
 ];
 
+export const ROM_WIELDER_TALENTS = [
+  { lo: 1, hi: 35, id: "normal", label: "Campaign talent" },
+  { lo: 36, hi: 40, id: "demonologist", label: "Demonologist" },
+  { lo: 41, hi: 45, id: "martial-a", label: "Martial Arts A" },
+  { lo: 46, hi: 50, id: "martial-b", label: "Martial Arts B" },
+  { lo: 51, hi: 55, id: "martial-c", label: "Martial Arts C" },
+  { lo: 56, hi: 60, id: "scholar", label: "Scholar of Antiquities" },
+  { lo: 61, hi: 65, id: "bibliophile", label: "Bibliophile" },
+  { lo: 66, hi: 70, id: "theogonist", label: "Theogonist" },
+  { lo: 71, hi: 75, id: "stamina", label: "Stamina" },
+  { lo: 76, hi: 80, id: "occultist", label: "Occultist" },
+  { lo: 81, hi: 85, id: "runesmith", label: "Runesmith" },
+  { lo: 86, hi: 90, id: "zoologist", label: "Zoologist of Magic" },
+  { lo: 91, hi: 95, id: "chronicler", label: "Chronicler of Magic" },
+  { lo: 96, hi: 100, id: "new", label: "New talent" }
+];
+
+export const ROM_ITEM_CATEGORY = [
+  { lo: 1, hi: 25, id: "weapon", label: "Weapon" },
+  { lo: 26, hi: 35, id: "armor", label: "Armor" },
+  { lo: 36, hi: 45, id: "gem", label: "Gemstone" },
+  { lo: 46, hi: 60, id: "jewelry1", label: "Jewelry" },
+  { lo: 61, hi: 75, id: "jewelry2", label: "Jewelry" },
+  { lo: 76, hi: 95, id: "misc", label: "Miscellaneous" },
+  { lo: 96, hi: 100, id: "creature", label: "Creature" }
+];
+
+export const ROM_ITEM_TYPES = {
+  weapon: [
+    { lo: 1, hi: 25, label: "Sword" },
+    { lo: 26, hi: 30, label: "Two-Handed Sword" },
+    { lo: 31, hi: 40, label: "Dagger" },
+    { lo: 41, hi: 50, label: "Battle Axe" },
+    { lo: 51, hi: 60, label: "War Hammer" },
+    { lo: 61, hi: 70, label: "Mace" },
+    { lo: 71, hi: 80, label: "Bow" },
+    { lo: 81, hi: 90, label: "Spear" },
+    { lo: 91, hi: 95, label: "Unusual weapon" },
+    { lo: 96, hi: 100, label: "" }
+  ],
+  armor: [
+    { lo: 1, hi: 20, label: "Full plate" },
+    { lo: 21, hi: 40, label: "Chain mail" },
+    { lo: 41, hi: 50, label: "Chest plate" },
+    { lo: 51, hi: 60, label: "Shield" },
+    { lo: 61, hi: 70, label: "Helmet" },
+    { lo: 71, hi: 80, label: "Leather armor" },
+    { lo: 81, hi: 90, label: "Unusual armor" },
+    { lo: 91, hi: 100, label: "" }
+  ],
+  gem: [
+    { lo: 1, hi: 10, label: "Diamond" },
+    { lo: 11, hi: 20, label: "Ruby" },
+    { lo: 21, hi: 30, label: "Pearl" },
+    { lo: 31, hi: 40, label: "Emerald" },
+    { lo: 41, hi: 50, label: "Sapphire" },
+    { lo: 51, hi: 60, label: "Opal" },
+    { lo: 61, hi: 70, label: "Amethyst" },
+    { lo: 71, hi: 80, label: "Topaz" },
+    { lo: 81, hi: 90, label: "Aquamarine" },
+    { lo: 91, hi: 95, label: "Unusual gem" },
+    { lo: 96, hi: 100, label: "" }
+  ],
+  jewelry1: [
+    { lo: 1, hi: 10, label: "Headband" },
+    { lo: 11, hi: 20, label: "Bracelet" },
+    { lo: 21, hi: 30, label: "Medallion" },
+    { lo: 31, hi: 40, label: "Scarab" },
+    { lo: 41, hi: 50, label: "Pendant" },
+    { lo: 51, hi: 60, label: "Arm band" },
+    { lo: 61, hi: 70, label: "Necklace" },
+    { lo: 71, hi: 80, label: "Earring" },
+    { lo: 81, hi: 90, label: "Belt" },
+    { lo: 91, hi: 95, label: "Unusual jewelry" },
+    { lo: 96, hi: 100, label: "" }
+  ],
+  jewelry2: [
+    { lo: 1, hi: 35, label: "Ring" },
+    { lo: 36, hi: 55, label: "Amulet" },
+    { lo: 56, hi: 65, label: "Scepter" },
+    { lo: 66, hi: 70, label: "Charm" },
+    { lo: 71, hi: 85, label: "Orb" },
+    { lo: 86, hi: 90, label: "Crown" },
+    { lo: 91, hi: 95, label: "Unusual jewelry" },
+    { lo: 96, hi: 100, label: "" }
+  ],
+  misc: [
+    { lo: 1, hi: 10, label: "Wand" },
+    { lo: 11, hi: 20, label: "Rod" },
+    { lo: 21, hi: 25, label: "Staff" },
+    { lo: 26, hi: 35, label: "Cloak" },
+    { lo: 36, hi: 40, label: "Flying rug" },
+    { lo: 41, hi: 45, label: "Mask" },
+    { lo: 46, hi: 55, label: "Pouch" },
+    { lo: 56, hi: 60, label: "Horn" },
+    { lo: 61, hi: 65, label: "Sculpture" },
+    { lo: 66, hi: 70, label: "Boots" },
+    { lo: 71, hi: 75, label: "Bracer" },
+    { lo: 76, hi: 85, label: "Robe" },
+    { lo: 86, hi: 90, label: "Rope or chain" },
+    { lo: 91, hi: 95, label: "Unusual item" },
+    { lo: 96, hi: 100, label: "" }
+  ],
+  creature: [
+    { lo: 1, hi: 20, label: "Pet" },
+    { lo: 21, hi: 60, label: "Mount" },
+    { lo: 61, hi: 100, label: "Familiar" }
+  ]
+};
+
 export const ROM_ITEM_COUNT = [
   { lo: 1, hi: 10, count: 1, abilityCs: 2 },
   { lo: 11, hi: 50, count: 2, abilityCs: 1 },

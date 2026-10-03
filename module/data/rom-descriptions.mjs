@@ -38,7 +38,15 @@ export const ROM_TALENT_DEFINITIONS = {
   "runesmith": { definition: "Cuts, reads, and repairs old letter-magic on objects.", bonus: "+2 CS", attribute: "reason" },
   "bibliophile": { definition: "Knows magical books, scrolls, and where their traps hide.", bonus: "+2 CS", attribute: "reason" },
   "theogonist": { definition: "Studies extra-dimensional sources people entreat, and the politics between them.", bonus: "+2 CS", attribute: "reason" },
-  "chronicler of magic": { definition: "Tracks schools, masters, and who owes whom.", bonus: "+2 CS", attribute: "reason" }
+  "chronicler of magic": { definition: "Tracks schools, masters, and who owes whom.", bonus: "+2 CS", attribute: "reason" },
+  "scholar of antiquities": { definition: "Old objects and the stories attached to them. Research when an artifact is involved.", bonus: "+2 CS", attribute: "reason" },
+  "stamina": { definition: "Can study a working for days without food or sleep. This is not a combat power.", bonus: "", attribute: "" },
+  "zoologist of magic": { definition: "Identifies magical creatures and how they behave.", bonus: "+1 CS", attribute: "reason" },
+  "engineering": { definition: "Laboratory training used alongside magical craft.", bonus: "", attribute: "reason" },
+  "biology": { definition: "Laboratory training used alongside magical craft.", bonus: "", attribute: "reason" },
+  "genetics": { definition: "Laboratory training used alongside magical craft.", bonus: "", attribute: "reason" },
+  "physics": { definition: "Laboratory training used alongside magical craft.", bonus: "", attribute: "reason" },
+  "chemistry": { definition: "Laboratory training used alongside magical craft. Covers mixing and preparation.", bonus: "", attribute: "reason" }
 };
 
 export const ROM_SCHOOL_DEFINITIONS = {};

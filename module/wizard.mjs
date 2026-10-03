@@ -81,15 +81,17 @@ async function finishRolledGeneration(actor, result, extras) {
   if (extras.useRom && !extras.archetype) {
     try {
       const rom = await import("./wizard-rom.mjs");
-      romPrelude = await rom.pickRomPrelude(actor);
+      romPrelude = await rom.pickRomPrelude(actor, result);
       if (romPrelude) {
         if (romPrelude.type?.id === "enhanced") {
           selectedPowers = (await rom.pickRomEnhancement(romPrelude, actor, result)) || [];
           selectedTalents = (await pickTalents(result, actor)) || [];
         } else {
           if (romPrelude.type?.id === "wielder") result = (await rom.pickRomResources(romPrelude, actor, result)) || result;
+          if (romPrelude.type?.id === "items") result = (await rom.applyRomAbilityBonus(romPrelude, actor, result)) || result;
           selectedPowers = (await rom.pickRomSpells(romPrelude, actor)) || [];
-          selectedTalents = (await rom.pickRomTalents(romPrelude, actor)) || [];
+          selectedTalents = (await rom.pickRomTalents(romPrelude, actor, result)) || [];
+          if (romPrelude.type?.id === "wielder") await rom.noteWielderLife(actor, selectedPowers);
           if (romPrelude.type?.id !== "wielder") selectedTalents = selectedTalents.concat((await pickTalents(result, actor)) || []);
         }
       }
