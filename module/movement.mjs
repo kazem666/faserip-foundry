@@ -31,9 +31,25 @@ export function feetPerArea() {
   return DEFAULT_FEET_PER_AREA;
 }
 
+function gridSpec() {
+  const grid = globalThis.canvas?.grid;
+  const sceneGrid = globalThis.canvas?.scene?.grid;
+  const distance = Number(grid?.distance ?? sceneGrid?.distance);
+  const units = String(grid?.units ?? sceneGrid?.units ?? "").trim().toLowerCase();
+  return { distance: distance > 0 ? distance : 5, units };
+}
+
 export function gridFeet() {
-  const n = Number(globalThis.canvas?.scene?.grid?.distance);
-  return n > 0 ? n : 5;
+  const { distance, units } = gridSpec();
+  const fiveFootSquare = distance === 1 && (!units || units === "ft" || units === "feet" || units === "area" || units === "areas");
+  return fiveFootSquare ? 5 : distance;
+}
+
+export function sceneUnitsToFeet(units) {
+  const { distance } = gridSpec();
+  const n = Number(units);
+  if (!Number.isFinite(n) || !(distance > 0)) return 0;
+  return n * (gridFeet() / distance);
 }
 
 export function areasToFeet(areas) {
@@ -123,7 +139,7 @@ export function movementLines(actor) {
     if (action === "walk" || !MODE_LABELS[action] || !(areas > 0)) continue;
     extra.push({ label: MODE_LABELS[action], text: formatMovement(areas) });
   }
-  return { walk: formatMovement(modes.walk || 0), extra, feetPerArea: feetPerArea(), squaresPerArea: feetPerArea() / gridFeet() };
+  return { walk: formatMovement(modes.walk || 0), extra, feetPerArea: feetPerArea(), squaresPerArea: feetPerArea() / gridFeet(), gridFeet: gridFeet() };
 }
 
 const MELEE_COLUMNS = new Set(["blunt", "edged", "grappling", "grabbing"]);
@@ -472,10 +488,10 @@ export function attackOutOfRange(actor, target, column, item = null) {
   return `${target.name} is ${gap} squares away. This attack reaches ${reach}.`;
 }
 
-function appendAreas(label, feet) {
-  const n = Number(feet);
-  if (!Number.isFinite(n)) return label || "";
-  const areas = formatAreaCount(feetToAreas(n));
+function appendAreas(label, units) {
+  const feet = sceneUnitsToFeet(units);
+  if (!Number.isFinite(feet)) return label || "";
+  const areas = formatAreaCount(feetToAreas(feet));
   return label ? `${label} · ${areas}` : areas;
 }
 
@@ -492,6 +508,26 @@ export function registerMovement() {
   });
   installMovementActions();
   installRulers();
+  const hooks = globalThis.Hooks;
+  if (!hooks) return;
+  hooks.on("ready", () => { void adoptFiveFootGrid(); });
+  hooks.on("canvasReady", () => { void adoptFiveFootGrid(); });
+}
+
+async function adoptFiveFootGrid() {
+  if (!globalThis.game?.user?.isGM) return;
+  const scenes = globalThis.game.scenes?.contents ?? [];
+  for (const scene of scenes) {
+    const distance = Number(scene.grid?.distance);
+    const units = String(scene.grid?.units ?? "").trim().toLowerCase();
+    if (distance !== 1) continue;
+    if (units && units !== "ft" && units !== "feet" && units !== "area" && units !== "areas") continue;
+    try {
+      await scene.update({ "grid.distance": 5, "grid.units": "ft" });
+    } catch (err) {
+      console.warn("FASERIP | grid", err);
+    }
+  }
 }
 
 function installMovementActions() {
@@ -500,10 +536,13 @@ function installMovementActions() {
   if (actions.burrow && !Object.isFrozen(actions)) actions.burrow.walls = null;
   for (const [id, action] of Object.entries(actions)) {
     if (!action || action.teleport || id === "displace" || action._faseripCost) continue;
-    action.getCostFunction = () => (first, _from, _to, distance) => {
+    action.getCostFunction = () => (terrainCost, _from, _to, distance) => {
       const per = feetPerArea();
-      const measured = Number.isFinite(Number(distance)) ? Number(distance) : Number(first);
-      return per > 0 && Number.isFinite(measured) ? measured / per : measured;
+      const primary = Number(terrainCost);
+      const secondary = Number(distance);
+      const units = Number.isFinite(primary) ? primary : secondary;
+      if (!(per > 0) || !Number.isFinite(units)) return 0;
+      return sceneUnitsToFeet(units) / per;
     };
     action._faseripCost = true;
   }
@@ -628,7 +667,9 @@ function feetAlong(points) {
   try {
     const result = grid.measurePath(points.map((point) => ({ x: point.x, y: point.y })));
     const measured = (result?.waypoints || []).map((waypoint) => Number(waypoint?.distance));
-    if (measured.length === points.length && measured.every((feet) => Number.isFinite(feet))) return measured;
+    if (measured.length === points.length && measured.every((feet) => Number.isFinite(feet))) {
+      return measured.map((units) => sceneUnitsToFeet(units));
+    }
   } catch {
     /* use one square at a time */
   }
@@ -721,7 +762,7 @@ function installRulers() {
     _getWaypointLabelContext(waypoint, state) {
       const context = super._getWaypointLabelContext(waypoint, state);
       if (!context) return context;
-      const measured = Number(waypoint?.measurement?.distance);
+      const measured = sceneUnitsToFeet(waypoint?.measurement?.distance);
       if (!Number.isFinite(measured)) return context;
       const areas = rulerDistanceLabel(measured);
       if (!areas) return context;
@@ -741,7 +782,7 @@ function installRulers() {
 
     _getSegmentStyle(waypoint) {
       const style = super._getSegmentStyle(waypoint) || {};
-      const feet = Number(waypoint?.measurement?.distance);
+      const feet = sceneUnitsToFeet(waypoint?.measurement?.distance);
       if (this._faseripHideDefault) {
         style.width = 0;
         return style;
@@ -753,7 +794,7 @@ function installRulers() {
 
     _getGridHighlightStyle(waypoint, offset) {
       const style = super._getGridHighlightStyle(waypoint, offset) || {};
-      const feet = Number(waypoint?.measurement?.distance);
+      const feet = sceneUnitsToFeet(waypoint?.measurement?.distance);
       style.color = areaColor(feet);
       style.alpha = pastBudget(this.token, waypoint) ? 0.28 : (style.alpha ?? 0.5);
       return style;
@@ -761,7 +802,7 @@ function installRulers() {
 
     _getWaypointStyle(waypoint) {
       const style = super._getWaypointStyle(waypoint) || {};
-      style.color = areaColor(Number(waypoint?.measurement?.distance));
+      style.color = areaColor(sceneUnitsToFeet(waypoint?.measurement?.distance));
       return style;
     }
 
@@ -980,7 +1021,7 @@ export async function useMovementPower(actor, item) {
 }
 
 function pastBudget(token, waypoint) {
-  const feet = Number(waypoint?.measurement?.distance ?? waypoint?.distance ?? 0);
+  const feet = sceneUnitsToFeet(waypoint?.measurement?.distance ?? waypoint?.distance ?? 0);
   const action = waypoint?.action || token?.document?.movementAction || "walk";
   const budget = movementBudgetFeet(token?.actor, action);
   return budget > 0 && feet > budget + 0.5;

@@ -1,5 +1,3 @@
-import { feetPerArea } from "./movement.mjs";
-
 /** Distance at which a token below a flyer is drawn at half size. */
 export const ELEVATION_NEAR_FEET = 40;
 export const ELEVATION_MIN_SCALE = 0.4;
@@ -20,7 +18,7 @@ export function scaleForDistance(riseFeet, horizontalFeet) {
 
 function sceneUnitInFeet() {
   const units = String(globalThis.canvas?.scene?.grid?.units || "").toLowerCase();
-  if (units.startsWith("area")) return feetPerArea();
+  if (units.startsWith("area")) return 5;
   return 1;
 }
 

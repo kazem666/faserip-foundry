@@ -98,6 +98,7 @@ export async function fillActorSheetContext(sheet, context) {
       context.movementText = pace.walk;
       context.movementModes = pace.extra;
       context.feetPerArea = pace.feetPerArea;
+      context.gridFeet = pace.gridFeet;
       context.squaresPerArea = Number.isInteger(pace.squaresPerArea) ? pace.squaresPerArea : Math.round(pace.squaresPerArea * 10) / 10;
       context.throwRange = THROW_RANGE[actor.getAbilityRank("strength")] ?? 1;
       context.throwText = formatMovement(context.throwRange);
