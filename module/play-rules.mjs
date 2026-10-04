@@ -124,12 +124,12 @@ function skippedShift(text) {
   return /one weapon|chosen weapon|listed weapon/i.test(text);
 }
 
-export function talentColumnShift(actor, { ability = "", effectsColumn = "", item: attack = null } = {}) {
+export function talentColumnShift(actor, { ability = "", effectsColumn = "", item: attack = null, sourceColumn = "" } = {}) {
   let cs = 0;
   const notes = [];
   for (const item of actor?.items ?? []) {
     if (item.type !== "talent") continue;
-    const named = namedTalentShift(item, { effectsColumn, attack });
+    const named = namedTalentShift(item, { effectsColumn, attack, sourceColumn });
     if (named.handled) {
       if (named.cs) {
         cs += named.cs;
@@ -183,12 +183,12 @@ export function initiativeTotal(face, mod) {
   return die + (Number(mod) || 0);
 }
 
-export function combinedShift(actor, { ability = "", effectsColumn = "", target = null, item = null } = {}) {
-  const talent = talentColumnShift(actor, { ability, effectsColumn, item });
+export function combinedShift(actor, { ability = "", effectsColumn = "", target = null, item = null, reservePending = false, sourceColumn = "" } = {}) {
+  const talent = talentColumnShift(actor, { ability, effectsColumn, item, sourceColumn });
   const pending = readPending(actor);
-  let cs = talent.cs + pending.nextCs;
+  let cs = talent.cs + (reservePending ? 0 : pending.nextCs);
   const notes = [...talent.notes];
-  if (pending.nextCs) notes.push(pending.nextNote || `Saved ${signed(pending.nextCs)} CS`);
+  if (!reservePending && pending.nextCs) notes.push(pending.nextNote || `Saved ${signed(pending.nextCs)} CS`);
   let consumeIncoming = false;
   if (target && ATTACK_COLUMNS.has(effectsColumn)) {
     const incoming = readPending(target);
@@ -219,7 +219,7 @@ export function combinedShift(actor, { ability = "", effectsColumn = "", target 
     damageCs: situation.damageCs,
     notes,
     note: notes.join("; "),
-    consumeOutgoing: !!pending.nextCs,
+    consumeOutgoing: !reservePending && !!pending.nextCs,
     consumeIncoming
   };
 }

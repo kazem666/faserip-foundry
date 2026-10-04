@@ -40,7 +40,7 @@ function isSelf(attack, talent) {
   return !!(attack && talent && attack.id && attack.id === talent.id);
 }
 
-export function namedTalentShift(talent, { effectsColumn = "", attack = null } = {}) {
+export function namedTalentShift(talent, { effectsColumn = "", attack = null, sourceColumn = "" } = {}) {
   const key = talentKey(talent?.name);
   const column = effectsColumn || "";
   const kind = weaponKind(attack);
@@ -86,7 +86,8 @@ export function namedTalentShift(talent, { effectsColumn = "", attack = null } =
   } else if (key === "martial arts f") {
     if (column === "blocking" || column === "slamCheck" || column === "stunCheck") cs = 1;
   } else if (key === "martial arts l") {
-    if (column === "slamCheck" || column === "stunCheck") cs = 1;
+    const slugfest = !sourceColumn || sourceColumn === "blunt";
+    if (slugfest && (column === "slamCheck" || column === "stunCheck")) cs = 1;
   } else if (key === "martial arts m") {
     if (column === "evading") cs = 1;
   } else if (key === "martial arts h") {

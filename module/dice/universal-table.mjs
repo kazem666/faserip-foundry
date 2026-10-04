@@ -447,14 +447,16 @@ export async function promptFeatRoll({
   `;
 
   const refreshShift = (root) => {
-    if (!root || holdPending) return;
+    if (!root) return;
     const column = root.querySelector('[name="column"]')?.value || "";
     const target = actorFromRef(root.querySelector('[name="target"]')?.value || "");
     const plan = shiftPlan(actor, {
       ability: abilityForColumn(column, ability),
       effectsColumn: column,
       target,
-      item
+      item,
+      reservePending: holdPending,
+      sourceColumn: resultOf?.sourceColumn || ""
     });
     const input = root.querySelector('[name="cs"]');
     const hint = root.querySelector(".shift-hint");
@@ -517,11 +519,13 @@ export async function promptFeatRoll({
     const arrived = await closeCharge(actor, target);
     if (!arrived) return null;
   }
-  const plan = holdPending ? { note: "", consumeOutgoing: false, consumeIncoming: false } : shiftPlan(actor, {
+  const plan = shiftPlan(actor, {
     ability: abilityForColumn(effectsColumn, ability),
     effectsColumn,
     target,
-    item
+    item,
+    reservePending: holdPending,
+    sourceColumn: resultOf?.sourceColumn || ""
   });
   const cs = csInput?.dataset.edited ? typedCs : plan.cs + (Number(extraCs) || 0);
   return rollFeat({

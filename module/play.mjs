@@ -2,7 +2,7 @@ import { BATTLE_EFFECTS } from "./config.mjs";
 import { promptForm, formValue } from "./foundry-api.mjs";
 import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
 import { powerDamage } from "./item-actions.mjs";
-import { workflowActive, workflowOn } from "./workflow.mjs";
+import { shiftPlan, workflowActive, workflowOn } from "./workflow.mjs";
 import { playComicHit } from "./comic-hit.mjs";
 import { playAttackSound } from "./psfx.mjs";
 import { effectGetsThrough, soakAmount } from "./battle-results.mjs";
@@ -71,11 +71,20 @@ export async function openCombatChain(message) {
 
   if (through && checkColumn && workflowActive("autoEnduranceCheck") && BATTLE_EFFECTS[checkColumn]) {
     const { rollFeat } = await import("./dice/universal-table.mjs");
+    const sourceColumn = message.getFlag?.("faserip", "effectsColumn") ?? message.flags?.faserip?.effectsColumn ?? "";
+    const plan = shiftPlan(target, {
+      ability: "endurance",
+      effectsColumn: checkColumn,
+      reservePending: true,
+      sourceColumn
+    });
     await rollFeat({
       actor: target,
       rankId: target.getAbilityRank("endurance"),
       label: BATTLE_EFFECTS[checkColumn].label,
       effectsColumn: checkColumn,
+      cs: plan.cs,
+      shiftNotes: plan.note,
       holdPending: true,
       skipCondition: true,
       resultOf: {
