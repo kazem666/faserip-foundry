@@ -43,6 +43,7 @@ export const AMMO_CATALOG = [
   "Explosive Canister", "Incendiary Canister",
   "Standard Gyrojet Round", "Explosive Gyrojet Round",
   "Heat-Seeker Gyrojet", "Explosive Heat-Seeker Gyrojet",
+  "Arrows / Bolts",
   "Standard Missile", "Concentrated Explosive Missile",
   "High Explosive Missile", "Incendiary Missile", "Gas Missile",
   "Heat-Seeking Missile", "Radio-Linked Missile"

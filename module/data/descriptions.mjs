@@ -3,6 +3,7 @@
  * These are fan-written play aids, not reprinted rulebook text.
  */
 
+import { defaultCapacity, defaultStack } from "../ammo.mjs";
 import { UPB_DEFINITIONS as UPB_BASE } from "./upb-descriptions.mjs";
 import { UPB_ADDENDA_DEFINITIONS } from "./upb-addenda-descriptions.mjs";
 import { GEAR_DEFINITIONS, describeGear } from "./gear-descriptions.mjs";
@@ -133,6 +134,12 @@ export function buildCatalogItemData(type, rawName, extra = {}) {
     system.damage = extra.damage || info.damage || "";
     system.weaponType = extra.weaponType || info.weaponType || "Blunt";
     system.effectsColumn = extra.effectsColumn || info.effectsColumn || "blunt";
+    const capacity = defaultCapacity(name, system.weaponType);
+    if (capacity > 0) {
+      system.usesAmmo = true;
+      system.capacity = capacity;
+      system.shots = capacity;
+    }
   } else if (resolvedType === "contact") {
     system.rank = extra.rank || "typical";
     system.number = extra.number ?? 0;
@@ -145,6 +152,8 @@ export function buildCatalogItemData(type, rawName, extra = {}) {
     system.material = extra.material || info.material || "typical";
     system.bodyArmor = extra.bodyArmor ?? info.bodyArmor ?? false;
     if (info.range || extra.range) system.range = extra.range || info.range;
+    if (extra.rounds != null) system.rounds = extra.rounds;
+    else if (String(system.category || extra.category || "") === "Ammunition") system.rounds = defaultStack(name);
   }
   return {
     name,

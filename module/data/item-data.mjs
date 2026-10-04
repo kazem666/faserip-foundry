@@ -99,6 +99,7 @@ export class EquipmentData extends foundry.abstract.TypeDataModel {
       range: new StringField({ initial: "" }),
       bodyArmor: new BooleanField({ initial: false }),
       unknown: new BooleanField({ initial: false }),
+      rounds: new NumberField({ required: true, integer: true, initial: -1 }),
       notes: new HTMLField({ initial: "" })
     };
   }
@@ -116,6 +117,10 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
       damage: new StringField({ initial: "" }),
       weaponType: new StringField({ initial: "Blunt" }),
       effectsColumn: new StringField({ initial: "blunt" }),
+      usesAmmo: new BooleanField({ initial: false }),
+      ammoOff: new BooleanField({ initial: false }),
+      capacity: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+      shots: new NumberField({ required: true, integer: true, initial: -1 }),
       unknown: new BooleanField({ initial: false }),
       notes: new HTMLField({ initial: "" })
     };

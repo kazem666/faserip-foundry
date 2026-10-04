@@ -1,4 +1,5 @@
 import { RANKS, BATTLE_EFFECTS } from "../config.mjs";
+import { ammoStatus, defaultCapacity, isSpareAmmo, spareRounds, tracksAmmo } from "../ammo.mjs";
 import { getItemSheetV2, getItemSheetV1, getItemSheetClass, getHandlebarsMixin } from "../foundry-api.mjs";
 
 const TEMPLATE = "systems/faserip/templates/item/item-sheet.hbs";
@@ -19,6 +20,11 @@ function fillItemContext(sheet, context = {}) {
   context.displayName = context.veiled ? "Unknown" : item.name;
   context.showVeilToggle = context.canVeil && !!globalThis.game?.user?.isGM;
   context.activity = item.system?.activity || {};
+  context.tracksAmmo = tracksAmmo(item);
+  context.ammoAuto = defaultCapacity(item.name, item.system?.weaponType) > 0;
+  context.ammo = ammoStatus(item);
+  context.spareAmmo = isSpareAmmo(item);
+  context.roundsLeft = context.spareAmmo ? spareRounds(item) : 0;
   context.conditions = [
     { id: "", label: "None" },
     { id: "held", label: "Held" },
@@ -47,6 +53,10 @@ export function buildItemSheetClass() {
           identifyItem(_event) {
             const item = this.document;
             import("../unknown.mjs").then((mod) => mod.identifyItem(item?.actor, item));
+          },
+          reloadWeapon(_event) {
+            const item = this.document;
+            import("../ammo.mjs").then((mod) => mod.reloadWeapon(item?.actor, item));
           }
         }
       };

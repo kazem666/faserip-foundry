@@ -192,6 +192,13 @@
   {{/unless}}
   {{/if}}
 
+  {{#if spareAmmo}}
+  <div class="form-group">
+    <label>Rounds left</label>
+    <input type="number" name="system.rounds" value="{{roundsLeft}}" min="0" />
+  </div>
+  {{/if}}
+
   {{#if isWeapon}}
   <div class="form-group">
     <label>Type</label>
@@ -214,6 +221,27 @@
     <label>Damage</label>
     <input name="system.damage" type="text" value="{{system.damage}}" placeholder="Usually a rank number" />
   </div>
+  {{#if ammoAuto}}
+  <div class="form-group">
+    <label class="check"><input type="checkbox" name="system.ammoOff" {{#if system.ammoOff}}checked{{/if}} /> Do not count shots</label>
+  </div>
+  {{else}}
+  <div class="form-group">
+    <label class="check"><input type="checkbox" name="system.usesAmmo" {{#if system.usesAmmo}}checked{{/if}} /> Count shots</label>
+  </div>
+  {{/if}}
+  {{#if tracksAmmo}}
+  <div class="form-group">
+    <label>Shots left</label>
+    <input type="number" name="system.shots" value="{{ammo.shots}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Magazine</label>
+    <input type="number" name="system.capacity" value="{{ammo.capacity}}" min="1" />
+  </div>
+  <button type="button" data-action="reloadWeapon">Reload from ammunition</button>
+  <p class="hint">One attack spends one shot. Reload draws from matching ammunition on the hero. A saved 0 on that ammunition means the stack is empty.</p>
+  {{/if}}
   {{/if}}
 
   <div class="form-group stacked">

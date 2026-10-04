@@ -1,6 +1,7 @@
 /** Original mechanical blurbs for Advanced Set gear. Not reprinted TSR text. */
 
 export const GEAR_DEFINITIONS = {
+  "arrows / bolts": { definition: "A quiver of arrows or bolts. Reloading a bow or crossbow draws from this stack.", itemType: "equipment", category: "Ammunition" },
   "assault rifle": { definition: "Military rifle. Burst fire. Restricted.", itemType: "weapon", weaponType: "Shooting", effectsColumn: "shooting", material: "good", range: "7 areas", damage: "10" },
   "automatic rifle": { definition: "Military burst rifle.", itemType: "weapon", weaponType: "Shooting", effectsColumn: "shooting", material: "good", range: "5 areas", damage: "16" },
   "axe": { definition: "One-handed chopping tool. Edged Attacks.", itemType: "weapon", weaponType: "Edged", effectsColumn: "edged", material: "good", range: "touch" },

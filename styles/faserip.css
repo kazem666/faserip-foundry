@@ -404,6 +404,8 @@
   padding: 4px 0;
 }
 .faserip-sheet .item-list img { width: 24px; height: 24px; border: 1px solid var(--rule); }
+.faserip-sheet .shots-left { font-variant-numeric: tabular-nums; font-size: 12px; }
+.faserip-sheet .shots-left.empty { color: #c92a2a; font-weight: 700; }
 .faserip-sheet .item-rank { font-family: "Oswald", sans-serif; text-transform: uppercase; font-size: 12px; }
 .faserip-item-sheet .sheet-header { display: flex; gap: 10px; margin-bottom: 10px; }
 .faserip-item-sheet img { width: 64px; height: 64px; border: 3px solid var(--rule); }

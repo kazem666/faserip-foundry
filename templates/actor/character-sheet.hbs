@@ -399,6 +399,7 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="gear">
+      <p class="hint">Guns, bows, and other ammo weapons show shots left. One attack spends one. Reload draws from ammunition on this sheet.</p>
       <ol class="item-list">
         {{#each gear as |item|}}
         <li class="item" data-item-id="{{item.id}}">
@@ -406,6 +407,8 @@
           <span class="item-name">{{item.name}}</span>
           {{#if item.unknown}}<span class="mastered">Unknown</span>{{/if}}
           <span class="item-rank">{{item.rankLabel}}</span>
+          {{#if item.tracksAmmo}}<span class="shots-left{{#if item.ammoEmpty}} empty{{/if}}">{{item.shotsLabel}}</span><button type="button" data-action="reloadWeapon">Reload</button>{{/if}}
+          {{#if item.spareAmmo}}<span class="shots-left">{{item.roundsLabel}}</span>{{/if}}
           {{#if item.veiled}}
           <button type="button" data-action="identifyItem">Identify</button>
           {{else}}

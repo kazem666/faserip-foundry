@@ -16,6 +16,7 @@ import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
 import { promptJudgeAward } from "../play.mjs";
 import { formatPending, readPending } from "../play-rules.mjs";
 import { describeItemAction, rollItemAction, rollStandardAction, sheetActionGroups } from "../item-actions.mjs";
+import { ammoStatus, isSpareAmmo, reloadWeapon, spareRounds } from "../ammo.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { playAttackSound } from "../psfx.mjs";
 import { formatMovement, movementLines } from "../movement.mjs";
@@ -135,6 +136,8 @@ export async function fillActorSheetContext(sheet, context) {
       const pips = (n = 0) => Array.from({ length: 10 }, (_, i) => ({ n: i + 1, on: i < Number(n || 0) }));
       const decorate = (collection) => collection.map((item) => {
         const spec = describeItemAction(item);
+        const ammo = item.type === "weapon" ? ammoStatus(item) : null;
+        const spare = isSpareAmmo(item);
         return {
         id: item.id,
         name: item.system?.unknown && !globalThis.game?.user?.isGM ? "Unknown" : item.name,
@@ -162,6 +165,11 @@ export async function fillActorSheetContext(sheet, context) {
         acquired: !!item.system.acquired,
         actionLabel: spec.label,
         actionTitle: spec.title,
+        tracksAmmo: !!ammo,
+        shotsLabel: ammo ? `${ammo.shots}/${ammo.capacity}` : "",
+        ammoEmpty: !!ammo?.empty,
+        spareAmmo: spare,
+        roundsLabel: spare ? `${spareRounds(item)} rounds` : "",
         pips: pips(item.system.assistance),
         stunts: (item.system.stunts ?? []).map((s, index) => ({
           ...s,
@@ -287,6 +295,7 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("generate", this._onGenerate);
     on("rollAbility", this._onRollAbility);
     on("rollItem", this._onRollItem);
+    on("reloadWeapon", this._onReloadWeapon);
     on("identifyItem", this._onIdentifyItem);
     on("rollSheetAction", this._onRollSheetAction);
     on("itemEdit", this._onItemEdit);
@@ -382,6 +391,13 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     if (!item) return;
     const { identifyItem } = await import("../unknown.mjs");
     return identifyItem(this.actor, item);
+  }
+
+  async _onReloadWeapon(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    return reloadWeapon(this.actor, item);
   }
 
   async _onRollItem(event) {
