@@ -9,7 +9,7 @@ import {
   rankValue
 } from "../config.mjs";
 import { magicColumnShift, magicEnergy, magicHarm, magicResult, psycheResistShift, rememberPsycheResist, resistLine } from "../magic.mjs";
-import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, writePending } from "../play-rules.mjs";
+import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, signed, writePending } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { playAttackSound } from "../psfx.mjs";
@@ -394,6 +394,27 @@ function esc(value) {
   }[ch]));
 }
 
+function cssEscape(value) {
+  if (globalThis.CSS?.escape) return CSS.escape(String(value));
+  return String(value).replace(/["\\]/g, "\\$&");
+}
+
+function featShiftParts(plan, extraCs, extraNote) {
+  const parts = [...(plan?.parts || [])];
+  const extra = Number(extraCs) || 0;
+  if (!extra) return parts;
+  const note = String(extraNote || "").trim();
+  parts.push({ id: "extra", cs: extra, note: note && note.length <= 160 ? note : `Casting ${signed(extra)} CS` });
+  return parts;
+}
+
+function writeShiftTotal(root, parts, skipped) {
+  const input = root.querySelector('[name="cs"]');
+  if (!input || input.dataset.edited) return;
+  const sum = parts.filter((part) => !skipped.has(part.id)).reduce((total, part) => total + (Number(part.cs) || 0), 0);
+  input.value = String(sum);
+}
+
 export async function promptFeatRoll({
   actor,
   item = null,
@@ -435,8 +456,9 @@ export async function promptFeatRoll({
       </div>
       <div class="form-group">
         <label>Column Shift (+ right / easier, − left / harder)</label>
+        <div class="shift-list"></div>
         <input type="number" name="cs" value="0" step="1" />
-        <p class="hint shift-hint"></p>
+        <p class="hint shift-hint">Uncheck a shift to leave it off this roll. A saved shift you leave off stays for the next roll. Edit the number to override the total.</p>
       </div>
       ${karmaMode === "none" ? `<p class="hint">Karma cannot modify this FEAT.</p>` : ""}
       ${karmaMode === "resources" ? `<label class="check"><input type="checkbox" name="invention" /> Building or invention (Karma must be declared before the roll)</label>` : ""}
@@ -466,8 +488,8 @@ export async function promptFeatRoll({
     </div>
   `;
 
-  const refreshShift = (root) => {
-    if (!root) return;
+  const skipped = new Set();
+  const currentParts = (root) => {
     const column = root.querySelector('[name="column"]')?.value || "";
     const target = actorFromRef(root.querySelector('[name="target"]')?.value || "");
     const plan = shiftPlan(actor, {
@@ -478,10 +500,33 @@ export async function promptFeatRoll({
       reservePending: holdPending,
       sourceColumn: resultOf?.sourceColumn || ""
     });
-    const input = root.querySelector('[name="cs"]');
-    const hint = root.querySelector(".shift-hint");
-    if (input && !input.dataset.edited) input.value = plan.cs + (Number(extraCs) || 0);
-    if (hint) hint.textContent = [plan.note, extraNote].filter(Boolean).join(" ") || "Talents and saved defense shifts land here. Edit the number to override this roll.";
+    return { plan, parts: featShiftParts(plan, extraCs, extraNote) };
+  };
+  const refreshShift = (root) => {
+    if (!root) return;
+    const list = root.querySelector(".shift-list");
+    if (list) {
+      for (const box of list.querySelectorAll("[data-shift]")) {
+        if (box.checked) skipped.delete(box.dataset.shift);
+        else skipped.add(box.dataset.shift);
+      }
+    }
+    const { parts } = currentParts(root);
+    if (list) {
+      list.innerHTML = parts.length
+        ? parts.map((part) => `<label class="check"><input type="checkbox" data-shift="${esc(part.id)}"${skipped.has(part.id) ? "" : " checked"} /> ${esc(part.note)}</label>`).join("")
+        : `<p class="hint">No automatic shifts on this roll.</p>`;
+      for (const box of list.querySelectorAll("[data-shift]")) {
+        box.addEventListener("change", () => {
+          if (box.checked) skipped.delete(box.dataset.shift);
+          else skipped.add(box.dataset.shift);
+          const input = root.querySelector('[name="cs"]');
+          if (input) delete input.dataset.edited;
+          writeShiftTotal(root, parts, skipped);
+        });
+      }
+    }
+    writeShiftTotal(root, parts, skipped);
   };
 
   Hooks.once("renderDialogV2", (app) => {
@@ -547,7 +592,20 @@ export async function promptFeatRoll({
     reservePending: holdPending,
     sourceColumn: resultOf?.sourceColumn || ""
   });
-  const cs = csInput?.dataset.edited ? typedCs : plan.cs + (Number(extraCs) || 0);
+  const parts = featShiftParts(plan, extraCs, extraNote);
+  const active = parts.filter((part) => {
+    const box = form.querySelector(`[data-shift="${cssEscape(part.id)}"]`);
+    return !box || box.checked;
+  });
+  const sum = active.reduce((total, part) => total + (Number(part.cs) || 0), 0);
+  const cs = csInput?.dataset.edited ? typedCs : sum;
+  const listed = new Set(parts.map((part) => part.note));
+  const notes = [
+    ...active.map((part) => part.note),
+    ...(plan.notes || []).filter((note) => note && !listed.has(note))
+  ].filter(Boolean);
+  if (csInput?.dataset.edited && typedCs !== sum) notes.push(`Column shift set to ${signed(typedCs)}`);
+  const using = (id) => active.some((part) => part.id === id);
   return rollFeat({
     actor,
     item,
@@ -559,13 +617,13 @@ export async function promptFeatRoll({
     effectsColumn,
     targetId: target?.id || "",
     targetUuid: target?.uuid || "",
-    shiftNotes: [plan.note, extraNote].filter(Boolean).join(" "),
+    shiftNotes: notes.join("; "),
     magic,
-    consumeOutgoing: plan.consumeOutgoing,
-    consumeIncoming: plan.consumeIncoming,
-    consumeStrike: plan.consumeStrike,
-    consumeMagicResist: plan.consumeMagicResist,
-    damageCs: plan.damageCs || 0,
+    consumeOutgoing: plan.consumeOutgoing && using("next"),
+    consumeIncoming: plan.consumeIncoming && using("incoming"),
+    consumeStrike: plan.consumeStrike && using("strike"),
+    consumeMagicResist: plan.consumeMagicResist && using("psyche"),
+    damageCs: using("situation") ? (plan.damageCs || 0) : 0,
     holdPending,
     allowKarma: karmaMode !== "none" && (karmaMode !== "resources" || invention),
     blindside: !!form.querySelector('[name="blindside"]')?.checked,

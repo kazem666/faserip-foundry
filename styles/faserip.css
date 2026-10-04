@@ -509,6 +509,8 @@ button.faserip-award {
 .faserip-sheet .hint,
 .faserip-item-sheet .hint,
 .faserip-feat-dialog .hint { font-size: 11px; font-style: italic; margin: 4px 0 0; }
+.faserip-feat-dialog .shift-list { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.faserip-feat-dialog .shift-list label.check { display: flex; flex-direction: row; align-items: flex-start; gap: 6px; text-transform: none; font-size: 12px; }
 .faserip-sheet .sheet-body .tab { display: none; }
 .faserip-sheet .sheet-body .tab.active { display: block; }
 .faserip-sheet .catalog { display: none !important; }

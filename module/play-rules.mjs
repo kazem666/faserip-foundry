@@ -133,6 +133,7 @@ function skippedShift(text) {
 export function talentColumnShift(actor, { ability = "", effectsColumn = "", item: attack = null, sourceColumn = "" } = {}) {
   let cs = 0;
   const notes = [];
+  const parts = [];
   for (const item of actor?.items ?? []) {
     if (item.type !== "talent") continue;
     const named = namedTalentShift(item, { effectsColumn, attack, sourceColumn });
@@ -140,6 +141,7 @@ export function talentColumnShift(actor, { ability = "", effectsColumn = "", ite
       if (named.cs) {
         cs += named.cs;
         notes.push(named.note);
+        parts.push({ id: `talent-${item.id}`, cs: named.cs, note: named.note });
       }
       continue;
     }
@@ -161,9 +163,11 @@ export function talentColumnShift(actor, { ability = "", effectsColumn = "", ite
       if (!generic || !ability || !attr.includes(String(ability).toLowerCase())) continue;
     }
     cs += n;
-    notes.push(`${item.name} ${match[0]}`);
+    const note = `${item.name} ${match[0]}`;
+    notes.push(note);
+    parts.push({ id: `talent-${item.id}`, cs: n, note });
   }
-  return { cs, notes };
+  return { cs, notes, parts };
 }
 
 export function initiativeTalentBonus(actor) {
@@ -194,48 +198,71 @@ export function combinedShift(actor, { ability = "", effectsColumn = "", target 
   const pending = readPending(actor);
   let cs = talent.cs + (reservePending ? 0 : pending.nextCs);
   const notes = [...talent.notes];
-  if (!reservePending && pending.nextCs) notes.push(pending.nextNote || `Saved ${signed(pending.nextCs)} CS`);
+  const parts = [...(talent.parts || [])];
+  if (!reservePending && pending.nextCs) {
+    const note = pending.nextNote || `Saved ${signed(pending.nextCs)} CS`;
+    notes.push(note);
+    parts.push({ id: "next", cs: pending.nextCs, note, consume: "outgoing" });
+  }
   let consumeIncoming = false;
   if (target && ATTACK_COLUMNS.has(effectsColumn)) {
     const incoming = readPending(target);
     if (incoming.incomingCs) {
+      const note = `${target.name}: ${incoming.incomingNote || `${signed(incoming.incomingCs)} CS`}`;
       cs += incoming.incomingCs;
-      notes.push(`${target.name}: ${incoming.incomingNote || `${signed(incoming.incomingCs)} CS`}`);
+      notes.push(note);
+      parts.push({ id: "incoming", cs: incoming.incomingCs, note, consume: "incoming" });
       consumeIncoming = true;
     }
   }
   const situation = situationMods(actor, effectsColumn);
   cs += situation.cs;
   if (situation.note) notes.push(situation.note);
+  if (situation.cs || situation.damageCs) {
+    parts.push({
+      id: "situation",
+      cs: situation.cs,
+      note: situation.note || `Situation ${signed(situation.cs)} CS`,
+      damageCs: situation.damageCs || 0
+    });
+  }
   const emotion = actor?.getFlag?.("faserip", "emotion");
   if (emotion === "rage" && ATTACK_COLUMNS.has(effectsColumn)) {
     cs += 1;
     notes.push("Rage +1 CS");
+    parts.push({ id: "rage", cs: 1, note: "Rage +1 CS" });
   }
   if (emotion === "fear" && ATTACK_COLUMNS.has(effectsColumn)) {
     cs -= 1;
     notes.push("Fear −1 CS");
+    parts.push({ id: "fear", cs: -1, note: "Fear −1 CS" });
   }
   if (target?.getFlag?.("faserip", "small") && ATTACK_COLUMNS.has(effectsColumn)) {
     cs -= 1;
     notes.push("Tiny target −1 CS");
+    parts.push({ id: "small", cs: -1, note: "Tiny target −1 CS" });
   }
   let consumeStrike = false;
   if (!reservePending && pending.strikeCs && ATTACK_COLUMNS.has(effectsColumn)) {
+    const note = pending.strikeNote || `Next attack ${signed(pending.strikeCs)} CS`;
     cs += pending.strikeCs;
-    notes.push(pending.strikeNote || `Next attack ${signed(pending.strikeCs)} CS`);
+    notes.push(note);
+    parts.push({ id: "strike", cs: pending.strikeCs, note, consume: "strike" });
     consumeStrike = true;
   }
   let consumeMagicResist = false;
   if (!reservePending && pending.psycheCs && String(ability).toLowerCase() === "psyche") {
+    const note = pending.psycheNote || `Psyche ${signed(pending.psycheCs)} CS`;
     cs += pending.psycheCs;
-    notes.push(pending.psycheNote || `Psyche ${signed(pending.psycheCs)} CS`);
+    notes.push(note);
+    parts.push({ id: "psyche", cs: pending.psycheCs, note, consume: "magic" });
     consumeMagicResist = true;
   }
   return {
     cs,
     damageCs: situation.damageCs,
     notes,
+    parts,
     note: notes.join("; "),
     consumeOutgoing: !reservePending && !!pending.nextCs,
     consumeIncoming,
