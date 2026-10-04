@@ -12,6 +12,7 @@ import {
   THROW_RANGE
 } from "../config.mjs";
 import { promptFeatRoll } from "../dice/universal-table.mjs";
+import { featButtons } from "../feat-link.mjs";
 import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
 import { promptJudgeAward } from "../play.mjs";
 import { formatPending, readPending } from "../play-rules.mjs";
@@ -198,6 +199,8 @@ export async function fillActorSheetContext(sheet, context) {
         context.enrichedBiography = actor.system.biography ?? "";
         context.enrichedNotes = actor.system.notes ?? "";
       }
+      context.biographyFeats = featButtons(actor.system.biography);
+      context.noteFeats = featButtons(actor.system.notes);
       const gen = actor.getFlag("faserip", "generation");
       context.generation = gen
         ? {

@@ -482,8 +482,23 @@
       </label>
       <h3>Biography</h3>
       <textarea name="system.biography" rows="6">{{system.biography}}</textarea>
+      {{#if biographyFeats}}
+      <div class="feat-notes">
+        {{#each biographyFeats}}
+        <a class="faserip-feat-link" data-ability="{{ability}}" data-intensity="{{intensity}}"><i class="fa-solid fa-dice"></i> {{label}}</a>
+        {{/each}}
+      </div>
+      {{/if}}
       <h3>Judge Notes</h3>
+      <p class="hint">Clickable check: @FEAT[Agility at Good]. In chat, /feat Agility at Good.</p>
       <textarea name="system.notes" rows="4">{{system.notes}}</textarea>
+      {{#if noteFeats}}
+      <div class="feat-notes">
+        {{#each noteFeats}}
+        <a class="faserip-feat-link" data-ability="{{ability}}" data-intensity="{{intensity}}"><i class="fa-solid fa-dice"></i> {{label}}</a>
+        {{/each}}
+      </div>
+      {{/if}}
       <div class="form-group">
         <label>Manual Body Armor
           <input type="number" name="system.defense.bodyArmor" value="{{system.defense.bodyArmor}}" min="0" />
