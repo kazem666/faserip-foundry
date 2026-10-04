@@ -38,13 +38,13 @@ export const UPB_POWER_CLASSES = [
 ];
 
 export const UPB_WEAKNESS_STIMULUS = [
-  { lo: 1, hi: 13, label: "Psychological" },
-  { lo: 14, hi: 18, label: "Elemental Allergy" },
-  { lo: 19, hi: 43, label: "Molecular Allergy" },
-  { lo: 44, hi: 68, label: "Energy Allergy" },
-  { lo: 69, hi: 81, label: "Energy Depletion" },
-  { lo: 82, hi: 94, label: "Energy Dampening" },
-  { lo: 95, hi: 100, label: "Finite Limit" }
+  { lo: 1, hi: 13, label: "Elemental Allergy" },
+  { lo: 14, hi: 18, label: "Molecular Allergy" },
+  { lo: 19, hi: 43, label: "Energy Allergy" },
+  { lo: 44, hi: 68, label: "Energy Depletion" },
+  { lo: 69, hi: 81, label: "Energy Dampening" },
+  { lo: 82, hi: 94, label: "Finite Limit" },
+  { lo: 95, hi: 100, label: "Psychological" }
 ];
 
 export const UPB_WEAKNESS_EFFECT = [

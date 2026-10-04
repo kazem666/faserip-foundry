@@ -4,7 +4,7 @@ export const DEFAULT_FEET_PER_AREA = 20;
 
 const MODE_RULES = [
   { action: "walk", re: /lightning speed|hyper-speed|hyper-running|hyper speed/ },
-  { action: "fly", re: /\bflight\b|gliding|levitation/ },
+  { action: "fly", re: /\bflight\b|gliding|levitation|\brocket\b/ },
   { action: "swim", re: /\bswimming\b/ },
   { action: "climb", re: /climbing|wall-crawling|wall crawling/ },
   { action: "jump", re: /leaping|hyper-leaping/ },
@@ -89,7 +89,14 @@ export function formatMovement(areas) {
   return `${formatAreaCount(areas)} · ${feet} ft · ${sq} squares`;
 }
 
-function areasForRank(rankId) {
+/** Air areas from the Ultimate Powers movement table. Ground movement stays on the Advanced Set table. */
+const AIR_AREAS = {
+  shift0: 0, feeble: 2, poor: 4, typical: 6, good: 8, excellent: 10, remarkable: 15,
+  incredible: 20, amazing: 25, monstrous: 50, unearthly: 100, shiftx: 150, shifty: 200, shiftz: 500
+};
+
+function areasForRank(rankId, air = false) {
+  if (air && Object.hasOwn(AIR_AREAS, rankId)) return AIR_AREAS[rankId];
   return MOVEMENT_AREAS[rankId] ?? MOVEMENT_AREAS.typical ?? 2;
 }
 
@@ -101,9 +108,9 @@ export function movementModes(actor) {
   for (const item of actor?.items ?? []) {
     if (item?.type !== "power") continue;
     const name = String(item.name || "").toLowerCase();
-    const areas = areasForRank(item.system?.rank || "typical");
     for (const rule of MODE_RULES) {
       if (!rule.re.test(name)) continue;
+      const areas = areasForRank(item.system?.rank || "typical", rule.action === "fly");
       if (rule.action === "blink") {
         if (/matter teleport/.test(name)) continue;
         const reach = TELEPORT_AREAS[item.system?.rank] ?? TELEPORT_AREAS.typical;
