@@ -379,7 +379,8 @@ function CreatorApp() {
       if (!this.powerCategory) {
         const table = this.useRom ? this.#romCategories() : (this.useUpb ? this.#upbClasses() : POWER_CATEGORIES);
         const cards = table.map((row) => `<button type="button" class="name-card" data-action="pick-category" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(`${row.lo}–${row.hi === 100 ? "00" : row.hi}. ${BLURB[row.id] || "Powers in this class."}`)}"><strong>${esc(row.label)}</strong></button>`).join("");
-        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Powers ${spent}/${needed}</p><h2>${this.useRom ? "Choose an energy, then a working" : "Roll a category, or choose one"}</h2>${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}</div>${this.useRom ? "" : `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>`}</div>${tray}<div class="choice-grid">${cards}</div></section>`;
+        const energyLine = this.useRom && this.rom?.energy?.label ? `<p class="creator-fine">Energy: ${esc(this.rom.energy.label)}.</p>` : "";
+        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Powers ${spent}/${needed}</p><h2>${this.useRom ? "Choose an energy, then a working" : "Roll a category, or choose one"}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}</div>${this.useRom ? "" : `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>`}</div>${tray}<div class="choice-grid">${cards}</div></section>`;
       }
       const cat = this.powerCategory;
       const list = this.#powerList();
@@ -483,6 +484,7 @@ function CreatorApp() {
       if (action === "roll-rom-school") return this.#guard(() => this.#rollRomSchool());
       if (action === "pick-rom-school") return this.#pickRomSchool(button.dataset.id);
       if (action === "roll-rom-energy") return this.#guard(() => this.#rollRomEnergy());
+      if (action === "pick-rom-energy") return this.#pickRomEnergy(button.dataset.id);
       if (action === "roll-rom-count") return this.#guard(() => this.#rollRomCount());
       if (action === "roll-rom-enhance") return this.#guard(() => this.#rollRomEnhance());
       if (action === "roll-rom-resources") return this.#guard(() => this.#rollRomResources());
@@ -1167,7 +1169,10 @@ function CreatorApp() {
     }
 
     #romCategories() {
-      const lists = this.rom?.energy?.lists || ["personal", "universal"];
+      let lists = this.rom?.energy?.lists;
+      if (this.rom?.type?.id === "items") lists = ["personal", "universal"];
+      if (this.rom?.type?.id === "enhanced") lists = ["personal"];
+      if (!lists?.length) lists = ["personal", "universal"];
       const labels = { personal: "Personal", universal: "Universal", dimensional: "Dimensional" };
       return lists.map((id) => ({ id, label: labels[id] || id, lo: 1, hi: 100 }));
     }
@@ -1219,8 +1224,12 @@ function CreatorApp() {
       const raises = rom.type?.id === "items" && rom.abilityCs && !rom.raised
         ? `<div class="choice-grid">${ABILITIES.map((key) => `<button type="button" class="name-card" data-action="rom-raise" data-ability="${key}"><strong>${esc(ABILITY_LABEL[key])}</strong></button>`).join("")}</div>`
         : "";
+      const energies = ROM_ENERGY.map((row) => {
+        const on = rom.energy?.id === row.id ? "is-on" : "";
+        return `<button type="button" class="name-card ${on}" data-action="pick-rom-energy" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(`${row.lo}–${row.hi === 100 ? "00" : row.hi}. Workings may use ${row.lists.join(", ")}.`)}"><strong>${esc(row.label)}</strong></button>`;
+      }).join("");
       const extra = rom.type?.id === "wielder"
-        ? `<div class="btn-row"><button type="button" class="roll-btn" data-action="roll-rom-energy">Roll energy</button><button type="button" class="roll-btn" data-action="roll-rom-count">Roll spell count</button><button type="button" class="roll-btn" data-action="roll-rom-resources">Roll Resources</button></div><label>Master<input name="romMaster" type="text" value="${esc(this.romMaster)}" /></label>`
+        ? `<div class="creator-block-head"><h3>Energy ${rom.energyRoll ? `· rolled ${rom.energyRoll}` : ""}</h3><button type="button" class="roll-btn" data-action="roll-rom-energy">Roll energy</button></div><div class="choice-grid">${energies}</div><p class="creator-fine">01–15 is Personal only. 16–50 adds Universal. 51–00 adds Dimensional. The roll can be changed by choosing another card.</p><div class="btn-row"><button type="button" class="roll-btn" data-action="roll-rom-count">Roll spell count</button><button type="button" class="roll-btn" data-action="roll-rom-resources">Roll Resources</button></div><label>Master<input name="romMaster" type="text" value="${esc(this.romMaster)}" /></label>`
         : rom.type?.id === "items"
           ? `<div class="btn-row"><button type="button" class="roll-btn" data-action="roll-rom-count">Roll item count</button></div>${raises}`
           : rom.type?.id === "enhanced"
@@ -1289,6 +1298,13 @@ function CreatorApp() {
       rom.energy = lookupBand(ROM_ENERGY, roll);
       rom.energyRoll = roll;
       this.notice = `${rom.energy.label} (${roll}).`;
+    }
+
+    #pickRomEnergy(id) {
+      const rom = this.#ensureRom();
+      rom.energy = ROM_ENERGY.find((row) => row.id === id) || rom.energy;
+      this.notice = rom.energy?.label || "";
+      return this.render();
     }
 
     async #rollRomCount() {
