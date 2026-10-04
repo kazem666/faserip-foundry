@@ -100,6 +100,8 @@ export class EquipmentData extends foundry.abstract.TypeDataModel {
       bodyArmor: new BooleanField({ initial: false }),
       unknown: new BooleanField({ initial: false }),
       rounds: new NumberField({ required: true, integer: true, initial: -1 }),
+      expendable: new BooleanField({ initial: false }),
+      chargeOff: new BooleanField({ initial: false }),
       notes: new HTMLField({ initial: "" })
     };
   }
@@ -121,6 +123,9 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
       ammoOff: new BooleanField({ initial: false }),
       capacity: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
       shots: new NumberField({ required: true, integer: true, initial: -1 }),
+      charges: new NumberField({ required: true, integer: true, initial: -1 }),
+      expendable: new BooleanField({ initial: false }),
+      chargeOff: new BooleanField({ initial: false }),
       unknown: new BooleanField({ initial: false }),
       notes: new HTMLField({ initial: "" })
     };

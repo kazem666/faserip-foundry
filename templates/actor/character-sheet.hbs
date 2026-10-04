@@ -399,7 +399,7 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="gear">
-      <p class="hint">Guns, bows, and other ammo weapons show shots left. One attack spends one. Reload draws from ammunition on this sheet.</p>
+      <p class="hint">Guns, bows, and other ammo weapons show shots left. One attack spends one. Reload draws from ammunition on this sheet. Grenades, kits, spray, tablets, and parachutes spend one use. Spend on gas, fuel, and other ammunition uses one from the stack.</p>
       <ol class="item-list">
         {{#each gear as |item|}}
         <li class="item" data-item-id="{{item.id}}">
@@ -408,7 +408,8 @@
           {{#if item.unknown}}<span class="mastered">Unknown</span>{{/if}}
           <span class="item-rank">{{item.rankLabel}}</span>
           {{#if item.tracksAmmo}}<span class="shots-left{{#if item.ammoEmpty}} empty{{/if}}">{{item.shotsLabel}}</span><button type="button" data-action="reloadWeapon">Reload</button>{{/if}}
-          {{#if item.spareAmmo}}<span class="shots-left">{{item.roundsLabel}}</span>{{/if}}
+          {{#if item.tracksCharges}}<span class="shots-left{{#if item.chargesEmpty}} empty{{/if}}">{{item.chargesLabel}}</span>{{#if item.canRefill}}<button type="button" data-action="refillCharges">Refill</button>{{/if}}{{/if}}
+          {{#if item.spareAmmo}}<span class="shots-left">{{item.roundsLabel}}</span><button type="button" data-action="spendSupply">Spend</button>{{/if}}
           {{#if item.veiled}}
           <button type="button" data-action="identifyItem">Identify</button>
           {{else}}

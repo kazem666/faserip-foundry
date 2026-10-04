@@ -17,6 +17,7 @@ import { promptJudgeAward } from "../play.mjs";
 import { formatPending, readPending } from "../play-rules.mjs";
 import { describeItemAction, rollItemAction, rollStandardAction, sheetActionGroups } from "../item-actions.mjs";
 import { ammoStatus, isSpareAmmo, reloadWeapon, spareRounds } from "../ammo.mjs";
+import { chargeStatus, expendableKind, refillCharges, spendSupply } from "../charges.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { playAttackSound } from "../psfx.mjs";
 import { formatMovement, movementLines } from "../movement.mjs";
@@ -138,6 +139,7 @@ export async function fillActorSheetContext(sheet, context) {
         const spec = describeItemAction(item);
         const ammo = item.type === "weapon" ? ammoStatus(item) : null;
         const spare = isSpareAmmo(item);
+        const charges = chargeStatus(item);
         return {
         id: item.id,
         name: item.system?.unknown && !globalThis.game?.user?.isGM ? "Unknown" : item.name,
@@ -170,6 +172,11 @@ export async function fillActorSheetContext(sheet, context) {
         ammoEmpty: !!ammo?.empty,
         spareAmmo: spare,
         roundsLabel: spare ? `${spareRounds(item)} rounds` : "",
+        tracksCharges: !!charges,
+        chargesLabel: charges ? `${charges.left} left` : "",
+        chargesEmpty: !!charges?.empty,
+        canRefill: expendableKind(item) === "medkit",
+        showSpend: spare,
         pips: pips(item.system.assistance),
         stunts: (item.system.stunts ?? []).map((s, index) => ({
           ...s,
@@ -296,6 +303,8 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("rollAbility", this._onRollAbility);
     on("rollItem", this._onRollItem);
     on("reloadWeapon", this._onReloadWeapon);
+    on("spendSupply", this._onSpendSupply);
+    on("refillCharges", this._onRefillCharges);
     on("identifyItem", this._onIdentifyItem);
     on("rollSheetAction", this._onRollSheetAction);
     on("itemEdit", this._onItemEdit);
@@ -391,6 +400,20 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     if (!item) return;
     const { identifyItem } = await import("../unknown.mjs");
     return identifyItem(this.actor, item);
+  }
+
+  async _onSpendSupply(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    return spendSupply(item);
+  }
+
+  async _onRefillCharges(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    return refillCharges(this.actor, item);
   }
 
   async _onReloadWeapon(event) {

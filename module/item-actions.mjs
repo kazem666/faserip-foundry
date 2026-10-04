@@ -16,6 +16,7 @@ import { teleportKind, teleportUseTitle, useTeleportPower } from "./teleport.mjs
 import { applyBodyPower, bodyUseTitle, revealIfAttacking, stretchForStrike, stretchPowerTitle } from "./body-form.mjs";
 import { isRomPower, magicLimitNote, takeMagic } from "./magic.mjs";
 import { ammoBlock, ammoStatus, spendShot } from "./ammo.mjs";
+import { chargeBlock, chargeStatus, spendCharge } from "./charges.mjs";
 
 function keyOf(name) {
   return String(name || "")
@@ -344,6 +345,10 @@ export function sheetActionGroups(items = [], actor = null) {
       const ammo = ammoStatus(item);
       if (ammo) card.detail += ` · ${ammo.shots}/${ammo.capacity}`;
     }
+    if (!veiled) {
+      const charges = chargeStatus(item);
+      if (charges) card.detail += ` · ${charges.left} left`;
+    }
     if (item.type === "power") powers.push(card);
     else if (item.type === "weapon") weapons.push(card);
     else if (spec.column || /martial arts [hl]/i.test(item.name || "")) talents.push(card);
@@ -386,6 +391,11 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
       return null;
     }
   }
+  const spent = chargeBlock(item);
+  if (spent) {
+    ui.notifications?.warn(spent);
+    return null;
+  }
   const name = label || item?.name || spec?.label || "FEAT";
   const magic = magicExtras(item);
   const { promptFeatRoll, rollFeat } = await import("./dice/universal-table.mjs");
@@ -404,6 +414,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     });
     if (message) {
       if (item?.type === "weapon") await spendShot(item);
+      if (item) await spendCharge(item);
       stretchForStrike(actor, spec.column).catch((err) => console.warn("FASERIP | stretch", err));
       revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));
       consumeMentalPrep(actor, spec).catch((err) => console.warn("FASERIP | mental", err));
@@ -461,6 +472,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
   });
   if (message) {
     if (item?.type === "weapon") await spendShot(item);
+    if (item) await spendCharge(item);
     revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));
     consumeMentalPrep(actor, spec).catch((err) => console.warn("FASERIP | mental", err));
   }

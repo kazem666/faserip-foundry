@@ -1,5 +1,6 @@
 import { RANKS, BATTLE_EFFECTS } from "../config.mjs";
 import { ammoStatus, defaultCapacity, isSpareAmmo, spareRounds, tracksAmmo } from "../ammo.mjs";
+import { chargeStatus, expendableKind, tracksCharges } from "../charges.mjs";
 import { getItemSheetV2, getItemSheetV1, getItemSheetClass, getHandlebarsMixin } from "../foundry-api.mjs";
 
 const TEMPLATE = "systems/faserip/templates/item/item-sheet.hbs";
@@ -25,6 +26,11 @@ function fillItemContext(sheet, context = {}) {
   context.ammo = ammoStatus(item);
   context.spareAmmo = isSpareAmmo(item);
   context.roundsLeft = context.spareAmmo ? spareRounds(item) : 0;
+  context.tracksCharges = tracksCharges(item);
+  context.chargeAuto = expendableKind(item) !== "";
+  context.charges = chargeStatus(item);
+  context.chargesLeft = context.charges?.left ?? 0;
+  context.chargeField = item.type === "weapon" ? "system.charges" : "system.rounds";
   context.conditions = [
     { id: "", label: "None" },
     { id: "held", label: "Held" },

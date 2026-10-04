@@ -199,6 +199,29 @@
   </div>
   {{/if}}
 
+  {{#if chargeAuto}}
+  <div class="form-group">
+    <label class="check"><input type="checkbox" name="system.chargeOff" {{#if system.chargeOff}}checked{{/if}} /> Do not count uses</label>
+  </div>
+  {{else}}
+  {{#unless tracksAmmo}}
+  {{#unless spareAmmo}}
+  {{#if isEquipment}}
+  <div class="form-group">
+    <label class="check"><input type="checkbox" name="system.expendable" {{#if system.expendable}}checked{{/if}} /> Count uses</label>
+  </div>
+  {{/if}}
+  {{/unless}}
+  {{/unless}}
+  {{/if}}
+  {{#if tracksCharges}}
+  <div class="form-group">
+    <label>Uses left</label>
+    <input type="number" name="{{chargeField}}" value="{{chargesLeft}}" min="0" />
+  </div>
+  <p class="hint">One use spends one. A first aid kit refills from a medkit refill. Zero means it is used up.</p>
+  {{/if}}
+
   {{#if isWeapon}}
   <div class="form-group">
     <label>Type</label>
