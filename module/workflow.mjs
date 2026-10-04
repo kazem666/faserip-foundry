@@ -187,7 +187,7 @@ export function workflowActive(key) {
 
 export function shiftPlan(actor, options) {
   if (!workflowActive("autoColumnShifts")) {
-    return { cs: 0, note: "", consumeOutgoing: false, consumeIncoming: false };
+    return { cs: 0, note: "", consumeOutgoing: false, consumeIncoming: false, consumeStrike: false, consumeMagicResist: false };
   }
   return combinedShift(actor, options);
 }

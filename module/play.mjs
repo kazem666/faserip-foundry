@@ -228,7 +228,7 @@ export function combatFlags({ actor, item, target, columnId, effect }) {
   return flags;
 }
 
-export async function settleShifts({ actor, target, columnId, effect, consumeOutgoing, consumeIncoming }) {
+export async function settleShifts({ actor, target, columnId, effect, consumeOutgoing, consumeIncoming, consumeStrike, consumeMagicResist }) {
   const defense = pendingFromDefense(columnId, effect);
   const same = actor && target && actor.id === target.id;
   if (target && consumeIncoming && !same) {
@@ -242,6 +242,16 @@ export async function settleShifts({ actor, target, columnId, effect, consumeOut
   if (consumeOutgoing) {
     next.nextCs = 0;
     next.nextNote = "";
+    changed = true;
+  }
+  if (consumeStrike) {
+    next.strikeCs = 0;
+    next.strikeNote = "";
+    changed = true;
+  }
+  if (consumeMagicResist) {
+    next.psycheCs = 0;
+    next.psycheNote = "";
     changed = true;
   }
   if (same && consumeIncoming) {

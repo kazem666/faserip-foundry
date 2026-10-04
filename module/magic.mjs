@@ -104,13 +104,30 @@ function groupBlock(actor, item) {
   return `${item.name} belongs to ${name}. ${owned} of ${need} are known, so none of that group can be cast yet.`;
 }
 
-function psycheNote(actor, target) {
-  if (!actor || !target || actor.id === target.id) return "";
+export function psycheResistShift(actor, target) {
+  if (!actor || !target || actor.id === target.id) return { cs: 0, note: "" };
   const caster = rankIndex(actor.getAbilityRank?.("psyche") || "typical");
   const defender = rankIndex(target.getAbilityRank?.("psyche") || "typical");
-  if (caster > defender) return "Caster's Psyche is higher: the target's Psyche FEAT to resist this working is −1 CS.";
-  if (defender > caster) return "Defender's Psyche is higher: their Psyche FEAT to resist this working is +1 CS.";
+  if (caster > defender) return { cs: -1, note: "Higher Psyche −1 CS to resist" };
+  if (defender > caster) return { cs: 1, note: "Higher Psyche +1 CS to resist" };
+  return { cs: 0, note: "" };
+}
+
+function psycheNote(actor, target) {
+  const shift = psycheResistShift(actor, target);
+  if (shift.cs < 0) return "Caster's Psyche is higher: the target's Psyche FEAT to resist this working is −1 CS.";
+  if (shift.cs > 0) return "Defender's Psyche is higher: their Psyche FEAT to resist this working is +1 CS.";
   return "";
+}
+
+export async function rememberPsycheResist(target, shift) {
+  if (!target?.setFlag || !shift?.cs) return false;
+  const patch = { psycheCs: shift.cs, psycheNote: shift.note };
+  if (globalThis.game?.user?.isGM || target.isOwner) {
+    await writePending(target, patch);
+    return true;
+  }
+  return askMagic("resist", { actorId: target.id, patch });
 }
 
 async function abilityColor(actor, ability) {
@@ -120,8 +137,19 @@ async function abilityColor(actor, ability) {
   return { total, color: colorForRoll(rankId, total), rankId };
 }
 
-function checkbox(name, label) {
-  return `<label class="check"><input type="checkbox" name="${name}" /> ${label}</label>`;
+function checkbox(name, label, checked = false) {
+  return `<label class="check"><input type="checkbox" name="${name}" ${checked ? "checked" : ""} /> ${label}</label>`;
+}
+
+async function targetIsHuge(actor) {
+  const target = combatTarget(actor?.id || "");
+  const token = target?.getActiveTokens?.(true)?.[0] || target?.getActiveTokens?.()?.[0];
+  const doc = token?.document || token;
+  if (!doc) return false;
+  const { gridFeet, squaresPerArea } = await import("./movement.mjs");
+  const tall = (Number(doc.height) || 1) * gridFeet() > 30;
+  const wide = (Number(doc.width) || 1) >= squaresPerArea() * 2;
+  return tall || wide;
 }
 
 export async function prepareMagicCast(actor, item) {
@@ -162,17 +190,19 @@ export async function prepareMagicCast(actor, item) {
   }
   const fromText = !!(item.getFlag?.("faserip", "fromText") || item.flags?.faserip?.fromText);
   const polish = Number(item.getFlag?.("faserip", "polish") || item.flags?.faserip?.polish || 0);
+  const huge = await targetIsHuge(actor);
+  const astralOn = !!actor.getFlag?.("faserip", "astral");
   const form = await promptForm({
     title: item.name,
     okLabel: "Cast",
     content: `<form>
       <p class="hint">${magicLimitNote(item)} ${energy === "dimensional" ? "Dimensional workings do not allow a Psyche FEAT to avoid them, and only one can be cast in a round." : "One personal or universal working a round, or two if Agility is Red. A second attempt that is not Red is −1 CS."}</p>
-      ${checkbox("huge", "Target is over 30 feet tall or at least 2 areas wide (−2 CS)")}
+      ${checkbox("huge", "Target is over 30 feet tall or at least 2 areas wide (−2 CS)", huge)}
       ${checkbox("other", "Target is from another dimension (−1 CS)")}
       ${checkbox("ground", "This ground favors the caster's school (+1 CS)")}
       ${checkbox("vulnerable", "Target is vulnerable to the caster's school (+1 CS)")}
       ${checkbox("willing", "Target is truly willing, not controlled (+3 CS)")}
-      ${checkbox("astral", "Astral combat (−1 CS)")}
+      ${checkbox("astral", "Astral combat (−1 CS)", astralOn)}
       ${fromText ? "" : checkbox("book", "Learned in play from an old text (+2 CS)")}
       ${checkbox("distracted", "Distracted. A Psyche FEAT is required to finish this round.")}
     </form>`
@@ -552,6 +582,12 @@ async function performMagic(data) {
       else await target.unsetFlag("faserip", "stuck");
       return true;
     }
+    if (data.action === "resist") {
+      const target = globalThis.game?.actors?.get?.(data.actorId);
+      if (!target) return false;
+      await writePending(target, data.patch || {});
+      return true;
+    }
   } catch (err) {
     console.warn("FASERIP | magic scene", err);
   }
@@ -593,7 +629,7 @@ export function registerMagic() {
         return;
       }
       if (!globalThis.game.user?.isGM) return;
-      if (data.action === "embed" || data.action === "remove" || data.action === "hide" || data.action === "stuck") {
+      if (data.action === "embed" || data.action === "remove" || data.action === "hide" || data.action === "stuck" || data.action === "resist") {
         const result = await performMagic(data);
         globalThis.game.socket.emit("system.faserip", {
           system: "magic",

@@ -70,7 +70,11 @@ export function readPending(actor) {
     incomingCs: Number(raw.incomingCs || 0),
     incomingNote: raw.incomingNote || "",
     armorCs: Number(raw.armorCs || 0),
-    armorNote: raw.armorNote || ""
+    armorNote: raw.armorNote || "",
+    strikeCs: Number(raw.strikeCs || 0),
+    strikeNote: raw.strikeNote || "",
+    psycheCs: Number(raw.psycheCs || 0),
+    psycheNote: raw.psycheNote || ""
   };
 }
 
@@ -88,6 +92,8 @@ export function formatPending(pending) {
   if (pending?.nextCs) bits.push(`Next roll ${signed(pending.nextCs)} CS`);
   if (pending?.incomingCs) bits.push(`Incoming attacks ${signed(pending.incomingCs)} CS`);
   if (pending?.armorCs) bits.push(`Armor ${signed(pending.armorCs)} CS`);
+  if (pending?.strikeCs) bits.push(`Next attack ${signed(pending.strikeCs)} CS`);
+  if (pending?.psycheCs) bits.push(`Next Psyche FEAT ${signed(pending.psycheCs)} CS`);
   return bits.join(" · ");
 }
 
@@ -214,13 +220,27 @@ export function combinedShift(actor, { ability = "", effectsColumn = "", target 
     cs -= 1;
     notes.push("Tiny target −1 CS");
   }
+  let consumeStrike = false;
+  if (!reservePending && pending.strikeCs && ATTACK_COLUMNS.has(effectsColumn)) {
+    cs += pending.strikeCs;
+    notes.push(pending.strikeNote || `Next attack ${signed(pending.strikeCs)} CS`);
+    consumeStrike = true;
+  }
+  let consumeMagicResist = false;
+  if (!reservePending && pending.psycheCs && String(ability).toLowerCase() === "psyche") {
+    cs += pending.psycheCs;
+    notes.push(pending.psycheNote || `Psyche ${signed(pending.psycheCs)} CS`);
+    consumeMagicResist = true;
+  }
   return {
     cs,
     damageCs: situation.damageCs,
     notes,
     note: notes.join("; "),
     consumeOutgoing: !reservePending && !!pending.nextCs,
-    consumeIncoming
+    consumeIncoming,
+    consumeStrike,
+    consumeMagicResist
   };
 }
 

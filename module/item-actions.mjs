@@ -440,7 +440,9 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     damageCs: plan.damageCs || 0,
     skipCondition: true,
     consumeOutgoing: plan.consumeOutgoing,
-    consumeIncoming: plan.consumeIncoming && !reactionCs
+    consumeIncoming: plan.consumeIncoming && !reactionCs,
+    consumeStrike: plan.consumeStrike,
+    consumeMagicResist: plan.consumeMagicResist
   });
   if (message) {
     revealIfAttacking(actor, spec.column).catch((err) => console.warn("FASERIP | invisibility", err));

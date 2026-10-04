@@ -8,8 +8,8 @@ import {
   battleResult,
   rankValue
 } from "../config.mjs";
-import { magicColumnShift, magicHarm, magicResult, resistLine } from "../magic.mjs";
-import { abilityForColumn, actorFromRef, combatTarget, sceneActorChoices } from "../play-rules.mjs";
+import { magicColumnShift, magicEnergy, magicHarm, magicResult, psycheResistShift, rememberPsycheResist, resistLine } from "../magic.mjs";
+import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, writePending } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { playAttackSound } from "../psfx.mjs";
@@ -65,6 +65,8 @@ export async function rollFeat({
   shiftNotes = "",
   consumeOutgoing = false,
   consumeIncoming = false,
+  consumeStrike = false,
+  consumeMagicResist = false,
   holdPending = false,
   allowKarma = true,
   blindside = false,
@@ -159,7 +161,9 @@ export async function rollFeat({
       columnId,
       effect,
       consumeOutgoing,
-      consumeIncoming
+      consumeIncoming,
+      consumeStrike,
+      consumeMagicResist
     });
     combat = combatFlags({ actor, item, target, columnId, effect });
   }
@@ -356,6 +360,22 @@ export async function rollFeat({
   if (isCheckColumn(columnId)) {
     await applyCheckResult({ actor, color, columnId, resultOf });
   }
+  if (actor && item?.type === "power" && /^focus$/i.test(String(item.name || "").replace(/\s*\([^)]*\)/g, "").trim()) && color && color !== "white") {
+    const current = readPending(actor);
+    await writePending(actor, {
+      nextCs: (Number(current.nextCs) || 0) + 1,
+      nextNote: [current.nextNote, "Focus +1 CS"].filter(Boolean).join("; ")
+    });
+    ui.notifications?.info(`${item.name} lands. The next roll is +1 column.`);
+  }
+  if (magic && color !== "white" && magicEnergy(item) !== "dimensional") {
+    const resist = psycheResistShift(actor, target);
+    if (resist.cs && await rememberPsycheResist(target, resist)) {
+      ui.notifications?.info(resist.cs < 0
+        ? `${target.name}'s next Psyche FEAT to resist is −1 column.`
+        : `${target.name}'s next Psyche FEAT to resist is +1 column.`);
+    }
+  }
   if (!lineCheck && color === "white" && target) {
     await splashMiss({ actor, target, columnId, rankId: effectiveId, label, item });
   }
@@ -543,6 +563,8 @@ export async function promptFeatRoll({
     magic,
     consumeOutgoing: plan.consumeOutgoing,
     consumeIncoming: plan.consumeIncoming,
+    consumeStrike: plan.consumeStrike,
+    consumeMagicResist: plan.consumeMagicResist,
     damageCs: plan.damageCs || 0,
     holdPending,
     allowKarma: karmaMode !== "none" && (karmaMode !== "resources" || invention),

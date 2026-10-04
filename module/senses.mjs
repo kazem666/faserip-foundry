@@ -371,7 +371,7 @@ async function weak(actor, item) {
   const color = await rollColor(actor, item);
   if (!color) return null;
   if (color === "yellow" || color === "red") {
-    await writePending(actor, { nextCs: 1, nextNote: "Weakness +1 CS" });
+    await writePending(actor, { strikeCs: 1, strikeNote: "Weakness +1 CS" });
     await whisper(actor, `<p><strong>${esc(item.name)}</strong> finds a gap in ${esc(target.name)}. The next attack is +1 column. The Judge can name the weakness.</p>`);
     globalThis.ui?.notifications?.info(`A weakness shows. The next attack is +1 column.`);
     return true;

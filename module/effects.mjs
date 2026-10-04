@@ -3,7 +3,9 @@ import { readPending } from "./play-rules.mjs";
 const SHIFT_KEYS = [
   ["next", "nextCs", "nextNote"],
   ["incoming", "incomingCs", "incomingNote"],
-  ["armor", "armorCs", "armorNote"]
+  ["armor", "armorCs", "armorNote"],
+  ["strike", "strikeCs", "strikeNote"],
+  ["psyche", "psycheCs", "psycheNote"]
 ];
 
 function shiftEffect(actor, key) {
