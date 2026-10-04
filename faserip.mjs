@@ -24,6 +24,7 @@ import { registerRanged } from "./module/ranged.mjs";
 import { registerConditionEffects } from "./module/battle-results.mjs";
 import { registerEffects } from "./module/effects.mjs";
 import { registerZones } from "./module/zones.mjs";
+import { registerHazards } from "./module/hazard.mjs";
 import { registerMagic } from "./module/magic.mjs";
 import { registerEncounters } from "./module/encounters.mjs";
 import { registerJudgeControls, openJudgeControls } from "./module/apps/judge-app.mjs";
@@ -42,7 +43,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.18";
+const VERSION = "1.18.19";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -427,6 +428,7 @@ Hooks.once("init", () => {
     registerConditionEffects();
     registerEffects();
     registerZones();
+    registerHazards();
     registerMagic();
     registerEncounters();
     registerJudgeControls();

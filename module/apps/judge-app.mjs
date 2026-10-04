@@ -1,3 +1,4 @@
+import { hazardPanelHtml, placeHazard, removeHazard } from "../hazard.mjs";
 import { douseSceneLights, lightPanelHtml, relightSceneLights } from "../light-cover.mjs";
 import { SITUATIONS, currentSituation, rollRandomEvent, setSituation } from "../situation.mjs";
 import { rollCityEncounter } from "../encounters.mjs";
@@ -59,6 +60,7 @@ function panelHtml() {
         <label>Situation <select name="situation">${situations}</select></label>
         <button type="button" data-action="setSituation">Set situation</button>
         ${lightPanelHtml()}
+        ${hazardPanelHtml()}
         <h3>Table</h3>
         <button type="button" data-action="randomEvent">Random event</button>
         <label>Hero <select name="hero">${heroOptions}</select></label>
@@ -126,6 +128,18 @@ function JudgeApp() {
         event.preventDefault();
         await relightSceneLights();
         this.render(true);
+      });
+      result?.querySelector("[data-action=placeHazard]")?.addEventListener("click", async (event) => {
+        event.preventDefault();
+        await placeHazard();
+        this.render(true);
+      });
+      result?.querySelectorAll("[data-action=removeHazard]")?.forEach((button) => {
+        button.addEventListener("click", async (event) => {
+          event.preventDefault();
+          await removeHazard(button.dataset.regionId || "");
+          this.render(true);
+        });
       });
       bindTableTools(result, () => this.render(true));
     }
