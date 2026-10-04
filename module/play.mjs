@@ -13,6 +13,48 @@ function esc(value) {
   }[ch]));
 }
 
+function flagOf(message, key) {
+  return message.getFlag?.("faserip", key) ?? message.flags?.faserip?.[key];
+}
+
+async function resolvePsycheGate(message, target) {
+  if (!flagOf(message, "psycheGate")) return "skip";
+  const resolved = flagOf(message, "psycheResolved");
+  if (resolved === "resist") return "resist";
+  if (resolved === "affected") return "ready";
+  if (flagOf(message, "psycheRolling")) return "wait";
+  try { await message.setFlag("faserip", "psycheRolling", true); } catch { return "wait"; }
+  const attackerId = flagOf(message, "attackerId");
+  const attacker = attackerId ? game.actors?.get?.(attackerId) : null;
+  const { psycheResistShift, psycheFeatOutcome } = await import("./magic.mjs");
+  const shift = psycheResistShift(attacker, target);
+  const { rollFeat } = await import("./dice/universal-table.mjs");
+  const plan = shiftPlan(target, { ability: "psyche", reservePending: true });
+  const resist = await rollFeat({
+    actor: target,
+    rankId: target.getAbilityRank?.("psyche") || "typical",
+    label: "Psyche FEAT",
+    cs: (Number(plan.cs) || 0) + (Number(shift.cs) || 0),
+    shiftNotes: [plan.note, shift.note, "Yellow or red: the working has no effect. White or green: it takes."].filter(Boolean).join("; "),
+    holdPending: true,
+    skipCondition: true,
+    allowKarma: false
+  });
+  const color = resist?.getFlag?.("faserip", "color") ?? resist?.flags?.faserip?.color ?? "white";
+  const outcome = psycheFeatOutcome(color);
+  if (outcome.resists) {
+    try {
+      await message.setFlag("faserip", "psycheResolved", "resist");
+      await message.setFlag("faserip", "effectBlocked", true);
+    } catch { /* the note still tells the table */ }
+    ui.notifications?.info(`${target.name} is not affected.`);
+    return "resist";
+  }
+  try { await message.setFlag("faserip", "psycheResolved", "affected"); } catch { /* damage can still be applied */ }
+  ui.notifications?.info(`${target.name} is affected.`);
+  return "affected";
+}
+
 function chainClient(message) {
   const gm = game.users.find((user) => user.active && user.isGM);
   if (gm) return game.user.id === gm.id;
@@ -29,6 +71,8 @@ export async function openCombatChain(message) {
   if ((!targetId && !targetUuid) || (damageAmount == null && !checkColumn)) return;
   const target = actorFromRef(targetUuid || targetId);
   if (!target) return;
+  const gate = await resolvePsycheGate(message, target);
+  if (gate === "resist" || gate === "wait") return;
   const energyDefault = !!(message.getFlag?.("faserip", "damageEnergy") ?? message.flags?.faserip?.damageEnergy);
 
   const blocked = !!(message.getFlag?.("faserip", "effectBlocked") ?? message.flags?.faserip?.effectBlocked);
@@ -104,6 +148,15 @@ export async function applyDamageFromChat(message) {
   if (!target) return;
   if (!target.isOwner && !game.user.isGM) {
     ui.notifications.warn("Only the Judge can apply this damage.");
+    return;
+  }
+  const gate = await resolvePsycheGate(message, target);
+  if (gate === "resist") {
+    ui.notifications.info(`${target.name} is not affected.`);
+    return;
+  }
+  if (gate === "wait") {
+    ui.notifications.info(`${target.name} is still rolling to resist.`);
     return;
   }
   if (message.getFlag("faserip", "damageApplied")) {
@@ -201,6 +254,14 @@ export function bindFeatChat(message, html) {
   root.querySelector("[data-faserip-check]")?.addEventListener("click", (event) => {
     event.preventDefault();
     checkFromChat(message);
+  });
+  root.querySelector("[data-faserip-psyche]")?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    const target = actorFromRef(message.getFlag?.("faserip", "targetUuid") || message.getFlag?.("faserip", "targetId"));
+    if (!target) return;
+    const gate = await resolvePsycheGate(message, target);
+    if (gate === "resist") ui.notifications?.info(`${target.name} is not affected.`);
+    if (gate === "wait") ui.notifications?.info(`${target.name} is still rolling to resist.`);
   });
   root.querySelector("[data-faserip-pan]")?.addEventListener("click", (event) => {
     event.preventDefault();

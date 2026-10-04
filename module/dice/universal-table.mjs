@@ -1,5 +1,6 @@
 import {
   colorForRoll,
+  rankIndex,
   rankLabel,
   columnShiftRank,
   RANK_BY_ID,
@@ -8,7 +9,7 @@ import {
   battleResult,
   rankValue
 } from "../config.mjs";
-import { magicColumnShift, magicEnergy, magicHarm, magicResult, psycheResistShift, rememberPsycheResist, resistLine } from "../magic.mjs";
+import { magicColumnShift, magicEnergy, magicHarm, magicResult, pulledResultColor, resistLine, takeMagic } from "../magic.mjs";
 import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, signed, writePending } from "../play-rules.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
@@ -136,8 +137,16 @@ export async function rollFeat({
   const columnId = resolveBattleColumn(effectsColumn);
   let effect = columnId ? battleResult(columnId, color) : "";
   let effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
+  let effectColor = color;
+  if (magic && takeMagic(item)?.pullColor) {
+    const pulled = pulledResultColor(color);
+    if (pulled !== color) {
+      effectColor = pulled;
+      shiftNotes = [shiftNotes, `Pulled punch: ${color} counts as ${pulled}.`].filter(Boolean).join(" ");
+    }
+  }
   if (magic) {
-    const rewritten = magicResult(columnId, color);
+    const rewritten = magicResult(columnId, effectColor);
     if (rewritten) {
       effect = rewritten;
       effectLabel = "Magic Effects";
@@ -167,6 +176,15 @@ export async function rollFeat({
     });
     combat = combatFlags({ actor, item, target, columnId, effect });
   }
+  if (magic && combat.checkColumn && target) {
+    const endurance = target.getAbilityRank?.("endurance") || "typical";
+    if (rankIndex(effectiveId) < rankIndex(endurance)) {
+      combat.checkColumn = "";
+      shiftNotes = [shiftNotes, "The spell rank is below Endurance, so there is no Slam or Stun check."].filter(Boolean).join(" ");
+    }
+  }
+  const psycheGate = !!(magic && target && actor && actor.id !== target.id && magicEnergy(item) !== "dimensional" && /^(hit|slam|stun|bull's-eye|bullseye)$/i.test(String(effect || "")));
+  if (psycheGate) shiftNotes = [shiftNotes, "Psyche FEAT to resist. Yellow or red: no effect. White or green: the working takes."].filter(Boolean).join(" ");
   if (magic && combat.damageAmount != null) combat.damageAmount = magicHarm(effectiveId);
   if (damageCs && combat.damageAmount) combat.damageAmount = shiftDamageAmount(combat.damageAmount, damageCs);
   if (blindside) combat.checkColumn = "";
@@ -321,6 +339,7 @@ export async function rollFeat({
     damageEnergy: !!combat.damageEnergy,
     checkColumn: combat.checkColumn || "",
     checkLabel: combat.checkColumn ? (BATTLE_EFFECTS[combat.checkColumn]?.label ?? "") : "",
+    psycheGate,
     showButtons: showCombatButtons()
   });
 
@@ -351,7 +370,8 @@ export async function rollFeat({
         strengthRank: actor?.getAbilityRank?.("strength") || null,
         bonusArmor: shieldValue || 0,
         effectBlocked,
-        magic: !!magic
+        magic: !!magic,
+        psycheGate
       }
     }
   };
@@ -367,14 +387,6 @@ export async function rollFeat({
       nextNote: [current.nextNote, "Focus +1 CS"].filter(Boolean).join("; ")
     });
     ui.notifications?.info(`${item.name} lands. The next roll is +1 column.`);
-  }
-  if (magic && color !== "white" && magicEnergy(item) !== "dimensional") {
-    const resist = psycheResistShift(actor, target);
-    if (resist.cs && await rememberPsycheResist(target, resist)) {
-      ui.notifications?.info(resist.cs < 0
-        ? `${target.name}'s next Psyche FEAT to resist is −1 column.`
-        : `${target.name}'s next Psyche FEAT to resist is +1 column.`);
-    }
   }
   if (!lineCheck && color === "white" && target) {
     await splashMiss({ actor, target, columnId, rankId: effectiveId, label, item });

@@ -23,6 +23,7 @@
   {{#if healthNote}}<p class="effect-banner">{{healthNote}}</p>{{/if}}
   <div class="feat-actions">
     {{#if showButtons}}
+    {{#if psycheGate}}<button type="button" data-faserip-psyche>Psyche FEAT</button>{{/if}}
     {{#if canDamage}}<button type="button" data-faserip-apply>Apply {{damageAmount}}{{#if damageEnergy}} energy{{/if}}{{#if targetName}} to {{targetName}}{{/if}}</button>{{/if}}
     {{#if checkColumn}}<button type="button" data-faserip-check>{{checkLabel}}</button>{{/if}}
     {{/if}}

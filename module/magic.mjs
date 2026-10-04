@@ -39,13 +39,32 @@ export function magicLimitNote(item) {
 export function magicColumnShift(rankId, cs) {
   let id = rankId || "typical";
   let shift = Number(cs) || 0;
-  if (!HIGH_RANKS.has(id)) return { rankId: id, cs: shift };
-  if (shift > 0) shift = 0;
-  if (shift < 0) {
-    id = "unearthly";
-    shift += 1;
+  if (HIGH_RANKS.has(id)) {
+    if (shift > 0) shift = 0;
+    if (shift < 0) {
+      id = "unearthly";
+      shift += 1;
+    }
+    return { rankId: id, cs: shift };
+  }
+  if (shift > 0) {
+    const start = rankIndex(id);
+    const ceiling = rankIndex("shiftx");
+    if (start < 0 || ceiling < 0 || start >= ceiling) shift = 0;
+    else shift = Math.min(shift, ceiling - start);
   }
   return { rankId: id, cs: shift };
+}
+
+export function psycheFeatOutcome(color) {
+  const label = MAGIC_EFFECTS.columns.psycheFeat[COLOR_INDEX[color] ?? 0] || "Affected";
+  return { label, resists: label === "No Effect" };
+}
+
+export function pulledResultColor(color) {
+  if (color === "red") return "yellow";
+  if (color === "yellow") return "green";
+  return color;
 }
 
 export function magicResult(columnId, color) {
@@ -84,15 +103,21 @@ function readCast(actor) {
   const sameCombat = !!(stamp && raw.combatId === stamp.combatId);
   const busyRound = sameCombat ? Number(raw.busyRound || 0) : 0;
   if (!stamp || raw.key !== stamp.key) {
-    return { key: stamp?.key || "", personal: 0, dimensional: 0, combatId: stamp?.combatId || "", busyRound };
+    return { key: stamp?.key || "", personal: 0, dimensional: 0, combatId: stamp?.combatId || "", busyRound, pair: "", group: "" };
   }
   return {
     key: raw.key,
     personal: Number(raw.personal || 0),
     dimensional: Number(raw.dimensional || 0),
     combatId: raw.combatId || stamp.combatId,
-    busyRound
+    busyRound,
+    pair: raw.pair || "",
+    group: raw.group || ""
   };
+}
+
+function spellGroup(item) {
+  return item?.getFlag?.("faserip", "spellGroup") || item?.flags?.faserip?.spellGroup || "";
 }
 
 function groupBlock(actor, item) {
@@ -132,6 +157,10 @@ export async function rememberPsycheResist(target, shift) {
 
 async function abilityColor(actor, ability) {
   const rankId = actor?.getAbilityRank?.(ability) || "typical";
+  return rankColor(rankId);
+}
+
+async function rankColor(rankId) {
   const roll = await new Roll("1d100").evaluate({ allowInteractive: false });
   const total = Number(roll.total);
   return { total, color: colorForRoll(rankId, total), rankId };
@@ -167,10 +196,14 @@ export async function prepareMagicCast(actor, item) {
   const energy = magicEnergy(item);
   const stamp = roundStamp();
   const cast = readCast(actor);
-  let second = false;
+  const group = spellGroup(item);
   if (stamp) {
     if (cast.busyRound && stamp.round <= cast.busyRound) {
       ui.notifications?.warn(`${actor.name} is still finishing a working.`);
+      return null;
+    }
+    if (group && cast.group === group) {
+      ui.notifications?.warn(`Only one working from ${group} can be cast this round.`);
       return null;
     }
     if (energy === "dimensional") {
@@ -184,26 +217,33 @@ export async function prepareMagicCast(actor, item) {
     } else if (cast.personal >= 2) {
       ui.notifications?.warn("Two personal or universal workings is the limit for this round.");
       return null;
-    } else if (cast.personal === 1) {
-      second = true;
+    } else if (cast.personal >= 1 && cast.pair !== "open") {
+      ui.notifications?.warn("A second working has to be announced at the start of the round, and only a Red Agility FEAT allows it.");
+      return null;
     }
   }
   const fromText = !!(item.getFlag?.("faserip", "fromText") || item.flags?.faserip?.fromText);
   const polish = Number(item.getFlag?.("faserip", "polish") || item.flags?.faserip?.polish || 0);
   const huge = await targetIsHuge(actor);
   const astralOn = !!actor.getFlag?.("faserip", "astral");
+  const opening = stamp && energy !== "dimensional" && cast.personal === 0;
+  const covered = stamp && energy !== "dimensional" && cast.personal === 1 && cast.pair === "open";
   const form = await promptForm({
     title: item.name,
     okLabel: "Cast",
     content: `<form>
-      <p class="hint">${magicLimitNote(item)} ${energy === "dimensional" ? "Dimensional workings do not allow a Psyche FEAT to avoid them, and only one can be cast in a round." : "One personal or universal working a round, or two if Agility is Red. A second attempt that is not Red is −1 CS."}</p>
+      <p class="hint">${magicLimitNote(item)} ${energy === "dimensional" ? "Dimensional workings do not allow a Psyche FEAT to avoid them, and only one can be cast in a round." : "One personal or universal working a round. Announce two at the start: a Red Agility FEAT casts both. A failed Agility FEAT casts only this one, at −1 CS."}</p>
+      ${covered ? `<p class="hint">Second working. The Red Agility FEAT already covers it.</p>` : ""}
+      ${opening ? checkbox("announce", "Announce two workings this round.") : ""}
       ${checkbox("huge", "Target is over 30 feet tall or at least 2 areas wide (−2 CS)", huge)}
       ${checkbox("other", "Target is from another dimension (−1 CS)")}
       ${checkbox("ground", "This ground favors the caster's school (+1 CS)")}
       ${checkbox("vulnerable", "Target is vulnerable to the caster's school (+1 CS)")}
       ${checkbox("willing", "Target is truly willing, not controlled (+3 CS)")}
+      ${checkbox("ceremony", "Cast during a ceremony (+2 CS)")}
       ${checkbox("astral", "Astral combat (−1 CS)", astralOn)}
       ${fromText ? "" : checkbox("book", "Learned in play from an old text (+2 CS)")}
+      ${checkbox("pull", "Pull the punch. A spell-rank FEAT can lower the result color one step.")}
       ${checkbox("distracted", "Distracted. A Psyche FEAT is required to finish this round.")}
     </form>`
   });
@@ -221,6 +261,7 @@ export async function prepareMagicCast(actor, item) {
     ["ground", 1, "Helpful ground (+1 CS)."],
     ["vulnerable", 1, "School vulnerability (+1 CS)."],
     ["willing", 3, "Willing target (+3 CS)."],
+    ["ceremony", 2, "Ceremony (+2 CS)."],
     ["astral", -1, "Astral combat (−1 CS)."],
     ["book", 2, "Learned from an old text (+2 CS)."]
   ];
@@ -229,13 +270,33 @@ export async function prepareMagicCast(actor, item) {
     cs += amount;
     notes.push(line);
   }
-  if (second) {
-    const agility = await abilityColor(actor, "agility");
-    if (agility.color === "red") {
-      notes.push(`Second working this round. Agility ${agility.total} is Red, so the rank stays.`);
+  let pair = cast.pair || "";
+  if (opening) {
+    if (formValue(form, "announce")) {
+      const agility = await abilityColor(actor, "agility");
+      if (agility.color === "red") {
+        pair = "open";
+        notes.push(`Announced two workings. Agility ${agility.total} is Red, so both keep their rank.`);
+      } else if (agility.color === "white") {
+        pair = "failed";
+        cs -= 1;
+        notes.push(`Announced two workings. Agility ${agility.total} failed, so only this working is cast, at −1 CS.`);
+      } else {
+        pair = "single";
+        notes.push(`Announced two workings. Agility ${agility.total} is ${agility.color}, not Red, so only this working is cast.`);
+      }
     } else {
-      cs -= 1;
-      notes.push(`Second working this round. Agility ${agility.total} is not Red, so −1 CS.`);
+      pair = "single";
+    }
+  }
+  let pullColor = false;
+  if (formValue(form, "pull")) {
+    const rolled = await rankColor(rankId);
+    if (rolled.color === "white") {
+      notes.push(`Pulling the punch failed (${rolled.total}). The working stays at full effect.`);
+    } else {
+      pullColor = true;
+      notes.push(`Pulling the punch succeeded (${rolled.color}). The result color drops one step. Duration, area, or damage may be lowered; the rest stays at the limit.`);
     }
   }
   let busyRound = 0;
@@ -248,7 +309,7 @@ export async function prepareMagicCast(actor, item) {
       notes.push(`Distracted, but Psyche ${psyche.total} (${psyche.color}) finishes it this round.`);
     }
   }
-  const prep = { cs, note: notes.join(" "), energy, busyRound };
+  const prep = { cs, note: notes.join(" "), energy, busyRound, pair, group, pullColor };
   if (item.id) pending.set(item.id, prep);
   return prep;
 }
@@ -264,7 +325,9 @@ export async function commitMagicCast(actor, item, prep = null) {
       combatId: stamp.combatId,
       personal: cast.personal + (energy === "dimensional" ? 0 : 1),
       dimensional: cast.dimensional + (energy === "dimensional" ? 1 : 0),
-      busyRound: Math.max(cast.busyRound || 0, stored?.busyRound || 0)
+      busyRound: Math.max(cast.busyRound || 0, stored?.busyRound || 0),
+      pair: stored?.pair || cast.pair || "",
+      group: stored?.group || cast.group || ""
     };
     await actor.setFlag("faserip", "magicCast", next);
   }
