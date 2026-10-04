@@ -27,6 +27,8 @@ import { registerZones } from "./module/zones.mjs";
 import { registerMagic } from "./module/magic.mjs";
 import { registerEncounters } from "./module/encounters.mjs";
 import { registerJudgeControls, openJudgeControls } from "./module/apps/judge-app.mjs";
+import { registerTableTools } from "./module/table-tools.mjs";
+import { registerActivity } from "./module/activity.mjs";
 import { registerSituationFx } from "./module/situation-fx.mjs";
 import { registerDetection } from "./module/detection.mjs";
 import { registerHud } from "./module/hud.mjs";
@@ -40,7 +42,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.14";
+const VERSION = "1.18.15";
 
 async function seedRollTables(opts = {}) {
   try {
@@ -428,6 +430,8 @@ Hooks.once("init", () => {
     registerMagic();
     registerEncounters();
     registerJudgeControls();
+    registerTableTools();
+    registerActivity();
     registerSituationFx();
     registerDetection();
     registerHud();
@@ -451,6 +455,9 @@ Hooks.once("init", () => {
       name: "Use Ultimate Talents list",
       hint: "Judge only. When on, Generate Hero rolls talent categories and specialties from the Ultimate Talents list instead of the short Advanced Set list.",
       scope: "world", config: true, type: Boolean, default: false, restricted: true
+    });
+    game.settings.register("faserip", "partyStash", {
+      scope: "world", config: false, type: String, default: "[]", restricted: true
     });
     game.settings.register("faserip", "useRealmsOfMagic", {
       name: "Use Realms of Magic (MHAC-9)",

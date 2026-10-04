@@ -39,7 +39,18 @@ export class PowerData extends foundry.abstract.TypeDataModel {
         description: new StringField({ initial: "" }),
         attempts: new NumberField({ required: true, integer: true, min: 0, max: 10, initial: 0 }),
         mastered: new BooleanField({ initial: false })
-      }))
+      })),
+      unknown: new BooleanField({ initial: false }),
+      activity: new SchemaField({
+        on: new BooleanField({ initial: false }),
+        shift: new NumberField({ required: true, integer: true, initial: 0 }),
+        shiftWho: new StringField({ initial: "self" }),
+        condition: new StringField({ initial: "" }),
+        template: new StringField({ initial: "" }),
+        areas: new NumberField({ required: true, integer: true, min: 0, initial: 1 }),
+        rounds: new NumberField({ required: true, integer: true, min: 0, initial: 0 }),
+        health: new NumberField({ required: true, integer: true, initial: 0 })
+      })
     };
   }
 }
@@ -87,6 +98,7 @@ export class EquipmentData extends foundry.abstract.TypeDataModel {
       definition: new StringField({ initial: "" }),
       range: new StringField({ initial: "" }),
       bodyArmor: new BooleanField({ initial: false }),
+      unknown: new BooleanField({ initial: false }),
       notes: new HTMLField({ initial: "" })
     };
   }
@@ -104,6 +116,7 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
       damage: new StringField({ initial: "" }),
       weaponType: new StringField({ initial: "Blunt" }),
       effectsColumn: new StringField({ initial: "blunt" }),
+      unknown: new BooleanField({ initial: false }),
       notes: new HTMLField({ initial: "" })
     };
   }

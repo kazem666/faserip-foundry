@@ -1247,3 +1247,67 @@ button.faserip-import-pdf,
   padding: 6px 12px;
   cursor: pointer;
 }
+.faserip-judge .judge-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.faserip-judge .judge-tabs button {
+  background: #efe6d4;
+  color: #141414;
+}
+.faserip-judge .judge-tabs button.active {
+  background: #241910;
+  color: #f6f1e4;
+}
+.faserip-judge .team-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.faserip-judge .team-table th,
+.faserip-judge .team-table td {
+  text-align: left;
+  padding: 4px 6px;
+  border-bottom: 1px solid #d9cbb3;
+}
+.faserip-judge .check-list,
+.faserip-judge .stash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.faserip-judge label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.faserip-picture img,
+.faserip-picture video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  background: #141414;
+}
+.faserip-picture p {
+  margin: 8px 0 0;
+}
+.faserip-group-feat h3 {
+  margin: 0 0 6px;
+  font-family: Oswald, sans-serif;
+}
+.faserip-group-feat ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+.activity-line {
+  margin: 8px 0 12px;
+  padding: 8px 10px 4px;
+  border: 1px solid #d9cbb3;
+}

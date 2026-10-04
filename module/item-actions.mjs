@@ -330,12 +330,14 @@ export function sheetActionGroups(items = [], actor = null) {
     const spec = describeItemAction(item);
     const rank = item.system?.rank ? rankLabel(item.system.rank) : "";
     const reach = actor ? rangePhrase(actor, spec.column, item) : "";
+    const veiled = !!item.system?.unknown && !globalThis.game?.user?.isGM;
     const card = actionCard({
-      label: item.name,
-      detail: `${spec.label} · ${abilityName(spec.ability)}${reach ? ` · ${reach}` : ""}${rank ? ` · ${rank}` : ""}`,
+      label: veiled ? "Unknown" : item.name,
+      detail: veiled ? "Identify this first" : `${spec.label} · ${abilityName(spec.ability)}${reach ? ` · ${reach}` : ""}${rank ? ` · ${rank}` : ""}`,
       itemId: item.id,
       standard: ""
     });
+    card.veiled = veiled;
     card.title = spec.title;
     if (item.type === "power") powers.push(card);
     else if (item.type === "weapon") weapons.push(card);
@@ -454,6 +456,10 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
 
 export async function rollItemAction(actor, item, opts = {}) {
   if (!item) return null;
+  if (item.system?.unknown && !globalThis.game?.user?.isGM) {
+    const { identifyItem } = await import("./unknown.mjs");
+    return identifyItem(actor, item);
+  }
   let rom = null;
   if (item.type === "power" && isRomPower(item)) {
     const { dismissMagicSpell, prepareMagicCast, commitMagicCast, automateMagicSpell } = await import("./magic.mjs");
@@ -502,8 +508,22 @@ async function runItemAction(actor, item, opts = {}) {
     if (line) ui.notifications?.info(line);
     const travel = movementPowerKind(item.name);
     if (travel && travel !== "leap") await useMovementPower(actor, item);
+    if (!hasNamedUse(item) && !isRomPower(item)) {
+      const { applyPowerActivity } = await import("./activity.mjs");
+      await applyPowerActivity(actor, item, message);
+    }
   }
   return message;
+}
+
+function hasNamedUse(item) {
+  if (item?.type !== "power") return false;
+  const name = item.name;
+  return !!(
+    teleportKind(name) || movementPowerKind(name) || matterKind(name) || energyKind(name)
+    || rangedKind(name) || mentalKind(name) || offensiveKind(name) || defenseKind(name)
+    || resistKind(name) || senseKind(name) || bodyUseTitle(name) || powerKeepsAloft(name)
+  );
 }
 
 export function rollStandardAction(actor, id, opts = {}) {

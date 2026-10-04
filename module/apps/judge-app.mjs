@@ -1,5 +1,6 @@
 import { SITUATIONS, currentSituation, rollRandomEvent, setSituation } from "../situation.mjs";
 import { rollCityEncounter } from "../encounters.mjs";
+import { bindTableTools, currentJudgeTab, groupPanelHtml, picturePanelHtml, teamPanelHtml } from "../table-tools.mjs";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -45,19 +46,26 @@ function panelHtml() {
     : `<option value="">No heroes in this world</option>`;
   return `
     <div class="faserip-judge">
-      <section>
+      <nav class="judge-tabs">
+        <button type="button" data-tab="situation" class="${currentJudgeTab() === "situation" ? "active" : ""}">Situation</button>
+        <button type="button" data-tab="team" class="${currentJudgeTab() === "team" ? "active" : ""}">Team</button>
+        <button type="button" data-tab="feat" class="${currentJudgeTab() === "feat" ? "active" : ""}">Group FEAT</button>
+        <button type="button" data-tab="picture" class="${currentJudgeTab() === "picture" ? "active" : ""}">Picture</button>
+      </nav>
+      <section data-panel="situation"${currentJudgeTab() === "situation" ? "" : " hidden"}>
         <h3>Situation</h3>
         <p class="hint">This applies to FEATs while the workflow is on. Night vision ignores darkness. Water powers ignore underwater. Rain, fog, cold, heat, darkness, and underwater also play on the scene when Gambit's FXMaster is on.</p>
         <label>Situation <select name="situation">${situations}</select></label>
         <button type="button" data-action="setSituation">Set situation</button>
-      </section>
-      <section>
         <h3>Table</h3>
         <button type="button" data-action="randomEvent">Random event</button>
         <label>Hero <select name="hero">${heroOptions}</select></label>
         <p class="hint">City encounter uses this hero's highest ability as the starting rank. Karma on the card goes to that sheet.</p>
         <button type="button" data-action="cityEncounter">City encounter</button>
       </section>
+      ${teamPanelHtml()}
+      ${groupPanelHtml()}
+      ${picturePanelHtml()}
     </div>`;
 }
 
@@ -76,7 +84,7 @@ function JudgeApp() {
         icon: "fa-solid fa-gavel",
         resizable: true
       },
-      position: { width: 420, height: 460 }
+      position: { width: 560, height: 720 }
     };
 
     async _renderHTML() {
@@ -107,6 +115,7 @@ function JudgeApp() {
         }
         rollCityEncounter(actor);
       });
+      bindTableTools(result, () => this.render(true));
     }
   };
 }

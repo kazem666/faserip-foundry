@@ -192,10 +192,17 @@
         <h2>{{group.label}}</h2>
         <div class="action-grid">
           {{#each group.actions as |act|}}
+          {{#if act.veiled}}
+          <button type="button" class="action-card" data-action="identifyItem" data-item-id="{{act.itemId}}">
+            <span class="action-name">Unknown</span>
+            <span class="action-detail">Identify this first</span>
+          </button>
+          {{else}}
           <button type="button" class="action-card" data-action="rollSheetAction" data-standard="{{act.standard}}" data-item-id="{{act.itemId}}" title="{{act.title}}">
             <span class="action-name">{{act.name}}</span>
             <span class="action-detail">{{act.detail}}</span>
           </button>
+          {{/if}}
           {{/each}}
         </div>
       </section>
@@ -283,12 +290,18 @@
         <header>
           <img src="{{item.img}}" alt="" />
           <strong>{{item.name}}</strong>
+          {{#if item.unknown}}<span class="mastered">Unknown</span>{{/if}}
           <span class="item-rank">{{item.rankLabel}}</span>
-          <span class="slots">Slots {{item.slotsTaken}}</span>
+          {{#unless item.veiled}}<span class="slots">Slots {{item.slotsTaken}}</span>{{/unless}}
+          {{#if item.veiled}}
+          <button type="button" data-action="identifyItem">Identify</button>
+          {{else}}
           <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
+          {{/if}}
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
           <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </header>
+        {{#unless item.veiled}}
         <div class="record-grid five">
           <label>Type <span>{{item.category}}</span></label>
           <label>Range <span>{{item.range}}</span></label>
@@ -297,6 +310,9 @@
           <label>Areas / Rd <span>{{item.areasPerRound}}</span></label>
         </div>
         {{#if item.definition}}<p class="definition">{{item.definition}}</p>{{/if}}
+        {{else}}
+        <p class="hint">A Reason FEAT reveals this. Magic Detection is used when that rank is higher.</p>
+        {{/unless}}
       </article>
       {{/each}}
       <button type="button" class="create" data-action="itemCreate" data-type="power">+ Custom Power</button>
@@ -388,8 +404,13 @@
         <li class="item" data-item-id="{{item.id}}">
           <img src="{{item.img}}" alt="" />
           <span class="item-name">{{item.name}}</span>
+          {{#if item.unknown}}<span class="mastered">Unknown</span>{{/if}}
           <span class="item-rank">{{item.rankLabel}}</span>
+          {{#if item.veiled}}
+          <button type="button" data-action="identifyItem">Identify</button>
+          {{else}}
           <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
+          {{/if}}
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
           <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </li>

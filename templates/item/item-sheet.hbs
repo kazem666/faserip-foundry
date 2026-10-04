@@ -1,11 +1,26 @@
 <div class="faserip-item-sheet {{cssClass}}">
   <header class="sheet-header">
-    <img src="{{item.img}}" data-edit="img" title="{{item.name}}" alt="{{item.name}}" />
+    <img src="{{item.img}}" data-edit="img" title="{{displayName}}" alt="{{displayName}}" />
     <div class="header-fields">
+      {{#if veiled}}
+      <h1>Unknown</h1>
+      {{else}}
       <h1><input name="name" type="text" value="{{item.name}}" placeholder="Name" /></h1>
+      {{/if}}
       <div class="item-type">{{item.type}}</div>
     </div>
   </header>
+
+  {{#if veiled}}
+  <p class="hint">A Reason FEAT reveals this. Magic Detection is used when that rank is higher.</p>
+  <button type="button" data-action="identifyItem">Identify</button>
+  {{else}}
+
+  {{#if showVeilToggle}}
+  <div class="form-group checks">
+    <label class="check"><input type="checkbox" name="system.unknown" {{#if system.unknown}}checked{{/if}} /> Unknown until a Reason or Magic Detection FEAT</label>
+  </div>
+  {{/if}}
 
   <div class="form-group">
     <label>Rank</label>
@@ -68,6 +83,49 @@
     <label class="check"><input type="checkbox" name="system.bodyArmor" {{#if system.bodyArmor}}checked{{/if}} /> Counts as Body Armor</label>
     <label class="check"><input type="checkbox" name="system.forceField" {{#if system.forceField}}checked{{/if}} /> Counts as Force Field</label>
   </div>
+  <fieldset class="activity-line">
+    <legend>On a success</legend>
+    <p class="hint">Runs after a FEAT that is not white, when this power has no built-in use. A named power keeps its own behavior.</p>
+    <label class="check"><input type="checkbox" name="system.activity.on" {{#if system.activity.on}}checked{{/if}} /> Use this success line</label>
+    <div class="form-group">
+      <label>Column shift</label>
+      <input type="number" name="system.activity.shift" value="{{system.activity.shift}}" step="1" />
+    </div>
+    <div class="form-group">
+      <label>Shift lands on</label>
+      <select name="system.activity.shiftWho">
+        <option value="self" {{#if (eq system.activity.shiftWho "self")}}selected{{/if}}>The user's next roll</option>
+        <option value="foe" {{#if (eq system.activity.shiftWho "foe")}}selected{{/if}}>The next attack against the target</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Condition</label>
+      <select name="system.activity.condition">
+        {{#each conditions as |row|}}
+        <option value="{{row.id}}" {{#if (eq ../system.activity.condition row.id)}}selected{{/if}}>{{row.label}}</option>
+        {{/each}}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Condition rounds (0 stays until removed)</label>
+      <input type="number" name="system.activity.rounds" value="{{system.activity.rounds}}" min="0" step="1" />
+    </div>
+    <div class="form-group">
+      <label>Area</label>
+      <select name="system.activity.template">
+        <option value="" {{#if (eq system.activity.template "")}}selected{{/if}}>None</option>
+        <option value="circle" {{#if (eq system.activity.template "circle")}}selected{{/if}}>Circle</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Circle width in areas</label>
+      <input type="number" name="system.activity.areas" value="{{system.activity.areas}}" min="0" step="1" />
+    </div>
+    <div class="form-group">
+      <label>Health (positive restores, negative harms)</label>
+      <input type="number" name="system.activity.health" value="{{system.activity.health}}" step="1" />
+    </div>
+  </fieldset>
   {{/if}}
 
   {{#if isTalent}}
@@ -162,4 +220,5 @@
     <label>Notes</label>
     <textarea name="system.notes" rows="4">{{system.notes}}</textarea>
   </div>
+  {{/if}}
 </div>

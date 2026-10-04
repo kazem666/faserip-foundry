@@ -137,10 +137,12 @@ export async function fillActorSheetContext(sheet, context) {
         const spec = describeItemAction(item);
         return {
         id: item.id,
-        name: item.name,
+        name: item.system?.unknown && !globalThis.game?.user?.isGM ? "Unknown" : item.name,
+        unknown: !!item.system?.unknown,
+        veiled: !!item.system?.unknown && !globalThis.game?.user?.isGM,
+        rankLabel: item.system?.unknown && !globalThis.game?.user?.isGM ? "" : rankLabel(item.system.rank ?? "typical"),
         img: item.img,
         type: item.type,
-        rankLabel: rankLabel(item.system.rank ?? "typical"),
         weaponType: item.system.weaponType ?? "",
         damage: item.system.damage ?? "",
         effectsColumn: item.system.effectsColumn ?? "",
@@ -150,7 +152,7 @@ export async function fillActorSheetContext(sheet, context) {
         area: item.system.area ?? "",
         emanatesFrom: item.system.emanatesFrom ?? "",
         areasPerRound: item.system.areasPerRound ?? "",
-        definition: item.system.definition ?? "",
+        definition: item.system?.unknown && !globalThis.game?.user?.isGM ? "" : (item.system.definition ?? ""),
         bonus: item.system.bonus ?? "",
         attribute: item.system.attribute ?? "",
         occupation: item.system.occupation ?? item.system.category ?? "",
@@ -285,6 +287,7 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("generate", this._onGenerate);
     on("rollAbility", this._onRollAbility);
     on("rollItem", this._onRollItem);
+    on("identifyItem", this._onIdentifyItem);
     on("rollSheetAction", this._onRollSheetAction);
     on("itemEdit", this._onItemEdit);
     on("itemDelete", this._onItemDelete);
@@ -371,6 +374,14 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       rankId: this.actor.getAbilityRank(ability),
       label: game.i18n.localize(`FASERIP.Ability.${ability}`)
     });
+  }
+
+  async _onIdentifyItem(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    const { identifyItem } = await import("../unknown.mjs");
+    return identifyItem(this.actor, item);
   }
 
   async _onRollItem(event) {

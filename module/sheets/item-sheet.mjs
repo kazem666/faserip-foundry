@@ -14,6 +14,19 @@ function fillItemContext(sheet, context = {}) {
   context.isContact = item.type === "contact";
   context.isWeapon = item.type === "weapon";
   context.isEquipment = item.type === "equipment" || item.type === "weapon";
+  context.canVeil = item.type === "power" || item.type === "equipment" || item.type === "weapon";
+  context.veiled = !!item.system?.unknown && !globalThis.game?.user?.isGM;
+  context.displayName = context.veiled ? "Unknown" : item.name;
+  context.showVeilToggle = context.canVeil && !!globalThis.game?.user?.isGM;
+  context.activity = item.system?.activity || {};
+  context.conditions = [
+    { id: "", label: "None" },
+    { id: "held", label: "Held" },
+    { id: "fear", label: "Fear" },
+    { id: "stun", label: "Stunned" },
+    { id: "blind", label: "Blind" },
+    { id: "deaf", label: "Deaf" }
+  ];
   context.cssClass = context.cssClass || (sheet.isEditable ? "editable" : "locked");
   context.editable = sheet.isEditable;
   return context;
@@ -27,9 +40,15 @@ export function buildItemSheetClass() {
       static DEFAULT_OPTIONS = {
         classes: ["faserip", "sheet", "item"],
         tag: "form",
-        position: { width: 520, height: 560 },
+        position: { width: 520, height: 680 },
         window: { resizable: true, icon: "fa-solid fa-bolt" },
-        form: { submitOnChange: true, closeOnSubmit: false }
+        form: { submitOnChange: true, closeOnSubmit: false },
+        actions: {
+          identifyItem(_event) {
+            const item = this.document;
+            import("../unknown.mjs").then((mod) => mod.identifyItem(item?.actor, item));
+          }
+        }
       };
       static PARTS = { body: { template: TEMPLATE, scrollable: [""] } };
       async _prepareContext(options) {
