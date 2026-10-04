@@ -135,6 +135,9 @@
       </section>
 
       <p class="hint">1 area = {{feetPerArea}} ft ({{squaresPerArea}} squares). Each square is {{gridFeet}} ft.</p>
+      {{#if poisoned}}
+      <p class="condition-banner">{{poisonText}}</p>
+      {{/if}}
       {{#if conditionText}}
       <p class="condition-banner">{{conditionText}}</p>
       <div class="advancement-actions">

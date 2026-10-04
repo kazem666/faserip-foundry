@@ -246,6 +246,7 @@ export async function fillActorSheetContext(sheet, context) {
       context.groupMember = !!actor.getFlag("faserip", "groupMember");
       try { context.groupKarma = game.settings.get("faserip", "groupKarma") || 0; } catch { context.groupKarma = 0; }
       context.poisoned = !!actor.getFlag("faserip", "poison");
+      context.poisonText = context.poisoned ? "Poisoned. Health does not return until this is treated." : "";
   return context;
 }
 
@@ -928,12 +929,24 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       defaultIntensity: intensityId
     });
     if (!message || message.flags?.faserip?.intensityPass !== false) return;
-    const rounds = (await new Roll("1d10").evaluate({ allowInteractive: false })).total;
+    const rounds = Math.max(1, Number((await new Roll("1d10").evaluate({ allowInteractive: false })).total) || 1);
     await this.actor.setFlag("faserip", "poison", { intensityId, rounds });
-    await this.actor.update({ "system.condition.unconscious": true });
-    const { dropEndurance } = await import("../battle-results.mjs");
+    const { dropEndurance, readBattle, setBattleState } = await import("../battle-results.mjs");
+    const existing = readBattle(this.actor);
+    if (existing?.state !== "dying" && existing?.state !== "dead") {
+      const now = game.combat?.round ?? 0;
+      await setBattleState(this.actor, {
+        state: "unconscious",
+        rounds,
+        untilRound: now + rounds,
+        wakeCheck: false,
+        cause: "poison",
+        note: "Poison"
+      });
+      await this.actor.update({ "system.condition.unconscious": true });
+    }
     await dropEndurance(this.actor, "");
-    ui.notifications.warn(`${this.actor.name} is poisoned and unconscious for ${rounds} rounds.`);
+    ui.notifications.warn(`${this.actor.name} is poisoned and unconscious for ${rounds} rounds. Health does not return until the poison is treated.`);
   }
 
   async _onTreatPoison(event) {

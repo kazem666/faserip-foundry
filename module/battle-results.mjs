@@ -394,10 +394,13 @@ export async function tickOne(actor, { force = false } = {}) {
       const left = Math.max(0, Number(cond.rounds) - 1);
       if (left > 0) {
         await writeBattle(actor, { ...cond, rounds: left, untilRound: round + left });
+        if (cond.cause === "poison") await mirrorPoisonRounds(actor, left);
         return;
       }
     } else if (cond.untilRound != null && round <= cond.untilRound) {
-      await writeBattle(actor, { ...cond, rounds: Math.max(1, cond.untilRound - round) });
+      const left = Math.max(1, cond.untilRound - round);
+      await writeBattle(actor, { ...cond, rounds: left });
+      if (cond.cause === "poison") await mirrorPoisonRounds(actor, left);
       return;
     }
     if (cond.wakeCheck) {
@@ -406,6 +409,11 @@ export async function tickOne(actor, { force = false } = {}) {
     }
     await writeBattle(actor, null);
     if (cond.state === "unconscious") await actor.update({ "system.condition.unconscious": false });
+    if (cond.cause === "poison") {
+      await mirrorPoisonRounds(actor, 0);
+      await note(`${actor.name} is conscious again. The poison stays until it is treated, so Health does not return.`);
+      return;
+    }
     await note(`${actor.name} can act again.`);
     return;
   }
@@ -491,9 +499,19 @@ export async function hourPasses(actor) {
   await note(`${actor.name} has ${rounds} hour${rounds === 1 ? "" : "s"} left.`);
 }
 
+async function mirrorPoisonRounds(actor, rounds) {
+  const poison = actor.getFlag?.("faserip", "poison");
+  if (!poison) return;
+  const next = Math.max(0, Number(rounds) || 0);
+  if (Number(poison.rounds) === next) return;
+  await actor.setFlag("faserip", "poison", { ...poison, rounds: next });
+}
+
 export async function clearCondition(actor) {
+  const cause = readBattle(actor)?.cause;
   await writeBattle(actor, null);
   await actor.update({ "system.condition.unconscious": false });
+  if (cause === "poison") await mirrorPoisonRounds(actor, 0);
 }
 
 export async function promptFall(actor, { floors = 3 } = {}) {
