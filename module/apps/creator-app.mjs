@@ -105,7 +105,7 @@ function CreatorApp() {
       this.secretId = !!actor?.system?.identity?.secretId;
       this.useUpb = isUpbEnabled();
       this.useUltimateTalents = isUltimateTalentsEnabled();
-      this.useRom = false;
+      this.useRom = isRomEnabled();
       this.archetype = "";
       this.lifeHeight = false;
       this.lifeCalling = false;
@@ -145,7 +145,6 @@ function CreatorApp() {
       this.contactName = "";
       this.weakness = "None";
       this.weaknessNotes = "";
-      this.romAvailable = isRomEnabled();
     }
 
     get special() {
@@ -276,7 +275,7 @@ function CreatorApp() {
             <label class="check"><input name="secretId" type="checkbox" ${this.secretId ? "checked" : ""} /> Secret identity</label>
             <label class="check"><input name="useUpb" type="checkbox" ${this.useUpb ? "checked" : ""} /> Ultimate Powers Book tables</label>
             <label class="check"><input name="useUltimateTalents" type="checkbox" ${this.useUltimateTalents ? "checked" : ""} /> Ultimate Talents list</label>
-            ${this.romAvailable ? `<label class="check"><input name="useRom" type="checkbox" ${this.useRom ? "checked" : ""} /> Realms of Magic path</label>` : ""}
+            <label class="check"><input name="useRom" type="checkbox" ${this.useRom ? "checked" : ""} /> Realms of Magic path</label>
             <label>Archetype<select name="archetype">${books}</select></label>
           </div>
           <div class="life-row">
