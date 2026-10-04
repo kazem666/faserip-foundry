@@ -174,10 +174,12 @@ export class FaseripActor extends Actor {
     }
     const max = this.system.health.max ?? 0;
     const value = Math.min(max, (this.system.health.value ?? 0) + Number(amount || 0));
+    const out = this.getFlag("faserip", "battle");
+    const stillOut = out?.cause === "poison" && out?.state === "unconscious" && Number(out.rounds) > 0;
     const update = { "system.health.value": value };
-    if (value > 0) update["system.condition.unconscious"] = false;
+    if (value > 0 && !stillOut) update["system.condition.unconscious"] = false;
     await this.update(update, { faseripHeal: true });
-    if (value > 0) {
+    if (value > 0 && !stillOut) {
       const { releaseIfConscious } = await import("../battle-results.mjs");
       await releaseIfConscious(this);
     }

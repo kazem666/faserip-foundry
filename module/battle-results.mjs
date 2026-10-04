@@ -152,12 +152,13 @@ async function writeBattle(actor, data) {
 export async function releaseIfConscious(actor) {
   if (!actor || Number(actor.system?.health?.value) <= 0) return;
   const cond = readBattle(actor);
-  if (cond?.state === "unconscious") {
+  const poisonOut = cond?.cause === "poison" && cond?.state === "unconscious" && Number(cond.rounds) > 0;
+  if (cond?.state === "unconscious" && !poisonOut) {
     await writeBattle(actor, null);
   } else {
     await syncStatuses(actor, cond?.state || "");
   }
-  if (actor.system?.condition?.unconscious) {
+  if (actor.system?.condition?.unconscious && !poisonOut) {
     try { await actor.update({ "system.condition.unconscious": false }); } catch {}
   }
 }
