@@ -53,15 +53,15 @@ export function squaresPerArea() {
 export function formatAreaCount(areas) {
   const n = Number(areas);
   if (!Number.isFinite(n)) return "";
-  const quarter = Math.round(n * 4) / 4;
-  const shown = Math.abs(n - quarter) < 0.02 ? quarter : Math.round(n * 10) / 10;
-  if (shown === 0.25) return "1/4 area";
-  if (shown === 0.5) return "1/2 area";
-  if (shown === 0.75) return "3/4 area";
-  if (shown === 1.25) return "1 1/4 areas";
-  if (shown === 1.5) return "1 1/2 areas";
-  if (shown === 1.75) return "1 3/4 areas";
-  return `${shown} ${Math.abs(shown) === 1 ? "area" : "areas"}`;
+  const sign = n < -0.001 ? "-" : "";
+  const quarters = Math.round(Math.abs(n) * 4);
+  const whole = Math.floor(quarters / 4);
+  const rem = quarters % 4;
+  const frac = ["", "1/4", "2/4", "3/4"][rem];
+  if (whole === 0 && rem === 0) return "0 areas";
+  if (whole === 0) return `${sign}${frac} area`;
+  if (rem === 0) return `${sign}${whole} ${whole === 1 ? "area" : "areas"}`;
+  return `${sign}${whole} ${frac} areas`;
 }
 
 export function formatMovement(areas) {
@@ -521,6 +521,182 @@ function installMovementActions() {
   }
 }
 
+const MOVE_AREA_COLORS = [
+  0x3b82f6,
+  0xf5c518,
+  0xef4444,
+  0x22c55e,
+  0xf97316,
+  0xa78bfa,
+  0x22d3ee,
+  0xf472b6
+];
+
+function areaNumber(feet) {
+  const per = feetPerArea();
+  const n = Number(feet);
+  if (!(per > 0) || !(n > 0)) return 1;
+  return Math.max(1, Math.ceil(n / per - 1e-6));
+}
+
+function areaColor(feet) {
+  return MOVE_AREA_COLORS[(areaNumber(feet) - 1) % MOVE_AREA_COLORS.length];
+}
+
+function rulerDistanceLabel(feet) {
+  const n = Number(feet);
+  if (!Number.isFinite(n) || !(n > 0)) return "";
+  return `${formatAreaCount(feetToAreas(n))} · ${Math.round(n)} ft`;
+}
+
+function highlightGrid() {
+  return globalThis.canvas?.interface?.grid || null;
+}
+
+function moveHighlightName(token) {
+  const id = token?.document?.id || token?.id;
+  return id ? `faserip-move-${id}` : "";
+}
+
+function clearMoveHighlight(token, destroy = false) {
+  const grid = highlightGrid();
+  const name = moveHighlightName(token);
+  if (!grid || !name) return;
+  try {
+    if (destroy && typeof grid.destroyHighlightLayer === "function") grid.destroyHighlightLayer(name);
+    else grid.clearHighlightLayer?.(name);
+  } catch {
+    /* the layer is already gone */
+  }
+}
+
+function pushCenter(centers, point) {
+  if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return;
+  const last = centers[centers.length - 1];
+  if (last && Math.hypot(last.x - point.x, last.y - point.y) < 1) return;
+  centers.push({ x: point.x, y: point.y });
+}
+
+function collectMoveCenters(token, options) {
+  const centers = [];
+  if (token?.center) pushCenter(centers, token.center);
+  const lists = [options?.passedWaypoints, options?.pendingWaypoints];
+  const planned = options?.plannedMovement;
+  if (Array.isArray(planned)) lists.push(planned);
+  else if (planned && typeof planned === "object") {
+    for (const value of Object.values(planned)) {
+      if (Array.isArray(value)) lists.push(value);
+    }
+  }
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const waypoint of list) pushCenter(centers, waypoint?.center || waypoint);
+  }
+  return centers;
+}
+
+function expandMoveCenters(centers) {
+  const grid = globalThis.canvas?.grid;
+  if (!grid?.getDirectPath || !grid?.getOffset || !grid?.getCenterPoint || centers.length < 2) return centers;
+  const expanded = [];
+  for (let i = 0; i < centers.length - 1; i++) {
+    let piece = [];
+    try {
+      const offsets = grid.getDirectPath([grid.getOffset(centers[i]), grid.getOffset(centers[i + 1])]);
+      piece = (offsets || []).map((offset) => {
+        const point = grid.getCenterPoint(offset);
+        return { x: point.x, y: point.y, offset };
+      });
+    } catch {
+      piece = [];
+    }
+    if (piece.length < 2) {
+      if (!expanded.length) expanded.push(centers[i]);
+      expanded.push(centers[i + 1]);
+      continue;
+    }
+    if (expanded.length) piece = piece.slice(1);
+    expanded.push(...piece);
+  }
+  return expanded;
+}
+
+function feetAlong(points) {
+  const grid = globalThis.canvas?.grid;
+  const fallback = points.map((_point, index) => index * gridFeet());
+  if (!grid?.measurePath || points.length < 2) return fallback;
+  try {
+    const result = grid.measurePath(points.map((point) => ({ x: point.x, y: point.y })));
+    const measured = (result?.waypoints || []).map((waypoint) => Number(waypoint?.distance));
+    if (measured.length === points.length && measured.every((feet) => Number.isFinite(feet))) return measured;
+  } catch {
+    /* use one square at a time */
+  }
+  return fallback;
+}
+
+function planMovementBands(token, options) {
+  const centers = expandMoveCenters(collectMoveCenters(token, options));
+  if (centers.length < 2) return [];
+  const feet = feetAlong(centers);
+  const budget = movementBudgetFeet(token?.actor, options?.pendingWaypoints?.at?.(-1)?.action || token?.document?.movementAction || "walk");
+  const runs = [];
+  for (let i = 1; i < centers.length; i++) {
+    const here = Number(feet[i]) || 0;
+    const color = areaColor(here);
+    const over = budget > 0 && here > budget + 0.5;
+    const last = runs[runs.length - 1];
+    if (!last || last.color !== color || last.over !== over) {
+      runs.push({ color, over, points: [centers[i - 1], centers[i]], cells: [centers[i]] });
+    } else {
+      last.points.push(centers[i]);
+      last.cells.push(centers[i]);
+    }
+  }
+  return runs;
+}
+
+function drawMovementBands(token, runs) {
+  const grid = highlightGrid();
+  const board = globalThis.canvas?.grid;
+  const name = moveHighlightName(token);
+  if (!grid?.addHighlightLayer || !grid?.highlightPosition || !name) return false;
+  if (!runs.length) {
+    clearMoveHighlight(token);
+    return false;
+  }
+  try {
+    grid.addHighlightLayer(name);
+    grid.clearHighlightLayer(name);
+  } catch {
+    return false;
+  }
+  for (const run of runs) {
+    for (const cell of run.cells) {
+      let point = cell;
+      try {
+        const offset = cell.offset || board?.getOffset?.(cell);
+        const top = offset && board?.getTopLeftPoint?.(offset);
+        if (top) point = top;
+      } catch {
+        point = cell;
+      }
+      try {
+        grid.highlightPosition(name, {
+          x: point.x,
+          y: point.y,
+          color: run.color,
+          alpha: run.over ? 0.28 : 0.5,
+          border: run.over ? 0xf8fafc : null
+        });
+      } catch {
+        /* skip a cell the grid cannot highlight */
+      }
+    }
+  }
+  return true;
+}
+
 function installRulers() {
   const BaseRuler = globalThis.foundry?.canvas?.interaction?.Ruler;
   if (typeof BaseRuler === "function" && globalThis.CONFIG?.Canvas) {
@@ -547,27 +723,69 @@ function installRulers() {
       if (!context) return context;
       const measured = Number(waypoint?.measurement?.distance);
       if (!Number.isFinite(measured)) return context;
-      const areas = formatAreaCount(feetToAreas(measured));
+      const areas = rulerDistanceLabel(measured);
+      if (!areas) return context;
       if (context.cost) {
         context.cost.total = areas;
         context.cost.units = "";
         context.cost.delta = "";
       }
-      if (context.distance) context.distance.total = areas;
+      if (context.distance) {
+        context.distance.total = areas;
+        context.distance.units = "";
+        if ("delta" in context.distance) context.distance.delta = "";
+      }
       context.units = "";
       return context;
     }
 
     _getSegmentStyle(waypoint) {
       const style = super._getSegmentStyle(waypoint) || {};
-      if (pastBudget(this.token, waypoint)) style.color = 0xb91c1c;
+      const feet = Number(waypoint?.measurement?.distance);
+      if (this._faseripHideDefault) {
+        style.width = 0;
+        return style;
+      }
+      style.color = areaColor(feet);
+      style.alpha = pastBudget(this.token, waypoint) ? 0.4 : 0.95;
       return style;
     }
 
     _getGridHighlightStyle(waypoint, offset) {
       const style = super._getGridHighlightStyle(waypoint, offset) || {};
-      if (pastBudget(this.token, waypoint)) style.color = 0xb91c1c;
+      const feet = Number(waypoint?.measurement?.distance);
+      style.color = areaColor(feet);
+      style.alpha = pastBudget(this.token, waypoint) ? 0.28 : (style.alpha ?? 0.5);
       return style;
+    }
+
+    _getWaypointStyle(waypoint) {
+      const style = super._getWaypointStyle(waypoint) || {};
+      style.color = areaColor(Number(waypoint?.measurement?.distance));
+      return style;
+    }
+
+    refresh(options) {
+      const runs = planMovementBands(this.token, options);
+      this._faseripHideDefault = runs.length > 0;
+      const result = super.refresh(options);
+      if (drawMovementBands(this.token, runs) || !runs.length) return result;
+      this._faseripHideDefault = false;
+      return super.refresh(options);
+    }
+
+    clear() {
+      this._faseripHideDefault = false;
+      clearMoveHighlight(this.token, true);
+      return super.clear();
+    }
+
+    _onVisibleChange() {
+      super._onVisibleChange();
+      if (!this.visible) {
+        this._faseripHideDefault = false;
+        clearMoveHighlight(this.token, true);
+      }
     }
   }
   CONFIG.Token.rulerClass = FaseripTokenRuler;
