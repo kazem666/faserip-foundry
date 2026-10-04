@@ -1,0 +1,104 @@
+<div class="faserip-sheet npc-card-sheet {{cssClass}}">
+  <header class="sheet-header compact">
+    <img class="profile" src="{{actor.img}}" data-action="editImage" title="{{actor.name}}" alt="{{actor.name}}" />
+    <div class="header-fields">
+      <h1 class="hero-name"><input name="name" type="text" value="{{actor.name}}" placeholder="Name" /></h1>
+      <label>Occupation
+        <input name="system.identity.occupation" type="text" value="{{system.identity.occupation}}" placeholder="Civilian, guard, bystander" />
+      </label>
+    </div>
+  </header>
+
+  {{#if poisoned}}<p class="condition-banner">{{poisonText}}</p>{{/if}}
+  {{#if conditionText}}<p class="condition-banner">{{conditionText}}</p>{{/if}}
+
+  <section class="panel">
+    <h2>Ranks</h2>
+    <div class="ability-grid npc-ranks">
+      {{#each abilities as |ab|}}
+      <div class="ability-card">
+        <button type="button" class="ability-roll" data-action="rollAbility" data-ability="{{ab.key}}" title="Roll {{ab.label}} FEAT">
+          <span class="abbr">{{ab.abbr}}</span>
+        </button>
+        <select name="system.abilities.{{ab.key}}.rank" title="{{ab.rankLabel}}">
+          {{#each ab.options as |r|}}
+          <option value="{{r.id}}" {{#if r.selected}}selected{{/if}}>{{r.abbr}}</option>
+          {{/each}}
+        </select>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Health</h2>
+    <div class="stat-box health">
+      <div class="stat-values">
+        <input type="number" name="system.health.value" value="{{system.health.value}}" />
+        <span>/ {{system.health.max}}</span>
+      </div>
+    </div>
+    <div class="npc-damage">
+      <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>
+      <label class="check"><input type="checkbox" name="energyAttack" /> Energy</label>
+      <button type="button" data-action="applyDamage">Apply</button>
+      <button type="button" data-action="heal">Heal</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Attack</h2>
+    <button type="button" data-action="rollSheetAction" data-standard="slugfest">Slugfest</button>
+    {{#each cardWeapons as |item|}}
+    <div class="npc-row" data-item-id="{{item.id}}">
+      <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.name}}</button>
+      <span class="item-rank">{{item.rankLabel}}</span>
+      {{#if item.tracksAmmo}}<span class="shots-left{{#if item.ammoEmpty}} empty{{/if}}">{{item.shotsLabel}}</span><button type="button" data-action="reloadWeapon">Reload</button>{{/if}}
+      <button type="button" data-action="itemEdit" title="Edit">Edit</button>
+    </div>
+    {{/each}}
+    <button type="button" class="create" data-action="itemCreate" data-type="weapon">+ Weapon</button>
+  </section>
+
+  {{#if talents}}
+  <section class="panel">
+    <h2>Talents</h2>
+    {{#each talents as |item|}}
+    <div class="npc-row" data-item-id="{{item.id}}">
+      <span class="item-name">{{item.name}}</span>
+      <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  {{#if cardGear}}
+  <section class="panel">
+    <h2>Gear</h2>
+    {{#each cardGear as |item|}}
+    <div class="npc-row" data-item-id="{{item.id}}">
+      <span class="item-name">{{item.name}}</span>
+      {{#if item.tracksCharges}}<span class="shots-left{{#if item.chargesEmpty}} empty{{/if}}">{{item.chargesLabel}}</span>{{/if}}
+      {{#if item.spareAmmo}}<span class="shots-left">{{item.roundsLabel}}</span><button type="button" data-action="spendSupply">Spend</button>{{/if}}
+      {{#unless item.spareAmmo}}<button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>{{/unless}}
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <section class="panel">
+    <h2>Notes</h2>
+    <textarea name="system.notes" rows="3">{{system.notes}}</textarea>
+    {{#if noteFeats}}
+    <div class="feat-notes">
+      {{#each noteFeats}}
+      <a class="faserip-feat-link" data-ability="{{ability}}" data-intensity="{{intensity}}"><i class="fa-solid fa-dice"></i> {{label}}</a>
+      {{/each}}
+    </div>
+    {{/if}}
+  </section>
+
+  <p class="hint">No powers, so this stays a short card. Add a power and the full sheet opens.</p>
+  <button type="button" class="create" data-action="itemCreate" data-type="power">+ Power</button>
+  <button type="button" class="create" data-action="itemCreate" data-type="talent">+ Talent</button>
+</div>

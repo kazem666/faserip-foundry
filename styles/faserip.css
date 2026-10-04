@@ -1332,3 +1332,24 @@ a.faserip-feat-link i {
 .feat-notes {
   margin: 4px 0 8px;
 }
+.faserip.npc-card .window-content,
+.npc-card-sheet {
+  font-size: 14px;
+}
+.npc-card-sheet .npc-ranks {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.npc-card-sheet .ability-card select {
+  min-width: 0;
+}
+.npc-card-sheet .npc-damage,
+.npc-card-sheet .npc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+.npc-card-sheet .stat-values span {
+  align-self: center;
+}

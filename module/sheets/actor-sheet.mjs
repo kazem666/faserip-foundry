@@ -83,6 +83,12 @@ function guardSheetUpdate(actor, formData) {
   return formData;
 }
 
+export function usesShortCard(actor) {
+  if (actor?.type !== "npc") return false;
+  const items = actor.items?.contents ?? [];
+  return !items.some((item) => item.type === "power");
+}
+
 export async function fillActorSheetContext(sheet, context) {
     const actor = sheet.actor;
       context.actor = actor;
@@ -190,6 +196,9 @@ export async function fillActorSheetContext(sheet, context) {
       context.talents = decorate(items.filter((i) => i.type === "talent"));
       context.contacts = decorate(items.filter((i) => i.type === "contact"));
       context.gear = decorate(items.filter((i) => i.type === "equipment" || i.type === "weapon"));
+      context.shortCard = usesShortCard(actor);
+      context.cardWeapons = context.gear.filter((item) => item.type === "weapon");
+      context.cardGear = context.gear.filter((item) => item.type !== "weapon");
       context.actionGroups = sheetActionGroups(items, actor);
       try {
         const TextEditor = getTextEditor();
@@ -271,6 +280,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
 
   get actor() {
     return this.document ?? super.actor;
+  }
+
+  get template() {
+    return usesShortCard(this.actor)
+      ? "systems/faserip/templates/actor/npc-card.hbs"
+      : super.template;
   }
 
   async _updateObject(event, formData) {
@@ -1049,8 +1064,18 @@ export function buildActorSheetClass() {
       body: {
         template: "systems/faserip/templates/actor/character-sheet.hbs",
         scrollable: [""]
+      },
+      card: {
+        template: "systems/faserip/templates/actor/npc-card.hbs",
+        scrollable: [""]
       }
     };
+
+    _configureRenderOptions(options) {
+      super._configureRenderOptions(options);
+      options.parts = [usesShortCard(this.actor) ? "card" : "body"];
+      return options;
+    }
 
     async _prepareContext(options) {
       const context = await super._prepareContext(options);
@@ -1070,7 +1095,14 @@ export function buildActorSheetClass() {
 
     _onRender(context, options) {
       super._onRender?.(context, options);
-      showSheetTab(this.element, this._faseripTab || "record");
+      const short = context?.shortCard ?? usesShortCard(this.actor);
+      this.element?.classList?.toggle("npc-card", short);
+      if (!short) showSheetTab(this.element, this._faseripTab || "record");
+      if (this._cardMode !== short) {
+        const first = this._cardMode == null;
+        this._cardMode = short;
+        if (!first || short) this.setPosition(short ? { width: 480, height: 720 } : { width: 900, height: 820 });
+      }
     }
 
     _formEl(name) {
