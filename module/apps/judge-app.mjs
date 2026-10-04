@@ -1,3 +1,4 @@
+import { douseSceneLights, lightPanelHtml, relightSceneLights } from "../light-cover.mjs";
 import { SITUATIONS, currentSituation, rollRandomEvent, setSituation } from "../situation.mjs";
 import { rollCityEncounter } from "../encounters.mjs";
 import { bindTableTools, currentJudgeTab, groupPanelHtml, picturePanelHtml, teamPanelHtml } from "../table-tools.mjs";
@@ -54,9 +55,10 @@ function panelHtml() {
       </nav>
       <section data-panel="situation"${currentJudgeTab() === "situation" ? "" : " hidden"}>
         <h3>Situation</h3>
-        <p class="hint">This applies to FEATs while the workflow is on. Night vision ignores darkness. Water powers ignore underwater. Rain, fog, cold, heat, darkness, and underwater also play on the scene when Gambit's FXMaster is on.</p>
+        <p class="hint">This applies to FEATs while the workflow is on. Night vision ignores darkness. A token's light covers anyone standing in it. Water powers ignore underwater. Rain, fog, cold, heat, darkness, and underwater also play on the scene when Gambit's FXMaster is on.</p>
         <label>Situation <select name="situation">${situations}</select></label>
         <button type="button" data-action="setSituation">Set situation</button>
+        ${lightPanelHtml()}
         <h3>Table</h3>
         <button type="button" data-action="randomEvent">Random event</button>
         <label>Hero <select name="hero">${heroOptions}</select></label>
@@ -114,6 +116,16 @@ function JudgeApp() {
           return;
         }
         rollCityEncounter(actor);
+      });
+      result?.querySelector("[data-action=douseLights]")?.addEventListener("click", async (event) => {
+        event.preventDefault();
+        await douseSceneLights();
+        this.render(true);
+      });
+      result?.querySelector("[data-action=relightLights]")?.addEventListener("click", async (event) => {
+        event.preventDefault();
+        await relightSceneLights();
+        this.render(true);
       });
       bindTableTools(result, () => this.render(true));
     }

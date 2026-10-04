@@ -1,5 +1,6 @@
 import { rankFromNumber, rankValue, shiftRank } from "./config.mjs";
 import { gridSeparation, maxRangeSquares, squaresPerArea } from "./movement.mjs";
+import { tokenInLight, tokensShareLight } from "./light-cover.mjs";
 import { workflowActive } from "./workflow.mjs";
 
 const RANGED = new Set(["shooting", "throwEdged", "throwBlunt", "energy", "force"]);
@@ -59,6 +60,14 @@ export function situationMods(actor, column = "") {
   const sit = currentSituation();
   if (!sit.id) return empty;
   if (sit.id === "dark" && hasNightVision(actor)) return { cs: 0, damageCs: 0, note: "Night vision ignores the darkness." };
+  if (sit.id === "dark") {
+    const cover = tokenInLight(primaryToken(actor, { controlled: true }));
+    if (cover) {
+      const own = cover.actor?.id && cover.actor.id === actor.id;
+      const note = own ? `${actor.name}'s light covers them.` : `${cover.name}'s light covers ${actor.name}.`;
+      return { cs: 0, damageCs: 0, note };
+    }
+  }
   if (sit.id === "underwater" && hasWaterPower(actor)) return empty;
   const ranged = RANGED.has(column);
   if (sit.id === "fog") {
@@ -111,7 +120,7 @@ export function situationProblem(actor, target, column) {
   const gap = gridSeparation(from, to);
   if (!Number.isFinite(gap)) return "";
   let sight = Infinity;
-  if (sit.id === "dark" && !hasNightVision(actor)) sight = 5;
+  if (sit.id === "dark" && !hasNightVision(actor) && !tokensShareLight(from, to)) sight = 5;
   if (sit.id === "fog" && RANGED.has(column)) sight = 1;
   if (Number.isFinite(sight) && gap > sight * squaresPerArea()) {
     return `${sit.label} limits sight to ${sight} area${sight === 1 ? "" : "s"}.`;
