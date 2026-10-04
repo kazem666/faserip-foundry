@@ -1,7 +1,7 @@
 import {
   colorForRoll,
   rankLabel,
-  shiftRank,
+  columnShiftRank,
   RANK_BY_ID,
   BATTLE_EFFECTS,
   intensityNeeded,
@@ -93,7 +93,7 @@ export async function rollFeat({
     baseRank = adjusted.rankId;
     columnShift = adjusted.cs;
   }
-  const effectiveId = shiftRank(baseRank, columnShift);
+  const effectiveId = columnShiftRank(baseRank, columnShift);
   let spend = allowKarma ? (Number(karma) || 0) : 0;
   if (spend > 0 && spend < 10) {
     ui.notifications.warn("Karma spent to modify a roll must be at least 10.");

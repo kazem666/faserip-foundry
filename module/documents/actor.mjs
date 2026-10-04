@@ -205,8 +205,18 @@ export class FaseripActor extends Actor {
   }
 
   async naturalHeal({ rest = false } = {}) {
+    const now = Number(globalThis.game?.time?.worldTime || 0);
+    const last = this.getFlag("faserip", "hourHealAt");
+    if (last != null && last !== "" && now - Number(last) < 3600) {
+      const left = Math.max(1, Math.ceil((3600 - (now - Number(last))) / 60));
+      ui.notifications?.warn(`${this.name} regains Health once an hour. ${left} minute${left === 1 ? "" : "s"} left on the world clock.`);
+      return;
+    }
     const amount = this.getAbilityNumber("endurance") * (rest ? 2 : 1);
-    return this.heal(amount);
+    const healed = await this.heal(amount);
+    if (healed == null) return;
+    await this.setFlag("faserip", "hourHealAt", now);
+    return healed;
   }
 
   async spendKarma(amount) {

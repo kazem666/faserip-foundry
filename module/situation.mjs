@@ -1,13 +1,16 @@
-import { rankFromNumber, rankValue, shiftRank } from "./config.mjs";
-import { gridSeparation, maxRangeSquares, squaresPerArea } from "./movement.mjs";
+import { shiftDamageAmount } from "./config.mjs";
+import { gridFeet, gridSeparation, maxRangeSquares, squaresPerArea } from "./movement.mjs";
 import { tokenInLight, tokensShareLight } from "./light-cover.mjs";
 import { workflowActive } from "./workflow.mjs";
+
+export { shiftDamageAmount };
 
 const RANGED = new Set(["shooting", "throwEdged", "throwBlunt", "energy", "force"]);
 
 export const SITUATIONS = [
   { id: "", label: "Clear" },
-  { id: "dark", label: "Darkness" },
+  { id: "night", label: "Night" },
+  { id: "dark", label: "Dark" },
   { id: "fog", label: "Fog" },
   { id: "rain", label: "Rain" },
   { id: "heavyRain", label: "Heavy rain" },
@@ -59,8 +62,11 @@ export function situationMods(actor, column = "") {
   if (!workflowActive("autoSituation")) return empty;
   const sit = currentSituation();
   if (!sit.id) return empty;
-  if (sit.id === "dark" && hasNightVision(actor)) return { cs: 0, damageCs: 0, note: "Night vision ignores the darkness." };
-  if (sit.id === "dark") {
+  const ranged = RANGED.has(column);
+  if ((sit.id === "dark" || sit.id === "night") && hasNightVision(actor)) {
+    return { cs: 0, damageCs: 0, note: "Night vision ignores the darkness." };
+  }
+  if (sit.id === "dark" || sit.id === "night") {
     const cover = tokenInLight(primaryToken(actor, { controlled: true }));
     if (cover) {
       const own = cover.actor?.id && cover.actor.id === actor.id;
@@ -68,8 +74,12 @@ export function situationMods(actor, column = "") {
       return { cs: 0, damageCs: 0, note };
     }
   }
+  if (sit.id === "night") {
+    return ranged
+      ? { cs: -1, damageCs: 0, note: "Night −1 CS on firing." }
+      : empty;
+  }
   if (sit.id === "underwater" && hasWaterPower(actor)) return empty;
-  const ranged = RANGED.has(column);
   if (sit.id === "fog") {
     return ranged
       ? { cs: -1, damageCs: 0, note: "Fog −1 CS on distance and thrown attacks." }
@@ -83,16 +93,9 @@ export function situationMods(actor, column = "") {
   if (sit.id === "heavyRain") return { cs: -1, damageCs: 0, note: "Heavy rain −1 CS on FEATs." };
   if (sit.id === "heat") return { cs: -1, damageCs: 0, note: "Heat −1 CS on FEATs." };
   if (sit.id === "cold") return { cs: -1, damageCs: -1, note: "Cold −1 CS on FEATs and one rank less damage." };
-  if (sit.id === "dark") return { cs: -2, damageCs: 0, note: "Darkness −2 CS on FEATs." };
+  if (sit.id === "dark") return { cs: -2, damageCs: 0, note: "Dark −2 CS on FEATs." };
   if (sit.id === "underwater") return { cs: -1, damageCs: 0, note: "Underwater −1 CS, and range is halved." };
   return empty;
-}
-
-export function shiftDamageAmount(amount, cs) {
-  const steps = Number(cs) || 0;
-  const raw = Number(amount) || 0;
-  if (!steps || raw <= 0) return raw;
-  return rankValue(shiftRank(rankFromNumber(raw), steps));
 }
 
 function actorTokens(actor) {
@@ -120,7 +123,9 @@ export function situationProblem(actor, target, column) {
   const gap = gridSeparation(from, to);
   if (!Number.isFinite(gap)) return "";
   let sight = Infinity;
-  if (sit.id === "dark" && !hasNightVision(actor) && !tokensShareLight(from, to)) sight = 5;
+  const blind = !hasNightVision(actor) && !tokensShareLight(from, to);
+  if (sit.id === "night" && blind && RANGED.has(column)) sight = 5;
+  if (sit.id === "dark" && blind && gap * gridFeet() > 2) return "Dark limits sight to the immediate area.";
   if (sit.id === "fog" && RANGED.has(column)) sight = 1;
   if (Number.isFinite(sight) && gap > sight * squaresPerArea()) {
     return `${sit.label} limits sight to ${sight} area${sight === 1 ? "" : "s"}.`;

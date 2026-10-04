@@ -135,6 +135,26 @@ export function shiftRank(id, cs = 0) {
   if (i < 0) return "typical";
   return RANKS[Math.min(RANKS.length - 1, Math.max(0, i + cs))].id;
 }
+
+const FIXED_COLUMNS = new Set(["cl1000", "cl3000", "cl5000", "beyond"]);
+
+/** A FEAT column stops at Shift Z. Class 1000 and above stay where they are. */
+export function columnShiftRank(id, cs = 0) {
+  if (FIXED_COLUMNS.has(id)) return id;
+  const shifted = shiftRank(id, cs);
+  const cap = rankIndex("shiftz");
+  if (cap >= 0 && rankIndex(shifted) > cap) return "shiftz";
+  return shifted;
+}
+
+/** A positive damage shift lands on the bottom of the higher rank. A negative shift lands on the standard number of the lower rank. */
+export function shiftDamageAmount(amount, cs) {
+  const steps = Number(cs) || 0;
+  const raw = Number(amount) || 0;
+  if (!steps || raw <= 0) return raw;
+  const next = shiftRank(rankFromNumber(raw), steps);
+  return steps > 0 ? rankMin(next) : rankValue(next);
+}
 export function colorForRoll(rankId, roll) {
   const table = UNIVERSAL_TABLE[rankId] ?? UNIVERSAL_TABLE.typical;
   if (roll >= table.red) return "red";

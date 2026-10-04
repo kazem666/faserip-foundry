@@ -1,7 +1,8 @@
 const PREFIX = "faserip_";
 
 const SITUATION_FX = {
-  dark: { darkness: 0.9 },
+  night: { darkness: 0.55 },
+  dark: { darkness: 0.92 },
   fog: { darkness: 0.45, particles: [{ type: "fog", options: { density: 0.12 } }] },
   rain: { darkness: 0.3, particles: [{ type: "rain", options: { density: 0.55, splash: true } }] },
   heavyRain: {
