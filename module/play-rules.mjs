@@ -1,4 +1,4 @@
-import { BATTLE_EFFECTS, rankFromNumber, rankValue, shiftRank } from "./config.mjs";
+import { BATTLE_EFFECTS, rankFromNumber, rankIndex, rankValue, shiftRank } from "./config.mjs";
 import { situationMods } from "./situation.mjs";
 import { namedInitiative, namedTalentShift } from "./talents.mjs";
 
@@ -52,7 +52,10 @@ export function checkForEffect(effect) {
 
 export function attackDamageNumber(actor, item, columnId) {
   if (!actor || !DAMAGE_COLUMNS.has(columnId)) return 0;
+  const listed = parseInt(String(item?.system?.damage ?? ""), 10);
+  if (listed > 0 && (DAMAGE_COLUMNS.has(columnId) || columnId === "blunt")) return listed;
   if (["shooting", "throwEdged", "throwBlunt", "energy", "force"].includes(columnId)) {
+    if (String(item?.system?.weaponType || "").toLowerCase() === "stun") return 0;
     const numbered = Number(item?.system?.number || 0);
     if (numbered > 0) return numbered;
     if (item?.system?.rank) return rankValue(item.system.rank);
@@ -193,12 +196,30 @@ export function initiativeTotal(face, mod) {
   return die + (Number(mod) || 0);
 }
 
+function weaponSightShift(actor, item, effectsColumn) {
+  if (effectsColumn !== "shooting") return null;
+  const name = String(item?.name || "").toLowerCase();
+  if (/sniper rifle/.test(name)) {
+    const rank = actor?.getAbilityRank?.("agility") || "typical";
+    if (rankIndex(rank) >= rankIndex("remarkable")) return null;
+    return { id: "sight", cs: 1, note: "Sniper sight +1 rank, and it stops at Remarkable" };
+  }
+  if (/target pistol/.test(name)) return { id: "sight", cs: 1, note: "Target pistol, two hands +1 rank" };
+  return null;
+}
+
 export function combinedShift(actor, { ability = "", effectsColumn = "", target = null, item = null, reservePending = false, sourceColumn = "" } = {}) {
   const talent = talentColumnShift(actor, { ability, effectsColumn, item, sourceColumn });
   const pending = readPending(actor);
   let cs = talent.cs + (reservePending ? 0 : pending.nextCs);
   const notes = [...talent.notes];
   const parts = [...(talent.parts || [])];
+  const sight = weaponSightShift(actor, item, effectsColumn);
+  if (sight) {
+    cs += sight.cs;
+    notes.push(sight.note);
+    parts.push(sight);
+  }
   if (!reservePending && pending.nextCs) {
     const note = pending.nextNote || `Saved ${signed(pending.nextCs)} CS`;
     notes.push(note);
