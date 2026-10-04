@@ -317,7 +317,9 @@ export async function applyGeneration(actor, result, {
       bodyArmor: !!power.bodyArmor,
       forceField: !!power.forceField,
       slotsTaken: Number(power.slotsTaken ?? power.cost ?? 1) || 1,
-      notes: power.rankRoll ? `Generation roll ${power.rankRoll}` : ""
+      powerType: power.powerType || "",
+      definition: power.item ? `${power.definition || power.name} Held in ${power.item.label}.` : (power.definition || ""),
+      notes: [power.rankRoll ? `Generation roll ${power.rankRoll}` : "", power.item?.condition || ""].filter(Boolean).join(" ")
     });
     if (doc) created += 1;
   }

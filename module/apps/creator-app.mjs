@@ -1,9 +1,10 @@
 import {
   ABILITIES, ABILITY_MODIFIER_TABLE, BATTLE_EFFECTS, ORIGINS, ORIGIN_TABLE,
   POWER_CATEGORIES, POWER_CATALOG, SPECIAL_COUNT_TABLE, TALENT_CATEGORIES, TALENT_CATALOG,
-  CONTACT_TYPES, lookupTable, originById, rankLabel, rankMin, rollOnColumn, shiftRank
+  CONTACT_TYPES, lookupTable, originById, rankIndex, rankLabel, rankMin, rollOnColumn, shiftRank
 } from "../config.mjs";
 import { describePower, describeTalent } from "../data/descriptions.mjs";
+import { ROM_DEFINITIONS } from "../data/rom-descriptions.mjs";
 import { cleanPowerName, isTwoSlotPower } from "../data/slots.mjs";
 import { describeItemAction } from "../item-actions.mjs";
 import { rollD100 } from "../dice/percentile.mjs";
@@ -11,7 +12,12 @@ import { clampCounts, persistGenerationStats, applyGeneration } from "../chargen
 import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES } from "../life.mjs";
 import { BUILDS, CALLINGS, QUIRKS, STATURE, band, heightAndWeight, statureText } from "../data/archetypes.mjs";
 import { isUpbEnabled } from "../data/upb.mjs";
-import { isRomEnabled } from "../data/rom.mjs";
+import {
+  isRomEnabled, lookupBand, schoolById, startingMastery,
+  ROM_CHARACTER_TYPE, ROM_ENERGY, ROM_SPELL_COUNT, ROM_SPELL_RANK,
+  ROM_WIELDER_TALENT_COUNT, ROM_WIELDER_TALENTS, ROM_ITEM_COUNT, ROM_ITEM_CATEGORY, ROM_ITEM_TYPES,
+  ROM_SCHOOLS, ROM_SCHOOL_TABLE, ROM_RESOURCE_RANK, ROM_RESOURCE_CACHE, ROM_ENHANCEMENT, ROM_ENHANCEMENT_CONDITION, ROM_ITEM_CONDITION
+} from "../data/rom.mjs";
 import { isUltimateTalentsEnabled } from "../data/ultimate-talents.mjs";
 
 const STEPS = [
@@ -106,6 +112,10 @@ function CreatorApp() {
       this.useUpb = isUpbEnabled();
       this.useUltimateTalents = isUltimateTalentsEnabled();
       this.useRom = isRomEnabled();
+      this.rom = null;
+      this.romOrdinary = null;
+      this.romMaster = "";
+      this.romCampaign = false;
       this.archetype = "";
       this.lifeHeight = false;
       this.lifeCalling = false;
@@ -148,11 +158,18 @@ function CreatorApp() {
     }
 
     get special() {
-      return !!(this.archetype || this.useRom);
+      return !!this.archetype;
     }
 
     get steps() {
-      return this.special ? STEPS.slice(0, 3) : STEPS;
+      if (this.special) return STEPS.slice(0, 3);
+      if (!this.useRom) return STEPS;
+      return [
+        STEPS[0], STEPS[1], STEPS[2],
+        { id: "magic", label: "Magic" },
+        { id: "powers", label: "Workings" },
+        STEPS[4], STEPS[5], STEPS[6]
+      ];
     }
 
     async close(options) {
@@ -241,6 +258,7 @@ function CreatorApp() {
       if (this.step === "identity") return this.#identity();
       if (this.step === "origin") return this.#origin();
       if (this.step === "abilities") return this.#abilities();
+      if (this.step === "magic") return this.#magic();
       if (this.step === "powers") return this.#powers();
       if (this.step === "talents") return this.#talents();
       if (this.step === "contacts") return this.#contacts();
@@ -344,6 +362,7 @@ function CreatorApp() {
           <div class="count-roll">
             <button type="button" class="roll-btn big" data-action="roll-counts">Roll powers, talents, and contacts</button>
             <p>${counts ? `Powers ${counts.powers[0]}/${counts.powers[1]} · Talents ${counts.talents[0]}/${counts.talents[1]} · Contacts ${counts.contacts[0]}/${counts.contacts[1]}` : "Rolled after the seven abilities."}</p>
+            ${this.useRom ? `<p class="creator-fine">Realms of Magic replaces that power number on the Magic step. A hero with items gets one working per item. Talents and contacts still use this roll, unless the hero is a wielder.</p>` : ""}
           </div>
         </div>
         ${raise}
@@ -354,10 +373,13 @@ function CreatorApp() {
       const needed = Number(this.result?.counts?.powers?.[0] || 0);
       const spent = this.powers.reduce((sum, row) => sum + row.cost, 0);
       const tray = this.#tray(this.powers, "power");
+      const romNote = this.useRom && this.rom?.type?.id === "items"
+        ? "Each item holds one working. That item count is the power count."
+        : (this.useRom ? "These workings come from the magic table, not the ordinary power roll." : "");
       if (!this.powerCategory) {
-        const table = this.useUpb ? this.#upbClasses() : POWER_CATEGORIES;
+        const table = this.useRom ? this.#romCategories() : (this.useUpb ? this.#upbClasses() : POWER_CATEGORIES);
         const cards = table.map((row) => `<button type="button" class="name-card" data-action="pick-category" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(`${row.lo}–${row.hi === 100 ? "00" : row.hi}. ${BLURB[row.id] || "Powers in this class."}`)}"><strong>${esc(row.label)}</strong></button>`).join("");
-        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Powers ${spent}/${needed}</p><h2>Roll a category, or choose one</h2></div><button type="button" class="roll-btn" data-action="roll-category">Roll category</button></div>${tray}<div class="choice-grid">${cards}</div></section>`;
+        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Powers ${spent}/${needed}</p><h2>${this.useRom ? "Choose an energy, then a working" : "Roll a category, or choose one"}</h2>${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}</div>${this.useRom ? "" : `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>`}</div>${tray}<div class="choice-grid">${cards}</div></section>`;
       }
       const cat = this.powerCategory;
       const list = this.#powerList();
@@ -373,7 +395,7 @@ function CreatorApp() {
         <h3>${esc(open.name)}</h3>
         <p>${esc(open.definition)}</p>
         <p class="play">${esc(open.play)}</p>
-        <p class="creator-fine">${open.slots > 1 ? "This power spends two of your slots." : "This power spends one slot."} Rank rolls on column ${this.result?.origin?.column || 1} when you take it.</p>
+        <p class="creator-fine">${this.useRom ? "Rank is Good through Amazing." : (open.slots > 1 ? "This power spends two of your slots." : "This power spends one slot.") + ` Rank rolls on column ${this.result?.origin?.column || 1} when you take it.`}</p>
         <button type="button" class="roll-btn" data-action="take-power" data-name="${esc(open.name)}">Take this power</button>
       </aside>` : `<aside class="power-detail empty"><p>Choose a power to read what it does.</p></aside>`;
       const band = cat.roll ? `Rolled ${cat.roll}` : "Chosen";
@@ -456,6 +478,15 @@ function CreatorApp() {
       if (action === "back") return this.#go(this.steps[Math.max(0, this.#stepIndex() - 1)].id);
       if (action === "next") return this.#next();
       if (action === "roll-origin") return this.#guard(() => this.#rollOrigin());
+      if (action === "roll-rom-type") return this.#guard(() => this.#rollRomType());
+      if (action === "pick-rom-type") return this.#pickRomType(button.dataset.id);
+      if (action === "roll-rom-school") return this.#guard(() => this.#rollRomSchool());
+      if (action === "pick-rom-school") return this.#pickRomSchool(button.dataset.id);
+      if (action === "roll-rom-energy") return this.#guard(() => this.#rollRomEnergy());
+      if (action === "roll-rom-count") return this.#guard(() => this.#rollRomCount());
+      if (action === "roll-rom-enhance") return this.#guard(() => this.#rollRomEnhance());
+      if (action === "roll-rom-resources") return this.#guard(() => this.#rollRomResources());
+      if (action === "rom-raise") return this.#romRaise(button.dataset.ability);
       if (action === "pick-origin") {
         this.originId = button.dataset.id;
         this.notice = "";
@@ -568,6 +599,18 @@ function CreatorApp() {
           return this.render();
         }
         if (this.special) return this.#guard(() => this.#handOff());
+        if (this.useRom) return this.#go("magic", true);
+        return this.#go("powers", true);
+      }
+      if (this.step === "magic") {
+        const ready = this.#romReady();
+        if (ready) {
+          this.notice = ready;
+          return this.render();
+        }
+        if (this.rom?.type?.id === "wielder") {
+          while (this.abilities.psyche && rankIndex(this.abilities.psyche) < rankIndex("good")) this.#applyRomRaise("psyche", 1);
+        }
         return this.#go("powers", true);
       }
       if (this.step === "powers") return this.#go("talents", true);
@@ -864,6 +907,16 @@ function CreatorApp() {
     #powerList() {
       const cat = this.powerCategory;
       if (!cat) return [];
+      if (this.useRom && this.rom) {
+        const names = this.#romLists()[cat.id] || [];
+        return names.map((name) => ({
+          name,
+          definition: ROM_DEFINITIONS[name.toLowerCase()] || `${name} is a magical working.`,
+          slots: 1,
+          grade: "Magic",
+          play: cat.id === "dimensional" ? "Dimensional. It finishes at the end of the round." : "A magical working at the rolled rank."
+        }));
+      }
       if (this.useUpb) {
         const rows = this._upbPowers?.[cat.id] || [];
         return rows.map((row) => ({ ...powerFacts(row.name, cat.label), slots: row.countsAsTwo ? 2 : powerFacts(row.name, cat.label).slots, lo: row.lo, hi: row.hi, countsAsTwo: !!row.countsAsTwo }));
@@ -872,7 +925,7 @@ function CreatorApp() {
     }
 
     #setCategory(id, roll) {
-      const table = this.useUpb ? this.#upbClasses() : POWER_CATEGORIES;
+      const table = this.useRom ? this.#romCategories() : (this.useUpb ? this.#upbClasses() : POWER_CATEGORIES);
       const row = table.find((entry) => entry.id === id) || lookupTable(table, roll || 1);
       this.powerCategory = { ...row, roll: roll || null };
       this.openPower = "";
@@ -881,7 +934,7 @@ function CreatorApp() {
     }
 
     async #rollCategory() {
-      const table = this.useUpb ? this.#upbClasses() : POWER_CATEGORIES;
+      const table = this.useRom ? this.#romCategories() : (this.useUpb ? this.#upbClasses() : POWER_CATEGORIES);
       const roll = await rollD100({ flavor: `${this.actor.name} — Power category`, actor: this.actor });
       const row = lookupTable(table, roll);
       this.powerCategory = { ...row, roll };
@@ -916,19 +969,29 @@ function CreatorApp() {
         return;
       }
       const rankRoll = await rollD100({ flavor: `${this.actor.name} — ${row.name} rank`, actor: this.actor });
-      const rank = rollOnColumn(this.result.origin.column || this.result.column || 1, rankRoll);
+      const rank = this.useRom ? lookupBand(ROM_SPELL_RANK, rankRoll).id : rollOnColumn(this.result.origin.column || this.result.column || 1, rankRoll);
+      let item = null;
+      if (this.useRom && this.rom?.type?.id === "items") item = await this.#rollRomItem();
       this.powers.push({
-        name: row.name, category: this.powerCategory.label, rank, rankRoll, cost,
-        grade: row.grade, bodyArmor: row.bodyArmor, forceField: row.forceField
+        name: row.name, category: this.useRom ? `RoM ${this.powerCategory.id}` : this.powerCategory.label, rank, rankRoll, cost,
+        grade: row.grade, bodyArmor: row.bodyArmor, forceField: row.forceField,
+        powerType: this.useRom ? "Realms of Magic" : "",
+        definition: row.definition || "",
+        energy: this.useRom ? this.powerCategory.id : "",
+        item
       });
       this.openPower = "";
       this.powerCategory = null;
+      const held = item ? ` Held in ${item.label}.` : "";
       this.notice = fromRoll
-        ? `Rolled ${row.name}: ${rankLabel(rank)}. Pick the next category.`
-        : `${row.name}: ${rankLabel(rank)}. Pick the next category.`;
+        ? `Rolled ${row.name}: ${rankLabel(rank)}.${held} Pick the next category.`
+        : `${row.name}: ${rankLabel(rank)}.${held} Pick the next category.`;
     }
 
     #talentCategories() {
+      if (this.useRom && this.rom?.type?.id === "wielder" && !this.romCampaign) {
+        return [{ id: "rom-study", label: "Magical studies", lo: 1, hi: 100 }];
+      }
       if (this.result?.origin?.id === "hitech" && !this.talents.length) {
         return [{ id: "hitech", label: "Scientific / professional", lo: null, hi: null }];
       }
@@ -939,6 +1002,9 @@ function CreatorApp() {
     #talentList() {
       const cat = this.talentCategory;
       if (!cat) return [];
+      if (cat.id === "rom-study") {
+        return ROM_WIELDER_TALENTS.map((row) => ({ name: row.label, definition: row.label, lo: row.lo, hi: row.hi }));
+      }
       if (cat.id === "hitech") {
         if (this.useUltimateTalents) {
           return (this._hitechTalents || []).map((row) => ({ name: row.name, definition: row.definition || describeTalent(row.name).definition }));
@@ -982,6 +1048,10 @@ function CreatorApp() {
       if (!list.length) return;
       const roll = await rollD100({ flavor: `${this.actor.name} — ${this.talentCategory.label}`, actor: this.actor });
       let row = list[d100Index(list.length, roll)];
+      if (this.talentCategory?.id === "rom-study") {
+        const found = lookupBand(ROM_WIELDER_TALENTS, roll);
+        row = list.find((entry) => entry.name === found.label) || row;
+      }
       if (this.useUltimateTalents && this.talentCategory.lo != null) {
         const rows = this._ultimateTalentCatalog?.[this.talentCategory.id] || [];
         const found = lookupTable(rows, roll);
@@ -993,6 +1063,12 @@ function CreatorApp() {
     #takeTalent(name) {
       const list = this.#talentList();
       const row = list.find((entry) => entry.name === name) || { name, definition: "" };
+      if (row.name === "Campaign talent") {
+        this.romCampaign = true;
+        this.talentCategory = null;
+        this.notice = "Pick that talent from the normal lists.";
+        return this.render();
+      }
       const needed = Number(this.result?.counts?.talents?.[0] || 0);
       const cap = Math.min(this.useUpb ? 8 : 6, Number(this.result?.counts?.talents?.[1] || 6));
       if (this.talents.length >= cap) {
@@ -1006,6 +1082,7 @@ function CreatorApp() {
       }
       this.talents.push({ name: row.name, category: this.talentCategory?.label || "", definition: row.definition || "" });
       this.openTalent = "";
+      this.romCampaign = false;
       this.notice = `${row.name}.${extra}`;
       if (this.talents.length >= needed) this.talentCategory = null;
       return this.render();
@@ -1081,6 +1158,241 @@ function CreatorApp() {
       return form;
     }
 
+    #romLists() {
+      return {
+        personal: ["Absorption", "Armor", "Alteration - Appearance", "Healing", "Invisibility", "Levitation"],
+        universal: ["Eldritch Beam", "Matter Animation", "Shield", "Teleport", "Illusion", "Bind"],
+        dimensional: ["Dimensional Aperture", "Entreaty", "Banishment", "Dimensional Gate"]
+      };
+    }
+
+    #romCategories() {
+      const lists = this.rom?.energy?.lists || ["personal", "universal"];
+      const labels = { personal: "Personal", universal: "Universal", dimensional: "Dimensional" };
+      return lists.map((id) => ({ id, label: labels[id] || id, lo: 1, hi: 100 }));
+    }
+
+    #rememberOrdinary() {
+      if (this.romOrdinary || !this.result?.counts?.powers) return;
+      this.romOrdinary = this.result.counts.powers.slice();
+    }
+
+    #setRomPowers(count) {
+      this.#rememberOrdinary();
+      if (!this.result) return;
+      const n = Math.max(0, Number(count) || 0);
+      this.result.counts.powers = [n, n];
+    }
+
+    #romReady() {
+      const rom = this.rom;
+      if (!rom?.type) return "Roll or choose a magical character type.";
+      if (!rom.school) return "Roll or choose a school.";
+      if (rom.type.id === "wielder" && !rom.energy) return "Roll the energy sources.";
+      if (rom.type.id === "wielder" && !rom.spellCount) return "Roll the number of spells.";
+      if (rom.type.id === "items" && !rom.itemCount) return "Roll the number of items.";
+      if (rom.type.id === "items" && rom.abilityCs && !rom.raised) return "Raise one ability with the item bonus.";
+      if (rom.type.id === "enhanced" && !rom.enhancement) return "Roll the enhancement.";
+      return "";
+    }
+
+    #magic() {
+      const rom = this.rom || {};
+      const types = ROM_CHARACTER_TYPE.map((row) => {
+        const on = rom.type?.id === row.id ? "is-on" : "";
+        return `<button type="button" class="name-card ${on}" data-action="pick-rom-type" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(`${row.lo}–${row.hi === 100 ? "00" : row.hi}`)}"><strong>${esc(row.label)}</strong></button>`;
+      }).join("");
+      const schools = ROM_SCHOOLS.map((row) => {
+        const on = rom.school?.id === row.id ? "is-on" : "";
+        return `<button type="button" class="name-card ${on}" data-action="pick-rom-school" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(row.notes)}"><strong>${esc(row.label)}</strong></button>`;
+      }).join("");
+      const ordinary = this.romOrdinary ? `The abilities step rolled ${this.romOrdinary[0]} powers. This path does not use that number.` : "The ordinary power roll is set aside here.";
+      let countLine = "Roll the magic table next.";
+      if (rom.type?.id === "items" && rom.itemCount) {
+        countLine = `${rom.itemCount} magical item${rom.itemCount === 1 ? "" : "s"}. Each item holds one working, so this hero has ${rom.itemCount} power${rom.itemCount === 1 ? "" : "s"}.`;
+        if (rom.abilityCs) countLine += ` Raise one ability +${rom.abilityCs} CS.`;
+      } else if (rom.type?.id === "wielder" && rom.spellCount) {
+        countLine = `${rom.spellCount} starting spell${rom.spellCount === 1 ? "" : "s"}. ${rom.energy?.label || ""}`;
+      } else if (rom.type?.id === "enhanced" && rom.enhancement) {
+        countLine = rom.enhancement.power ? "The enhancement also grants one Personal working." : "This enhancement grants no extra working.";
+      }
+      const raises = rom.type?.id === "items" && rom.abilityCs && !rom.raised
+        ? `<div class="choice-grid">${ABILITIES.map((key) => `<button type="button" class="name-card" data-action="rom-raise" data-ability="${key}"><strong>${esc(ABILITY_LABEL[key])}</strong></button>`).join("")}</div>`
+        : "";
+      const extra = rom.type?.id === "wielder"
+        ? `<div class="btn-row"><button type="button" class="roll-btn" data-action="roll-rom-energy">Roll energy</button><button type="button" class="roll-btn" data-action="roll-rom-count">Roll spell count</button><button type="button" class="roll-btn" data-action="roll-rom-resources">Roll Resources</button></div><label>Master<input name="romMaster" type="text" value="${esc(this.romMaster)}" /></label>`
+        : rom.type?.id === "items"
+          ? `<div class="btn-row"><button type="button" class="roll-btn" data-action="roll-rom-count">Roll item count</button></div>${raises}`
+          : rom.type?.id === "enhanced"
+            ? `<div class="btn-row"><button type="button" class="roll-btn" data-action="roll-rom-enhance">Roll enhancement</button></div>`
+            : "";
+      return `<section class="creator-block">
+        <p class="creator-kicker">Realms of Magic</p>
+        <h2>Type, school, then the magic table</h2>
+        <p class="creator-fine">${esc(ordinary)} ${esc(countLine)}</p>
+        <div class="creator-block-head"><h3>Character type ${rom.typeRoll ? `· rolled ${rom.typeRoll}` : ""}</h3><button type="button" class="roll-btn" data-action="roll-rom-type">Roll type</button></div>
+        <div class="choice-grid">${types}</div>
+        <div class="creator-block-head"><h3>School ${rom.schoolRoll ? `· rolled ${rom.schoolRoll}` : ""}</h3><button type="button" class="roll-btn" data-action="roll-rom-school">Roll school</button></div>
+        <div class="choice-grid">${schools}</div>
+        ${extra}
+      </section>`;
+    }
+
+    #ensureRom() {
+      if (!this.rom) this.rom = {};
+      return this.rom;
+    }
+
+    async #rollRomType() {
+      const roll = await rollD100({ flavor: `${this.actor?.name || this.name} — magical character`, actor: this.actor });
+      const rom = this.#ensureRom();
+      rom.type = lookupBand(ROM_CHARACTER_TYPE, roll);
+      rom.typeRoll = roll;
+      rom.energy = null;
+      rom.spellCount = 0;
+      rom.itemCount = 0;
+      rom.abilityCs = 0;
+      rom.enhancement = null;
+      rom.raised = false;
+      this.notice = `${rom.type.label} (${roll}).`;
+    }
+
+    #pickRomType(id) {
+      const rom = this.#ensureRom();
+      rom.type = ROM_CHARACTER_TYPE.find((row) => row.id === id) || rom.type;
+      rom.energy = null;
+      rom.spellCount = 0;
+      rom.itemCount = 0;
+      rom.abilityCs = 0;
+      rom.enhancement = null;
+      rom.raised = false;
+      return this.render();
+    }
+
+    async #rollRomSchool() {
+      const roll = await rollD100({ flavor: `${this.actor?.name || this.name} — school`, actor: this.actor });
+      const rom = this.#ensureRom();
+      rom.school = schoolById(lookupBand(ROM_SCHOOL_TABLE, roll).id);
+      rom.schoolRoll = roll;
+      this.notice = `${rom.school.label} (${roll}).`;
+    }
+
+    #pickRomSchool(id) {
+      const rom = this.#ensureRom();
+      rom.school = schoolById(id);
+      return this.render();
+    }
+
+    async #rollRomEnergy() {
+      const roll = await rollD100({ flavor: `${this.actor?.name || this.name} — energy`, actor: this.actor });
+      const rom = this.#ensureRom();
+      rom.energy = lookupBand(ROM_ENERGY, roll);
+      rom.energyRoll = roll;
+      this.notice = `${rom.energy.label} (${roll}).`;
+    }
+
+    async #rollRomCount() {
+      const rom = this.#ensureRom();
+      if (rom.type?.id === "items") {
+        const roll = await rollD100({ flavor: `${this.actor?.name || this.name} — item count`, actor: this.actor });
+        const row = lookupBand(ROM_ITEM_COUNT, roll);
+        rom.itemCount = row.count;
+        rom.abilityCs = row.abilityCs;
+        rom.countRoll = roll;
+        rom.energy = ROM_ENERGY[1];
+        rom.spellCount = row.count;
+        rom.raised = !row.abilityCs;
+        this.#setRomPowers(row.count);
+        this.notice = `${row.count} item${row.count === 1 ? "" : "s"} (${roll}). Each one is a power.`;
+        return;
+      }
+      const roll = await rollD100({ flavor: `${this.actor?.name || this.name} — spell count`, actor: this.actor });
+      const count = lookupBand(ROM_SPELL_COUNT, roll).count;
+      const bonus = rom.school?.id === "scientific" ? 3 : 0;
+      rom.spellCount = count + bonus;
+      rom.countRoll = roll;
+      if (!rom.energy) rom.energy = ROM_ENERGY[2];
+      const talentRoll = await rollD100({ flavor: `${this.actor?.name || this.name} — wielder talents`, actor: this.actor });
+      const talents = lookupBand(ROM_WIELDER_TALENT_COUNT, talentRoll).count;
+      this.#rememberOrdinary();
+      if (this.result) this.result.counts.talents = [talents, talents];
+      this.#setRomPowers(rom.spellCount);
+      this.notice = `${count} spells (${roll})${bonus ? `, plus ${bonus} from the laboratory school` : ""}. ${talents} magical studies.`;
+    }
+
+    async #rollRomEnhance() {
+      const roll = await rollD100({ flavor: `${this.actor?.name || this.name} — enhancement`, actor: this.actor });
+      const rom = this.#ensureRom();
+      const row = lookupBand(ROM_ENHANCEMENT, roll);
+      const condRoll = await rollD100({ flavor: `${this.actor?.name || this.name} — enhancement condition`, actor: this.actor });
+      rom.enhancement = { ...row, roll, condition: lookupBand(ROM_ENHANCEMENT_CONDITION, condRoll) };
+      rom.energy = ROM_ENERGY[0];
+      rom.spellCount = row.power ? 1 : 0;
+      this.#setRomPowers(rom.spellCount);
+      const keys = [];
+      for (let i = 0; i < row.select; i++) {
+        const face = (await new Roll("1d10").evaluate()).total;
+        let key = "endurance";
+        if (face <= 2) key = "fighting";
+        else if (face <= 4) key = "agility";
+        else if (face <= 6) key = "strength";
+        else if (face <= 8) key = "endurance";
+        else if (face === 9) key = rankIndex(this.abilities.reason) <= rankIndex(this.abilities.intuition) ? "reason" : "intuition";
+        else key = "psyche";
+        if (keys.includes(key)) continue;
+        keys.push(key);
+        this.#applyRomRaise(key, row.raise);
+      }
+      rom.raisedKeys = keys;
+      this.notice = `${keys.join(", ") || "No new raise"} +${row.raise} CS (${roll}).`;
+    }
+
+    async #rollRomResources() {
+      const roll = await rollD100({ flavor: `${this.actor?.name || this.name} — wielder Resources`, actor: this.actor });
+      const cacheRoll = await rollD100({ flavor: `${this.actor?.name || this.name} — resource cache`, actor: this.actor });
+      const rom = this.#ensureRom();
+      const rank = lookupBand(ROM_RESOURCE_RANK, roll).id;
+      rom.cache = lookupBand(ROM_RESOURCE_CACHE, cacheRoll).rp;
+      if (this.result) this.result.resources = rank;
+      this.resources = rank;
+      this.notice = `Resources ${rankLabel(rank)}. Cache ${rom.cache}.`;
+    }
+
+    #applyRomRaise(key, cs) {
+      if (!this.abilities?.[key]) return;
+      let next = this.abilities[key];
+      for (let i = 0; i < cs; i++) {
+        const raised = shiftRank(next, 1);
+        if (rankIndex(raised) > rankIndex("amazing")) break;
+        next = raised;
+      }
+      this.abilities[key] = next;
+      this.numbers[key] = rankMin(next);
+      if (this.result) {
+        this.result.abilities[key] = next;
+        this.result.numbers[key] = rankMin(next);
+      }
+    }
+
+    #romRaise(key) {
+      const cs = Number(this.rom?.abilityCs || 0);
+      if (!cs || this.rom?.raised) return;
+      this.#applyRomRaise(key, cs);
+      this.rom.raised = true;
+      this.notice = `${ABILITY_LABEL[key]} is now ${rankLabel(this.abilities[key])}.`;
+      return this.render();
+    }
+
+    async #rollRomItem() {
+      const catRoll = await rollD100({ flavor: `${this.actor?.name || this.name} — item category`, actor: this.actor });
+      const category = lookupBand(ROM_ITEM_CATEGORY, catRoll);
+      const typeRoll = await rollD100({ flavor: `${this.actor?.name || this.name} — ${category.label}`, actor: this.actor });
+      const form = lookupBand(ROM_ITEM_TYPES[category.id] || ROM_ITEM_TYPES.misc, typeRoll);
+      const condRoll = await rollD100({ flavor: `${this.actor?.name || this.name} — item condition`, actor: this.actor });
+      const condition = lookupBand(ROM_ITEM_CONDITION, condRoll);
+      return { label: form.label || category.label, condition: condition.label };
+    }
+
     async #handOff() {
       await this.#ensureActor();
       const actor = this.actor;
@@ -1112,6 +1424,34 @@ function CreatorApp() {
       await runFullGeneration(actor, payload);
     }
 
+    async #writeRom(actor) {
+      const { writeGeneratedItem } = await import("../chargen.mjs");
+      const rom = this.rom || {};
+      for (const power of this.powers) {
+        if (!power.item?.label) continue;
+        await writeGeneratedItem(actor, "equipment", power.item.label, {
+          category: "RoM item",
+          rank: power.rank,
+          number: rankMin(power.rank),
+          definition: `${power.item.label} holds ${power.name} at ${rankLabel(power.rank)}. ${power.item.condition || ""}`,
+          notes: power.item.condition || ""
+        });
+      }
+      const mastery = startingMastery(rom.type?.id === "wielder" ? Number(rom.spellCount || 0) : 0);
+      const lines = [
+        `<p><strong>School:</strong> ${rom.school?.label || ""} — ${rom.school?.notes || ""}</p>`,
+        `<p><strong>Path:</strong> ${rom.type?.label || ""}</p>`,
+        `<p><strong>Mastery:</strong> ${mastery.label}</p>`
+      ];
+      if (rom.enhancement) lines.push(`<p><strong>Enhancement:</strong> ${(rom.raisedKeys || []).join(", ")} +${rom.enhancement.raise} CS. ${rom.enhancement.condition?.label || ""}</p>`);
+      if (this.romMaster) lines.push(`<p><strong>Master:</strong> ${this.romMaster}</p>`);
+      if (rom.cache) {
+        try { await actor.setFlag("faserip", "resourceCache", rom.cache); } catch { /* the note still records it */ }
+        lines.push(`<p><strong>Resource cache:</strong> ${rom.cache}</p>`);
+      }
+      await actor.update({ "system.notes": lines.join("") + (actor.system.notes || "") });
+    }
+
     async #finish() {
       await this.#ensureActor();
       const actor = this.actor;
@@ -1127,6 +1467,7 @@ function CreatorApp() {
         contacts: this.contacts,
         weakness
       });
+      if (this.useRom && this.rom) await this.#writeRom(actor);
       let purchasedGear = [];
       try {
         const { pickStartingShop } = await import("../wizard-shop.mjs");
@@ -1148,6 +1489,9 @@ function CreatorApp() {
       await actor.setFlag("faserip", "generation", {
         origin: this.result.origin.label,
         upb: !!this.useUpb,
+        rom: !!this.useRom,
+        school: this.rom?.school?.label || "",
+        magicType: this.rom?.type?.label || "",
         powers: this.powers.map((row) => row.name),
         talents: this.talents.map((row) => row.name),
         contacts: this.contacts.map((row) => row.name),
