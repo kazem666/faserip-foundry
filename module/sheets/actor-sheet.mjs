@@ -24,6 +24,7 @@ import { playAttackSound } from "../psfx.mjs";
 import { formatMovement, movementLines } from "../movement.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
+import { SYMBIOTE_BONDS } from "../data/symbiote.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
 import { ultimateCatalog } from "../data/ultimate-list.mjs";
 import { buildCatalogItemData } from "../data/descriptions.mjs";
@@ -37,7 +38,10 @@ function itemIdFrom(event) {
 }
 
 function optionList(list) {
-  return list.map((n) => "<option value='" + String(n) + "'>" + n + "</option>").join("");
+  return list.map((entry) => {
+    if (entry && typeof entry === "object") return "<option value='" + entry.value + "'>" + entry.label + "</option>";
+    return "<option value='" + String(entry) + "'>" + entry + "</option>";
+  }).join("");
 }
 
 function guardSheetUpdate(actor, formData) {
@@ -480,6 +484,7 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       if (isUpbEnabled() || this.actor.getFlag("faserip", "generation")?.upb) {
         for (const group of upbCatalogGroups()) catalog["UPB " + group.label] = group.items;
       }
+      catalog.Symbiote = SYMBIOTE_BONDS.map((row) => ({ value: "symbiote::" + row.power, label: row.power }));
       return this.createFromCatalog("power", catalog);
     }
     if (type === "talent") {
@@ -508,7 +513,17 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       okLabel: "Create"
     });
     if (!form) return;
-    const name = formValue(form, "pick") || formValue(form, "custom") || ("New " + type);
+    const picked = formValue(form, "pick") || "";
+    if (String(picked).startsWith("symbiote::")) {
+      const power = String(picked).slice("symbiote::".length);
+      const bond = SYMBIOTE_BONDS.find((row) => row.power === power);
+      await this.actor.createEmbeddedDocuments("Item", [buildCatalogItemData("power", power, {
+        category: "Symbiote",
+        notes: bond?.note || ""
+      })]);
+      return;
+    }
+    const name = picked || formValue(form, "custom") || ("New " + type);
     if (type === "power" || type === "talent") {
       await this.actor.createEmbeddedDocuments("Item", [buildCatalogItemData(type, name)]);
       return;

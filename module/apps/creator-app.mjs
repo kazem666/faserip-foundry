@@ -12,6 +12,7 @@ import { clampCounts, persistGenerationStats, applyGeneration } from "../chargen
 import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES } from "../life.mjs";
 import { BUILDS, CALLINGS, QUIRKS, STATURE, band, heightAndWeight, statureText } from "../data/archetypes.mjs";
 import { isUpbEnabled } from "../data/upb.mjs";
+import { SYMBIOTE_BONDS } from "../data/symbiote.mjs";
 import {
   isRomEnabled, lookupBand, schoolById, startingMastery,
   ROM_CHARACTER_TYPE, ROM_ENERGY, ROM_SPELL_COUNT, ROM_SPELL_RANK,
@@ -40,7 +41,8 @@ const BLURB = {
   distance: "A ranged attack. The battle column is on the card.",
   mental: "A mind power. A target usually resists with Psyche.",
   offensive: "The body itself is the weapon.",
-  defensive: "Armor, recovery, or a field that keeps damage off Health."
+  defensive: "Armor, recovery, or a field that keeps damage off Health.",
+  symbiote: "A living bond. These are ordinary powers the coat already knows how to use."
 };
 
 const WEAKNESSES = [
@@ -377,8 +379,13 @@ function CreatorApp() {
         ? "Each item holds one working. That item count is the power count."
         : (this.useRom ? "These workings come from the magic table, not the ordinary power roll." : "");
       if (!this.powerCategory) {
-        const table = this.useRom ? this.#romCategories() : (this.useUpb ? this.#upbClasses() : POWER_CATEGORIES);
-        const cards = table.map((row) => `<button type="button" class="name-card" data-action="pick-category" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(`${row.lo}–${row.hi === 100 ? "00" : row.hi}. ${BLURB[row.id] || "Powers in this class."}`)}"><strong>${esc(row.label)}</strong></button>`).join("");
+        const table = this.#categoryTable();
+        const cards = table.map((row) => {
+          const band = row.lo == null
+            ? BLURB[row.id] || "Powers in this class."
+            : `${row.lo}–${row.hi === 100 ? "00" : row.hi}. ${BLURB[row.id] || "Powers in this class."}`;
+          return `<button type="button" class="name-card" data-action="pick-category" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(band)}"><strong>${esc(row.label)}</strong></button>`;
+        }).join("");
         const energyLine = this.useRom && this.rom?.energy?.label ? `<p class="creator-fine">Energy: ${esc(this.rom.energy.label)}.</p>` : "";
         return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Powers ${spent}/${needed}</p><h2>${this.useRom ? "Choose an energy, then a working" : "Roll a category, or choose one"}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}</div>${this.useRom ? "" : `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>`}</div>${tray}<div class="choice-grid">${cards}</div></section>`;
       }
@@ -919,15 +926,28 @@ function CreatorApp() {
           play: cat.id === "dimensional" ? "Dimensional. It finishes at the end of the round." : "A magical working at the rolled rank."
         }));
       }
-      if (this.useUpb) {
+      if (this.useUpb && cat.id !== "symbiote") {
         const rows = this._upbPowers?.[cat.id] || [];
         return rows.map((row) => ({ ...powerFacts(row.name, cat.label), slots: row.countsAsTwo ? 2 : powerFacts(row.name, cat.label).slots, lo: row.lo, hi: row.hi, countsAsTwo: !!row.countsAsTwo }));
+      }
+      if (cat.id === "symbiote") {
+        return SYMBIOTE_BONDS.map((bond) => {
+          const facts = powerFacts(bond.power, "Symbiote");
+          return { ...facts, definition: `${facts.definition} ${bond.note}`, bondNote: bond.note };
+        });
       }
       return (POWER_CATALOG[cat.id] || []).map((raw) => powerFacts(raw, cat.label));
     }
 
+    #categoryTable() {
+      if (this.useRom) return this.#romCategories();
+      const table = this.useUpb ? [...this.#upbClasses()] : [...POWER_CATEGORIES];
+      table.push({ id: "symbiote", label: "Symbiote" });
+      return table;
+    }
+
     #setCategory(id, roll) {
-      const table = this.useRom ? this.#romCategories() : (this.useUpb ? this.#upbClasses() : POWER_CATEGORIES);
+      const table = this.#categoryTable();
       const row = table.find((entry) => entry.id === id) || lookupTable(table, roll || 1);
       this.powerCategory = { ...row, roll: roll || null };
       this.openPower = "";
@@ -936,7 +956,7 @@ function CreatorApp() {
     }
 
     async #rollCategory() {
-      const table = this.useRom ? this.#romCategories() : (this.useUpb ? this.#upbClasses() : POWER_CATEGORIES);
+      const table = this.#categoryTable();
       const roll = await rollD100({ flavor: `${this.actor.name} — Power category`, actor: this.actor });
       const row = lookupTable(table, roll);
       this.powerCategory = { ...row, roll };
@@ -949,7 +969,7 @@ function CreatorApp() {
       if (!list.length) return;
       const roll = await rollD100({ flavor: `${this.actor.name} — ${this.powerCategory.label}`, actor: this.actor });
       let row = list[d100Index(list.length, roll)];
-      if (this.useUpb) {
+      if (this.useUpb && this.powerCategory.id !== "symbiote") {
         const { lookupUpbPower } = await import("../data/upb.mjs");
         const found = lookupUpbPower(this.powerCategory.id, roll);
         row = list.find((entry) => entry.name === found?.name) || row;
@@ -979,6 +999,7 @@ function CreatorApp() {
         grade: row.grade, bodyArmor: row.bodyArmor, forceField: row.forceField,
         powerType: this.useRom ? "Realms of Magic" : "",
         definition: row.definition || "",
+        bondNote: row.bondNote || "",
         energy: this.useRom ? this.powerCategory.id : "",
         item
       });

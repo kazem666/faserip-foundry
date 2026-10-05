@@ -319,7 +319,7 @@ export async function applyGeneration(actor, result, {
       slotsTaken: Number(power.slotsTaken ?? power.cost ?? 1) || 1,
       powerType: power.powerType || "",
       definition: power.item ? `${power.definition || power.name} Held in ${power.item.label}.` : (power.definition || ""),
-      notes: [power.rankRoll ? `Generation roll ${power.rankRoll}` : "", power.item?.condition || ""].filter(Boolean).join(" ")
+      notes: [power.bondNote || "", power.rankRoll ? `Generation roll ${power.rankRoll}` : "", power.item?.condition || ""].filter(Boolean).join(" ")
     });
     if (doc) created += 1;
   }

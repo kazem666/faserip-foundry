@@ -79,7 +79,8 @@ export const ORIGINS = [
   { id: "robot", label: "Robot", column: 4, notes: "Column 4. Popularity 0." },
   { id: "alien", label: "Alien", column: 5, notes: "Column 5. -1 Power (minimum 2). Resources start Poor. One Contact maximum." },
   { id: "magic", label: "Magic", column: 1, notes: "Treat as Altered Human unless the table agrees otherwise." },
-  { id: "other", label: "Other", column: 1, notes: "Custom origin. Judge picks a generation column." }
+  { id: "other", label: "Other", column: 1, notes: "Custom origin. Judge picks a generation column." },
+  { id: "symbiote", label: "Symbiote", column: 1, notes: "Column 1. A living organism shares the host and expresses ordinary powers. The coat can be attacked at −4 CS. It has its own Health and heals each round; at 0 it is out for 1–10 hours, and that damage is suffered by the host. Loud sound does +3 CS damage to the bond. Open flame does +1 CS. A danger sense learned from an earlier host of this same bond does not warn against it." }
 ];
 
 export const RANDOM_RANKS = {
