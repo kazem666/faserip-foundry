@@ -95,6 +95,11 @@ export function tuneArchetypeResult(result, id) {
     else result.counts.powers = [1, 1];
   }
   if (id === "spaceknight") result.counts.powers = [d100() <= 50 ? 1 : 2, 2];
+  if (id === "symbiote" && result.counts?.powers) {
+    const start = Math.min(2, Number(result.counts.powers[0]) || 0);
+    const max = Math.min(2, Math.max(start, Number(result.counts.powers[1]) || start));
+    result.counts.powers = [start, max];
+  }
   return result;
 }
 

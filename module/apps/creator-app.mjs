@@ -324,7 +324,7 @@ function CreatorApp() {
           </div>
           ${this.#bodyLine()}
           <p class="creator-fine">Vampire, elder, spaceknight, martial artist, and cyborg keep their own powers. Check Realms of Magic, High-tech gear, or both to add that second source. Leave both off and this creator ends after Abilities.</p>
-          ${this.archetype === "symbiote" ? `<p class="creator-fine">Symbiote starts with Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy. Strength +2 CS and Agility +1 CS. The coat weakness is added on the hero. Power selection still comes after that.</p>` : ""}
+          ${this.archetype === "symbiote" ? `<p class="creator-fine">Symbiote starts with Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy. Strength +2 CS and Agility +1 CS. The coat weakness is added on the hero. Up to 2 more powers are chosen after that.</p>` : ""}
         </section>`;
     }
 
@@ -532,6 +532,7 @@ function CreatorApp() {
         if (el.name === "archetype") {
           this.#reapplyOriginAbilities();
           this.#syncSymbiotePowers();
+          if (this.result?.counts) this.#capSymbiotePowers(this.result.counts);
         }
         this.render();
       }
@@ -822,6 +823,13 @@ function CreatorApp() {
       this.notice = `Resources: ${rankLabel(resources)} (${roll}).`;
     }
 
+    #capSymbiotePowers(counts) {
+      if (this.archetype !== "symbiote" || !counts?.powers) return;
+      const start = Math.min(2, Number(counts.powers[0]) || 0);
+      const max = Math.min(2, Math.max(start, Number(counts.powers[1]) || start));
+      counts.powers = [start, max];
+    }
+
     #baseCounts(powerRoll, talentRoll, contactRoll) {
       const { origin } = this.#generationContext();
       const countSrc = this.useUpb ? this._countTable : SPECIAL_COUNT_TABLE;
@@ -880,6 +888,7 @@ function CreatorApp() {
           tuneArchetypeResult(result, this.archetype);
           this.tuned = true;
         }
+        this.#capSymbiotePowers(result.counts);
         this.abilities = { ...result.abilities };
         this.numbers = { ...result.numbers };
         this.resources = result.resources;
@@ -891,14 +900,17 @@ function CreatorApp() {
         if (form?.lessPower) counts.powers[0] = Math.max(0, counts.powers[0] - form.lessPower);
         this.result.counts = clampCounts(counts, this.useUpb);
         this.result.countRolls = { powers: powerRoll, talents: talentRoll, contacts: contactRoll };
+        this.#capSymbiotePowers(this.result.counts);
       }
       await persistGenerationStats(actor, this.result, { quiet: true, originLabel: this.result.origin.label });
       this.#syncSymbiotePowers();
       const shown = this.result.counts;
       this.archetypePowerBudget = Number(shown.powers[0] || 0);
-      const coat = this.#wantsSymbioteCoat()
-        ? " Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy are already on this hero."
-        : "";
+      const coat = this.archetype === "symbiote"
+        ? " The coat is already on this hero. Additional powers are capped at 2."
+        : (this.#wantsSymbioteCoat()
+          ? " Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy are already on this hero."
+          : "");
       this.notice = `Powers ${shown.powers[0]}/${shown.powers[1]}. Talents ${shown.talents[0]}/${shown.talents[1]}. Contacts ${shown.contacts[0]}/${shown.contacts[1]}.${coat}`;
     }
 
@@ -1192,9 +1204,10 @@ function CreatorApp() {
         return;
       }
       const magic = this.#magicCategory(this.powerCategory);
-      const needed = magic
+      let needed = magic
         ? this.#spellSlots()
         : (this.useRom ? this.#originPowerSlots() : Number(this.result.counts.powers[0] || 0));
+      if (this.archetype === "symbiote" && !magic) needed = Math.min(2, needed);
       const spent = magic ? this.#spent("magic") : (this.useRom ? this.#spent("origin") : this.#spent("all"));
       const cost = row.slots > 1 ? 2 : 1;
       if (spent + cost > needed) {
