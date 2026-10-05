@@ -7,7 +7,7 @@ import { wantRom } from "./data/rom.mjs";
 import { wantUltimateTalents } from "./data/ultimate-talents.mjs";
 import {
   ARCHETYPE_CHOICES, tuneArchetypeResult, promptArchetypeExtras,
-  packagePowers, pickMartialPowers, pickImplants, vampireWeakness,
+  packagePowers, pickMartialPowers, pickImplants, vampireWeakness, symbioteWeakness,
   writeHeightWeight, writeCalling, writeQuirk, writeLifeDetails
 } from "./life.mjs";
 import { symbioteStandardRows } from "./data/symbiote.mjs";
@@ -126,6 +126,7 @@ async function finishRolledGeneration(actor, result, extras) {
   const selectedContacts = (await pickContacts(contactSlots, result.counts?.contacts?.[1] ?? 4, result.origin.id, actor)) || [];
   let weakness = (await pickWeakness(actor, extras.useUpb)) || "";
   if (extras.archetype === "vampire") weakness = [weakness, vampireWeakness()].filter(Boolean).join(" ");
+  if (extras.archetype === "symbiote") weakness = [weakness, symbioteWeakness()].filter(Boolean).join(" ");
   if (result.origin?.id === "symbiote" && !extras.useUpb) {
     const have = new Set(selectedPowers.map((row) => String(row.name || "").toLowerCase()));
     for (const row of symbioteStandardRows()) {

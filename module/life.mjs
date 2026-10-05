@@ -2,7 +2,7 @@ import { rankLabel, rankMin, rollOnColumn, shiftRank } from "./config.mjs";
 import { promptedD100 } from "./dice/percentile.mjs";
 import { writeGeneratedItem } from "./chargen.mjs";
 import { dialog, collect, esc, options } from "./wizard-picks.mjs";
-import { symbioteStandardRows } from "./data/symbiote.mjs";
+import { symbioteStandardRows, SYMBIOTE_WEAKNESS } from "./data/symbiote.mjs";
 import {
   ARCHETYPE_CHOICES, ARMOR_DAMAGE, ARMOR_FASE, ARMOR_POWERS, ARMOR_RANKS, BUILDS,
   CALLINGS, CYBORG_BUDGET, CYBORG_COLUMNS, ELDER_PASSIONS, ELDER_POWERS, STATURE,
@@ -313,6 +313,10 @@ export function packagePowers(id) {
 
 export function vampireWeakness() {
   return VAMPIRE_LIMITS.join(" ");
+}
+
+export function symbioteWeakness() {
+  return SYMBIOTE_WEAKNESS;
 }
 
 export async function pickMartialPowers(actor, count) {

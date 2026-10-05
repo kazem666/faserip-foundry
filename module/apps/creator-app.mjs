@@ -9,7 +9,7 @@ import { cleanPowerName, isTwoSlotPower } from "../data/slots.mjs";
 import { describeItemAction } from "../item-actions.mjs";
 import { rollD100 } from "../dice/percentile.mjs";
 import { clampCounts, persistGenerationStats, applyGeneration } from "../chargen.mjs";
-import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES, packagePowers, promptArchetypeExtras, pickMartialPowers, pickImplants, vampireWeakness } from "../life.mjs";
+import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES, packagePowers, promptArchetypeExtras, pickMartialPowers, pickImplants, vampireWeakness, symbioteWeakness } from "../life.mjs";
 import { BUILDS, CALLINGS, QUIRKS, STATURE, band, heightAndWeight, statureText } from "../data/archetypes.mjs";
 import { isUpbEnabled } from "../data/upb.mjs";
 import { SYMBIOTE_BONDS, symbioteAbilityRank, symbioteStandardRows } from "../data/symbiote.mjs";
@@ -324,7 +324,7 @@ function CreatorApp() {
           </div>
           ${this.#bodyLine()}
           <p class="creator-fine">Vampire, elder, spaceknight, martial artist, and cyborg keep their own powers. Check Realms of Magic, High-tech gear, or both to add that second source. Leave both off and this creator ends after Abilities.</p>
-          ${this.archetype === "symbiote" ? `<p class="creator-fine">Symbiote starts with Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy. Strength +2 CS and Agility +1 CS. Power selection still comes after that.</p>` : ""}
+          ${this.archetype === "symbiote" ? `<p class="creator-fine">Symbiote starts with Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy. Strength +2 CS and Agility +1 CS. The coat weakness is added on the hero. Power selection still comes after that.</p>` : ""}
         </section>`;
     }
 
@@ -503,7 +503,8 @@ function CreatorApp() {
       const magicLine = this.useRom && this.rom
         ? `<p class="creator-fine">${esc([this.rom.school?.label, this.rom.energy?.label, this.rom.type?.label].filter(Boolean).join(" · "))}</p>`
         : "";
-      return `<section class="creator-block"><p class="creator-kicker">Ready</p><h2>${esc(this.name)}</h2><p class="creator-lead">${esc(this.result?.origin?.label || "")}${this.publicId ? ` · ${esc(this.publicId)}` : ""}</p>${magicLine}<div class="review-cols"><div><h3>Powers</h3><ul>${powers || "<li>None</li>"}</ul></div><div><h3>Talents</h3><ul>${talents || "<li>None</li>"}</ul></div><div><h3>Contacts</h3><ul>${contacts || "<li>None</li>"}</ul></div></div><label>Weakness<select name="weakness">${weak}</select></label><label>Notes<input name="weaknessNotes" type="text" value="${esc(this.weaknessNotes)}" /></label></section>`;
+      const coatWeak = this.archetype === "symbiote" ? `<p class="creator-fine">${esc(symbioteWeakness())}</p>` : "";
+      return `<section class="creator-block"><p class="creator-kicker">Ready</p><h2>${esc(this.name)}</h2><p class="creator-lead">${esc(this.result?.origin?.label || "")}${this.publicId ? ` · ${esc(this.publicId)}` : ""}</p>${magicLine}${coatWeak}<div class="review-cols"><div><h3>Powers</h3><ul>${powers || "<li>None</li>"}</ul></div><div><h3>Talents</h3><ul>${talents || "<li>None</li>"}</ul></div><div><h3>Contacts</h3><ul>${contacts || "<li>None</li>"}</ul></div></div><label>Weakness<select name="weakness">${weak}</select></label><label>Notes<input name="weaknessNotes" type="text" value="${esc(this.weaknessNotes)}" /></label></section>`;
     }
 
     #tray(list, kind) {
@@ -1741,7 +1742,11 @@ function CreatorApp() {
       const weakness = !this.weakness || this.weakness === "None"
         ? ""
         : (this.weaknessNotes ? `${this.weakness}: ${this.weaknessNotes}` : this.weakness);
-      const fullWeakness = this.archetype === "vampire" ? [weakness, vampireWeakness()].filter(Boolean).join(" ") : weakness;
+      const fullWeakness = [
+        weakness,
+        this.archetype === "vampire" ? vampireWeakness() : "",
+        this.archetype === "symbiote" ? symbioteWeakness() : ""
+      ].filter(Boolean).join(" ");
       if (this.#dualArchetype()) await this.#attachArchetype(actor);
       const canRaise = this.result?.origin?.id === "altered" || this.result?.formRaiseOne;
       await applyGeneration(actor, this.result, {

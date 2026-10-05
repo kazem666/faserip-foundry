@@ -2,7 +2,9 @@
 
 import { rankIndex, shiftRank } from "../config.mjs";
 
-export const SYMBIOTE_LIMITS = "The coat can be attacked at −4 CS. It has its own Health and heals each round; at 0 it is out for 1–10 hours, and that damage is suffered by the host. Loud sound does +3 CS damage to the bond. Intense heat and open flame do +1 CS. The coat needs a living host. It keeps memories of earlier hosts and can share them. A danger sense learned from an earlier host of this same bond does not warn against it. A strong coat can push the host toward what it wants.";
+export const SYMBIOTE_WEAKNESS = "The coat can be attacked at −4 CS. It has its own Health and heals each round; at 0 it is out for 1–10 hours, and that damage is suffered by the host. Loud sound does +3 CS damage to the bond. Intense heat and open flame do +1 CS.";
+
+export const SYMBIOTE_LIMITS = `${SYMBIOTE_WEAKNESS} The coat needs a living host. It keeps memories of earlier hosts and can share them. A danger sense learned from an earlier host of this same bond does not warn against it. A strong coat can push the host toward what it wants.`;
 
 export const SYMBIOTE_BONDS = [
   { power: "Body Armor", standard: true, note: "The living coat is dense and takes the hit before the host." },
