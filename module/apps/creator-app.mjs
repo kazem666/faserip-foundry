@@ -364,7 +364,7 @@ function CreatorApp() {
           <div class="count-roll">
             <button type="button" class="roll-btn big" data-action="roll-counts">Roll powers, talents, and contacts</button>
             <p>${counts ? `Powers ${counts.powers[0]}/${counts.powers[1]} · Talents ${counts.talents[0]}/${counts.talents[1]} · Contacts ${counts.contacts[0]}/${counts.contacts[1]}` : "Rolled after the seven abilities."}</p>
-            ${this.useRom ? `<p class="creator-fine">Realms of Magic replaces that power number on the Magic step. A hero with items gets one working per item. Talents and contacts still use this roll, unless the hero is a wielder.</p>` : ""}
+            ${this.useRom ? `<p class="creator-fine">Realms of Magic replaces that power number with workings on the Magic step. A power the origin itself grants is still chosen afterward. Talents and contacts still use this roll, unless the hero is a wielder.</p>` : ""}
           </div>
         </div>
         ${raise}
@@ -372,45 +372,72 @@ function CreatorApp() {
     }
 
     #powers() {
-      const needed = Number(this.result?.counts?.powers?.[0] || 0);
-      const spent = this.powers.reduce((sum, row) => sum + row.cost, 0);
+      const originSlots = this.#originPowerSlots();
+      const originSpent = this.#spent("origin");
+      const spellSlots = this.useRom ? Number(this.result?.counts?.powers?.[0] || 0) : 0;
+      const spellSpent = this.#spent("magic");
+      const needed = this.useRom ? spellSlots : Number(this.result?.counts?.powers?.[0] || 0);
+      const spent = this.useRom ? spellSpent : this.#spent("all");
       const tray = this.#tray(this.powers, "power");
       const romNote = this.useRom && this.rom?.type?.id === "items"
         ? "Each item holds one working. That item count is the power count."
-        : (this.useRom ? "These workings come from the magic table, not the ordinary power roll." : "");
+        : (this.useRom ? "Workings come from the magic table." : "");
+      const originNote = originSlots
+        ? `${this.result?.origin?.label || "This origin"} grants ${originSlots} power${originSlots === 1 ? "" : "s"} from the normal lists. That power is a separate source and does not spend a working.`
+        : "";
       if (!this.powerCategory) {
         const table = this.#categoryTable();
-        const cards = table.map((row) => {
+        const card = (row) => {
           const band = row.lo == null
             ? BLURB[row.id] || "Powers in this class."
             : `${row.lo}–${row.hi === 100 ? "00" : row.hi}. ${BLURB[row.id] || "Powers in this class."}`;
           return `<button type="button" class="name-card" data-action="pick-category" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(band)}"><strong>${esc(row.label)}</strong></button>`;
-        }).join("");
+        };
         const energyLine = this.useRom && this.rom?.energy?.label ? `<p class="creator-fine">Energy: ${esc(this.rom.energy.label)}.</p>` : "";
-        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">Powers ${spent}/${needed}</p><h2>${this.useRom ? "Choose an energy, then a working" : "Roll a category, or choose one"}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}</div>${this.useRom ? "" : `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>`}</div>${tray}<div class="choice-grid">${cards}</div></section>`;
+        const kicker = this.useRom
+          ? `Workings ${spellSpent}/${spellSlots}${originSlots ? ` · Origin powers ${originSpent}/${originSlots}` : ""}`
+          : `Powers ${spent}/${needed}`;
+        const groups = this.useRom
+          ? [
+              { title: "Workings", rows: table.filter((row) => this.#magicCategory(row)), roll: "" },
+              originSlots ? { title: "Origin powers", rows: table.filter((row) => !this.#magicCategory(row)), roll: `<button type="button" class="roll-btn" data-action="roll-origin-category">Roll origin category</button>` } : null
+            ].filter(Boolean)
+          : [{ title: "", rows: table, roll: `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>` }];
+        const grids = groups.map((group) => {
+          const head = group.title ? `<div class="creator-block-head"><h3>${esc(group.title)}</h3>${group.roll}</div>` : "";
+          return `${head}<div class="choice-grid">${group.rows.map(card).join("")}</div>`;
+        }).join("");
+        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">${esc(kicker)}</p><h2>${this.useRom ? "Choose a working" : "Roll a category, or choose one"}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}${originNote ? `<p class="creator-fine">${esc(originNote)}</p>` : ""}</div>${this.useRom ? "" : groups[0].roll}</div>${tray}${this.useRom ? grids : `<div class="choice-grid">${table.map(card).join("")}</div>`}</section>`;
       }
       const cat = this.powerCategory;
+      const magicView = this.#magicCategory(cat);
+      const poolNeeded = magicView ? spellSlots : (this.useRom ? originSlots : needed);
+      const poolSpent = magicView ? spellSpent : (this.useRom ? originSpent : spent);
       const list = this.#powerList();
       const cards = list.map((row) => {
         const on = row.name === this.openPower ? "is-on" : "";
-        const locked = row.slots > (needed - spent) ? "is-locked" : "";
+        const locked = row.slots > (poolNeeded - poolSpent) ? "is-locked" : "";
         const blurb = `${row.grade}. ${row.definition} ${row.play}${row.slots > 1 ? " Spends two slots." : ""}`;
         return `<button type="button" class="name-card ${on} ${locked}" data-action="open-power" data-name="${esc(row.name)}" data-title="${esc(row.name)}" data-blurb="${esc(blurb)}"><strong>${esc(row.name)}</strong></button>`;
       }).join("");
       const open = list.find((row) => row.name === this.openPower);
+      const rankLine = magicView
+        ? "Rank is Good through Amazing."
+        : (open?.slots > 1 ? "This power spends two of your slots." : "This power spends one slot.") + ` Rank rolls on column ${this.result?.origin?.column || 1} when you take it.`;
       const detail = open ? `<aside class="power-detail">
         <p class="creator-kicker">${esc(open.grade)}</p>
         <h3>${esc(open.name)}</h3>
         <p>${esc(open.definition)}</p>
         <p class="play">${esc(open.play)}</p>
-        <p class="creator-fine">${this.useRom ? "Rank is Good through Amazing." : (open.slots > 1 ? "This power spends two of your slots." : "This power spends one slot.") + ` Rank rolls on column ${this.result?.origin?.column || 1} when you take it.`}</p>
+        <p class="creator-fine">${esc(rankLine)}</p>
         <button type="button" class="roll-btn" data-action="take-power" data-name="${esc(open.name)}">Take this power</button>
       </aside>` : `<aside class="power-detail empty"><p>Choose a power to read what it does.</p></aside>`;
       const band = cat.roll ? `Rolled ${cat.roll}` : "Chosen";
+      const poolLabel = magicView ? "workings" : (this.useRom ? "origin powers" : "slots");
       return `<section class="creator-split">
         <div>
           <div class="creator-block-head">
-            <div><p class="creator-kicker">${esc(band)} · ${spent}/${needed} slots</p><h2>${esc(cat.label)}</h2><p class="creator-lead">${esc(BLURB[cat.id] || "Read a power, then take it or roll one.")}</p></div>
+            <div><p class="creator-kicker">${esc(band)} · ${poolSpent}/${poolNeeded} ${esc(poolLabel)}</p><h2>${esc(cat.label)}</h2><p class="creator-lead">${esc(BLURB[cat.id] || "Read a power, then take it or roll one.")}</p></div>
             <div class="btn-row"><button type="button" class="roll-btn" data-action="roll-power">Roll one</button><button type="button" class="text-btn" data-action="clear-category">All categories</button></div>
           </div>
           ${tray}
@@ -511,6 +538,7 @@ function CreatorApp() {
       if (action === "roll-build") return this.#guard(() => this.#rollBuild());
       if (action === "roll-stature") return this.#guard(() => this.#rollStature());
       if (action === "roll-category") return this.#guard(() => this.#rollCategory());
+      if (action === "roll-origin-category") return this.#guard(() => this.#rollOriginCategory());
       if (action === "pick-category") return this.#setCategory(button.dataset.id, null);
       if (action === "clear-category") {
         this.powerCategory = null;
@@ -622,7 +650,14 @@ function CreatorApp() {
         }
         return this.#go("powers", true);
       }
-      if (this.step === "powers") return this.#go("talents", true);
+      if (this.step === "powers") {
+        const openOrigin = this.#originPowerSlots() - this.#spent("origin");
+        if (openOrigin > 0) {
+          this.notice = `Pick the origin power${openOrigin === 1 ? "" : "s"} (${openOrigin} left). It is separate from the workings.`;
+          return this.render();
+        }
+        return this.#go("talents", true);
+      }
       if (this.step === "talents") return this.#go("contacts", true);
       if (this.step === "contacts") return this.#go("review", true);
       if (this.step === "review") return this.#guard(() => this.#finish());
@@ -916,7 +951,7 @@ function CreatorApp() {
     #powerList() {
       const cat = this.powerCategory;
       if (!cat) return [];
-      if (this.useRom && this.rom) {
+      if (this.#magicCategory(cat)) {
         const names = this.#romLists()[cat.id] || [];
         return names.map((name) => ({
           name,
@@ -939,11 +974,38 @@ function CreatorApp() {
       return (POWER_CATALOG[cat.id] || []).map((raw) => powerFacts(raw, cat.label));
     }
 
-    #categoryTable() {
-      if (this.useRom) return this.#romCategories();
+    #magicCategory(cat) {
+      return !!cat && ["personal", "universal", "dimensional"].includes(cat.id);
+    }
+
+    #originCategories() {
       const table = this.useUpb ? [...this.#upbClasses()] : [...POWER_CATEGORIES];
       table.push({ id: "symbiote", label: "Symbiote" });
       return table;
+    }
+
+    #originPowerSlots() {
+      if (!this.useRom) return 0;
+      if (this.useUpb) return Math.max(0, Number(this.#upbFormRecord()?.extraPower) || 0);
+      return this.#generationContext().origin?.id === "mutant" ? 1 : 0;
+    }
+
+    #spent(kind) {
+      return this.powers.reduce((sum, power) => {
+        const cost = Number(power.cost) || 0;
+        if (kind === "magic") return power.powerType === "Realms of Magic" ? sum + cost : sum;
+        if (kind === "origin") return power.source === "origin" ? sum + cost : sum;
+        return sum + cost;
+      }, 0);
+    }
+
+    #categoryTable() {
+      if (this.useRom) {
+        const magic = this.#romCategories();
+        if (!this.#originPowerSlots()) return magic;
+        return magic.concat(this.#originCategories());
+      }
+      return this.#originCategories();
     }
 
     #setCategory(id, roll) {
@@ -956,7 +1018,7 @@ function CreatorApp() {
     }
 
     async #rollCategory() {
-      const table = this.#categoryTable();
+      const table = this.useRom ? this.#romCategories() : this.#categoryTable();
       const roll = await rollD100({ flavor: `${this.actor.name} — Power category`, actor: this.actor });
       const row = lookupTable(table, roll);
       this.powerCategory = { ...row, roll };
@@ -964,12 +1026,26 @@ function CreatorApp() {
       this.notice = `${row.label} (${roll}).`;
     }
 
+    async #rollOriginCategory() {
+      const left = this.#originPowerSlots() - this.#spent("origin");
+      if (left <= 0) {
+        this.notice = "The origin powers are already chosen.";
+        return this.render();
+      }
+      const roll = await rollD100({ flavor: `${this.actor.name} — Origin power category`, actor: this.actor });
+      const row = lookupTable(this.#originCategories(), roll);
+      this.powerCategory = { ...row, roll };
+      this.openPower = "";
+      this.notice = `${row.label} (${roll}). Origin power.`;
+      return this.render();
+    }
+
     async #rollPower() {
       const list = this.#powerList();
       if (!list.length) return;
       const roll = await rollD100({ flavor: `${this.actor.name} — ${this.powerCategory.label}`, actor: this.actor });
       let row = list[d100Index(list.length, roll)];
-      if (this.useUpb && this.powerCategory.id !== "symbiote") {
+      if (this.useUpb && !this.#magicCategory(this.powerCategory) && this.powerCategory.id !== "symbiote") {
         const { lookupUpbPower } = await import("../data/upb.mjs");
         const found = lookupUpbPower(this.powerCategory.id, roll);
         row = list.find((entry) => entry.name === found?.name) || row;
@@ -982,25 +1058,29 @@ function CreatorApp() {
       const list = this.#powerList();
       const row = list.find((entry) => entry.name === name);
       if (!row || !this.result) return;
-      const needed = Number(this.result.counts.powers[0] || 0);
-      const spent = this.powers.reduce((sum, power) => sum + power.cost, 0);
+      const magic = this.#magicCategory(this.powerCategory);
+      const needed = magic
+        ? Number(this.result.counts.powers[0] || 0)
+        : (this.useRom ? this.#originPowerSlots() : Number(this.result.counts.powers[0] || 0));
+      const spent = magic ? this.#spent("magic") : (this.useRom ? this.#spent("origin") : this.#spent("all"));
       const cost = row.slots > 1 ? 2 : 1;
       if (spent + cost > needed) {
-        this.notice = `${row.name} needs ${cost} slot${cost === 2 ? "s" : ""}. ${needed - spent} left.`;
+        this.notice = `${row.name} needs ${cost} slot${cost === 2 ? "s" : ""}. ${Math.max(0, needed - spent)} left.`;
         this.openPower = row.name;
         return;
       }
       const rankRoll = await rollD100({ flavor: `${this.actor.name} — ${row.name} rank`, actor: this.actor });
-      const rank = this.useRom ? lookupBand(ROM_SPELL_RANK, rankRoll).id : rollOnColumn(this.result.origin.column || this.result.column || 1, rankRoll);
+      const rank = magic ? lookupBand(ROM_SPELL_RANK, rankRoll).id : rollOnColumn(this.result.origin.column || this.result.column || 1, rankRoll);
       let item = null;
-      if (this.useRom && this.rom?.type?.id === "items") item = await this.#rollRomItem();
+      if (magic && this.rom?.type?.id === "items") item = await this.#rollRomItem();
       this.powers.push({
-        name: row.name, category: this.useRom ? `RoM ${this.powerCategory.id}` : this.powerCategory.label, rank, rankRoll, cost,
+        name: row.name, category: magic ? `RoM ${this.powerCategory.id}` : this.powerCategory.label, rank, rankRoll, cost,
         grade: row.grade, bodyArmor: row.bodyArmor, forceField: row.forceField,
-        powerType: this.useRom ? "Realms of Magic" : "",
+        powerType: magic ? "Realms of Magic" : "",
+        source: magic ? "magic" : (this.useRom ? "origin" : ""),
         definition: row.definition || "",
         bondNote: row.bondNote || "",
-        energy: this.useRom ? this.powerCategory.id : "",
+        energy: magic ? this.powerCategory.id : "",
         item
       });
       this.openPower = "";
@@ -1232,7 +1312,11 @@ function CreatorApp() {
         const on = rom.school?.id === row.id ? "is-on" : "";
         return `<button type="button" class="name-card ${on}" data-action="pick-rom-school" data-id="${esc(row.id)}" data-title="${esc(row.label)}" data-blurb="${esc(row.notes)}"><strong>${esc(row.label)}</strong></button>`;
       }).join("");
-      const ordinary = this.romOrdinary ? `The abilities step rolled ${this.romOrdinary[0]} powers. This path does not use that number.` : "The ordinary power roll is set aside here.";
+      const ordinary = this.romOrdinary ? `The abilities step rolled ${this.romOrdinary[0]} ordinary powers. The workings replace that roll.` : "The ordinary power roll is set aside here.";
+      const originSlots = this.#originPowerSlots();
+      const originLine = originSlots
+        ? ` ${this.result?.origin?.label || "This origin"} still grants ${originSlots} power${originSlots === 1 ? "" : "s"} from the normal lists, in addition to the workings.`
+        : "";
       let countLine = "Roll the magic table next.";
       if (rom.type?.id === "items" && rom.itemCount) {
         countLine = `${rom.itemCount} magical item${rom.itemCount === 1 ? "" : "s"}. Each item holds one working, so this hero has ${rom.itemCount} power${rom.itemCount === 1 ? "" : "s"}.`;
@@ -1259,7 +1343,7 @@ function CreatorApp() {
       return `<section class="creator-block">
         <p class="creator-kicker">Realms of Magic</p>
         <h2>Type, school, then the magic table</h2>
-        <p class="creator-fine">${esc(ordinary)} ${esc(countLine)}</p>
+        <p class="creator-fine">${esc(ordinary)}${esc(originLine)} ${esc(countLine)}</p>
         <div class="creator-block-head"><h3>Character type ${rom.typeRoll ? `· rolled ${rom.typeRoll}` : ""}</h3><button type="button" class="roll-btn" data-action="roll-rom-type">Roll type</button></div>
         <div class="choice-grid">${types}</div>
         <div class="creator-block-head"><h3>School ${rom.schoolRoll ? `· rolled ${rom.schoolRoll}` : ""}</h3><button type="button" class="roll-btn" data-action="roll-rom-school">Roll school</button></div>
