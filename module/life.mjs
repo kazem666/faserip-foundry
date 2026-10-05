@@ -2,6 +2,7 @@ import { rankLabel, rankMin, rollOnColumn, shiftRank } from "./config.mjs";
 import { promptedD100 } from "./dice/percentile.mjs";
 import { writeGeneratedItem } from "./chargen.mjs";
 import { dialog, collect, esc, options } from "./wizard-picks.mjs";
+import { symbioteStandardRows } from "./data/symbiote.mjs";
 import {
   ARCHETYPE_CHOICES, ARMOR_DAMAGE, ARMOR_FASE, ARMOR_POWERS, ARMOR_RANKS, BUILDS,
   CALLINGS, CYBORG_BUDGET, CYBORG_COLUMNS, ELDER_PASSIONS, ELDER_POWERS, STATURE,
@@ -45,6 +46,9 @@ export function archetypeSetup(id) {
   }
   if (id === "elder") {
     return { originId: "alien", rollOrigin: false, originLabel: "Elder" };
+  }
+  if (id === "symbiote") {
+    return { originId: "symbiote", rollOrigin: false, originLabel: "Symbiote", keepBooks: true };
   }
   return null;
 }
@@ -303,6 +307,7 @@ export function packagePowers(id) {
       { name: "Space Warp", rank: "monstrous", definition: "Finds a warp. The jump itself is Class 1000 range." }
     ];
   }
+  if (id === "symbiote") return symbioteStandardRows();
   return [];
 }
 

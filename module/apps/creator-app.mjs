@@ -161,7 +161,7 @@ function CreatorApp() {
     }
 
     get special() {
-      return !!this.archetype;
+      return !!this.archetype && this.archetype !== "symbiote";
     }
 
     get steps() {
@@ -324,11 +324,12 @@ function CreatorApp() {
           </div>
           ${this.#bodyLine()}
           <p class="creator-fine">Vampire, elder, spaceknight, martial artist, and cyborg keep their own powers. Check Realms of Magic, High-tech gear, or both to add that second source. Leave both off and this creator ends after Abilities.</p>
+          ${this.archetype === "symbiote" ? `<p class="creator-fine">Symbiote starts with Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy. Strength +2 CS and Agility +1 CS. Power selection still comes after that.</p>` : ""}
         </section>`;
     }
 
     #origin() {
-      if (this.useUpb && !this.archetype) return this.#upbOrigin();
+      if (this.useUpb && (!this.archetype || archetypeSetup(this.archetype)?.keepBooks)) return this.#upbOrigin();
       const setup = archetypeSetup(this.archetype);
       const locked = setup?.originId || "";
       const cards = ORIGINS.map((origin) => {
@@ -526,7 +527,13 @@ function CreatorApp() {
       if (!el?.name) return;
       if (el.type === "checkbox") this[el.name] = !!el.checked;
       else this[el.name] = el.value;
-      if (el.name === "useUpb" || el.name === "useRom" || el.name === "useHitech" || el.name === "archetype") this.render();
+      if (el.name === "useUpb" || el.name === "useRom" || el.name === "useHitech" || el.name === "archetype") {
+        if (el.name === "archetype") {
+          this.#reapplyOriginAbilities();
+          this.#syncSymbiotePowers();
+        }
+        this.render();
+      }
     }
 
     async #onClick(event) {
@@ -737,7 +744,7 @@ function CreatorApp() {
 
     #generationContext() {
       const setup = archetypeSetup(this.archetype);
-      if (setup) {
+      if (setup && !setup.keepBooks) {
         this.originId = setup.originId;
         this.useUpb = false;
       }
@@ -776,7 +783,7 @@ function CreatorApp() {
         rank = typeof setup?.rankFor === "function" ? setup.rankFor(key, roll) : rollOnColumn(column, roll);
         if (!skipMods && origin.id === "mutant" && key === "endurance") rank = shiftRank(rank, 1);
         if (!skipMods && origin.id === "hitech" && key === "reason") rank = shiftRank(rank, 2);
-        if (!skipMods && origin.id === "symbiote") rank = symbioteAbilityRank(key, rank);
+        if (this.archetype === "symbiote" || origin.id === "symbiote") rank = symbioteAbilityRank(key, rank);
         rank = this.#boostStat(key, rank);
       }
       this.abilityRolls[key] = roll;
@@ -888,7 +895,7 @@ function CreatorApp() {
       this.#syncSymbiotePowers();
       const shown = this.result.counts;
       this.archetypePowerBudget = Number(shown.powers[0] || 0);
-      const coat = this.#isSymbioteOrigin()
+      const coat = this.#wantsSymbioteCoat()
         ? " Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy are already on this hero."
         : "";
       this.notice = `Powers ${shown.powers[0]}/${shown.powers[1]}. Talents ${shown.talents[0]}/${shown.talents[1]}. Contacts ${shown.contacts[0]}/${shown.contacts[1]}.${coat}`;
@@ -992,14 +999,15 @@ function CreatorApp() {
 
     #reapplyOriginAbilities() {
       const { origin, column, skipMods, setup } = this.#generationContext();
-      if (skipMods || setup?.fixedAbilities) return;
+      if (setup?.fixedAbilities) return;
+      if (skipMods && this.archetype !== "symbiote" && origin.id !== "symbiote") return;
       for (const key of ABILITIES) {
         const roll = Number(this.abilityRolls?.[key] || 0);
         if (!roll) continue;
         let rank = rollOnColumn(column, roll);
         if (origin.id === "mutant" && key === "endurance") rank = shiftRank(rank, 1);
         if (origin.id === "hitech" && key === "reason") rank = shiftRank(rank, 2);
-        if (origin.id === "symbiote") rank = symbioteAbilityRank(key, rank);
+        if (this.archetype === "symbiote" || origin.id === "symbiote") rank = symbioteAbilityRank(key, rank);
         rank = this.#boostStat(key, rank);
         this.abilities[key] = rank;
         this.numbers[key] = rankMin(rank);
@@ -1010,8 +1018,10 @@ function CreatorApp() {
       }
     }
 
-    #isSymbioteOrigin() {
-      return this.#generationContext().origin?.id === "symbiote" || this.result?.origin?.id === "symbiote";
+    #wantsSymbioteCoat() {
+      if (this.archetype === "symbiote") return true;
+      if (this.originId === "symbiote" || this.result?.origin?.id === "symbiote") return true;
+      return this.powers.some((row) => row.category === "Symbiote" && row.source !== "symbiote");
     }
 
     #adoptOrigin() {
@@ -1022,7 +1032,7 @@ function CreatorApp() {
     }
 
     #syncSymbiotePowers() {
-      if (!this.#isSymbioteOrigin()) {
+      if (!this.#wantsSymbioteCoat()) {
         if (this.powers.some((row) => row.source === "symbiote")) {
           this.powers = this.powers.filter((row) => row.source !== "symbiote");
         }

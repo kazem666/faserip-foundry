@@ -8,7 +8,8 @@ export const ARCHETYPE_CHOICES = [
   { id: "vampire", label: "Vampire" },
   { id: "spaceknight", label: "Spaceknight" },
   { id: "morlock", label: "Morlock" },
-  { id: "elder", label: "Elder" }
+  { id: "elder", label: "Elder" },
+  { id: "symbiote", label: "Symbiote" }
 ];
 
 export function band(rows, roll) {
