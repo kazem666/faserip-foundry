@@ -5,6 +5,7 @@ import {
 import { deepClone } from "./foundry-api.mjs";
 import { rollD100, promptedD100, promptNextRoll } from "./dice/percentile.mjs";
 import { UPB_COUNT_TABLE } from "./data/upb.mjs";
+import { symbioteAbilityRank } from "./data/symbiote.mjs";
 
 function d100() { return Math.floor(Math.random() * 100) + 1; }
 
@@ -262,6 +263,10 @@ export function generateHero({ originId = null, rollOrigin = false } = {}) {
   }
   if (origin.id === "mutant") abilities.endurance = shiftRank(abilities.endurance, 1);
   if (origin.id === "hitech") abilities.reason = shiftRank(abilities.reason, 2);
+  if (origin.id === "symbiote") {
+    abilities.strength = symbioteAbilityRank("strength", abilities.strength);
+    abilities.agility = symbioteAbilityRank("agility", abilities.agility);
+  }
   const numbers = {};
   for (const key of ABILITIES) numbers[key] = rankMin(abilities[key]);
   const resourceModRoll = d100();

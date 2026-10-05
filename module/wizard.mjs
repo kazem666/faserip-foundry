@@ -10,6 +10,7 @@ import {
   packagePowers, pickMartialPowers, pickImplants, vampireWeakness,
   writeHeightWeight, writeCalling, writeQuirk, writeLifeDetails
 } from "./life.mjs";
+import { symbioteStandardRows } from "./data/symbiote.mjs";
 
 function abilityRows(result) {
   return ABILITIES.map((key) => {
@@ -125,6 +126,12 @@ async function finishRolledGeneration(actor, result, extras) {
   const selectedContacts = (await pickContacts(contactSlots, result.counts?.contacts?.[1] ?? 4, result.origin.id, actor)) || [];
   let weakness = (await pickWeakness(actor, extras.useUpb)) || "";
   if (extras.archetype === "vampire") weakness = [weakness, vampireWeakness()].filter(Boolean).join(" ");
+  if (result.origin?.id === "symbiote" && !extras.useUpb) {
+    const have = new Set(selectedPowers.map((row) => String(row.name || "").toLowerCase()));
+    for (const row of symbioteStandardRows()) {
+      if (!have.has(row.name.toLowerCase())) selectedPowers.push(row);
+    }
+  }
   if (selectedTalents.some((t) => /Heir to Fortune/i.test(t.name))) result.resources = "amazing";
   try {
     await applyGeneration(actor, result, {

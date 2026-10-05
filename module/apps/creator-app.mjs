@@ -12,7 +12,7 @@ import { clampCounts, persistGenerationStats, applyGeneration } from "../chargen
 import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES, packagePowers, promptArchetypeExtras, pickMartialPowers, pickImplants, vampireWeakness } from "../life.mjs";
 import { BUILDS, CALLINGS, QUIRKS, STATURE, band, heightAndWeight, statureText } from "../data/archetypes.mjs";
 import { isUpbEnabled } from "../data/upb.mjs";
-import { SYMBIOTE_BONDS } from "../data/symbiote.mjs";
+import { SYMBIOTE_BONDS, symbioteAbilityRank, symbioteStandardRows } from "../data/symbiote.mjs";
 import {
   isRomEnabled, lookupBand, schoolById, startingMastery,
   ROM_CHARACTER_TYPE, ROM_ENERGY, ROM_SPELL_COUNT, ROM_SPELL_RANK,
@@ -42,7 +42,7 @@ const BLURB = {
   mental: "A mind power. A target usually resists with Psyche.",
   offensive: "The body itself is the weapon.",
   defensive: "Armor, recovery, or a field that keeps damage off Health.",
-  symbiote: "A living bond. These are ordinary powers the coat already knows how to use."
+  symbiote: "A living coat. The usual powers are already on the hero when this is the origin. This list is for bonds the coat may also know."
 };
 
 const WEAKNESSES = [
@@ -549,6 +549,8 @@ function CreatorApp() {
       if (action === "pick-origin") {
         this.originId = button.dataset.id;
         this.notice = "";
+        this.#syncSymbiotePowers();
+        this.#reapplyOriginAbilities();
         return this.render();
       }
       if (action === "roll-stat") return this.#guard(() => this.#rollStat(button.dataset.stat));
@@ -725,6 +727,8 @@ function CreatorApp() {
       const row = lookupTable(ORIGIN_TABLE, roll);
       this.originRoll = roll;
       this.originId = row.id;
+      this.#syncSymbiotePowers();
+      this.#reapplyOriginAbilities();
       this.notice = `${originById(row.id).label} (${roll}). You can still pick a different origin.`;
     }
 
@@ -769,6 +773,7 @@ function CreatorApp() {
         rank = typeof setup?.rankFor === "function" ? setup.rankFor(key, roll) : rollOnColumn(column, roll);
         if (!skipMods && origin.id === "mutant" && key === "endurance") rank = shiftRank(rank, 1);
         if (!skipMods && origin.id === "hitech" && key === "reason") rank = shiftRank(rank, 2);
+        if (!skipMods && origin.id === "symbiote") rank = symbioteAbilityRank(key, rank);
         rank = this.#boostStat(key, rank);
       }
       this.abilityRolls[key] = roll;
@@ -877,9 +882,11 @@ function CreatorApp() {
         this.result.countRolls = { powers: powerRoll, talents: talentRoll, contacts: contactRoll };
       }
       await persistGenerationStats(actor, this.result, { quiet: true, originLabel: this.result.origin.label });
+      this.#syncSymbiotePowers();
       const shown = this.result.counts;
       this.archetypePowerBudget = Number(shown.powers[0] || 0);
-      this.notice = `Powers ${shown.powers[0]}/${shown.powers[1]}. Talents ${shown.talents[0]}/${shown.talents[1]}. Contacts ${shown.contacts[0]}/${shown.contacts[1]}.`;
+      const coat = this.powers.some((row) => row.source === "symbiote") ? " The coat's usual powers are already added." : "";
+      this.notice = `Powers ${shown.powers[0]}/${shown.powers[1]}. Talents ${shown.talents[0]}/${shown.talents[1]}. Contacts ${shown.contacts[0]}/${shown.contacts[1]}.${coat}`;
     }
 
     async #rollCalling() {
@@ -976,6 +983,52 @@ function CreatorApp() {
 
     #upbClasses() {
       return (this._upbClasses || []);
+    }
+
+    #reapplyOriginAbilities() {
+      const { origin, column, skipMods, setup } = this.#generationContext();
+      if (skipMods || setup?.fixedAbilities) return;
+      for (const key of ABILITIES) {
+        const roll = Number(this.abilityRolls?.[key] || 0);
+        if (!roll) continue;
+        let rank = rollOnColumn(column, roll);
+        if (origin.id === "mutant" && key === "endurance") rank = shiftRank(rank, 1);
+        if (origin.id === "hitech" && key === "reason") rank = shiftRank(rank, 2);
+        if (origin.id === "symbiote") rank = symbioteAbilityRank(key, rank);
+        rank = this.#boostStat(key, rank);
+        this.abilities[key] = rank;
+        this.numbers[key] = rankMin(rank);
+        if (this.result) {
+          this.result.abilities[key] = rank;
+          this.result.numbers[key] = rankMin(rank);
+        }
+      }
+    }
+
+    #syncSymbiotePowers() {
+      const on = !this.useUpb && this.#generationContext().origin?.id === "symbiote";
+      if (!on) {
+        if (this.powers.some((row) => row.source === "symbiote")) {
+          this.powers = this.powers.filter((row) => row.source !== "symbiote");
+        }
+        this.symbioteGranted = false;
+        return;
+      }
+      if (this.symbioteGranted) return;
+      const have = new Set(this.powers.map((row) => String(row.name || "").toLowerCase()));
+      for (const row of symbioteStandardRows()) {
+        if (have.has(row.name.toLowerCase())) continue;
+        const facts = powerFacts(row.name, "Symbiote");
+        this.powers.push({
+          ...row,
+          name: facts.name,
+          definition: facts.definition,
+          grade: facts.grade,
+          bodyArmor: !!facts.bodyArmor,
+          forceField: !!facts.forceField
+        });
+      }
+      this.symbioteGranted = true;
     }
 
     #powerList() {
@@ -1110,6 +1163,11 @@ function CreatorApp() {
       const list = this.#powerList();
       const row = list.find((entry) => entry.name === name);
       if (!row || !this.result) return;
+      if (this.powers.some((power) => String(power.name || "").toLowerCase() === row.name.toLowerCase())) {
+        this.notice = `${row.name} is already on this hero.`;
+        this.openPower = "";
+        return;
+      }
       const magic = this.#magicCategory(this.powerCategory);
       const needed = magic
         ? this.#spellSlots()
@@ -1642,6 +1700,7 @@ function CreatorApp() {
     }
 
     async #finish() {
+      this.#syncSymbiotePowers();
       const openSpells = this.#spellSlots() - this.#spent("magic");
       const openOrigin = this.#originPowerSlots() - this.#spent("origin");
       if (this.useRom && openSpells > 0) {

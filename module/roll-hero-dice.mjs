@@ -5,6 +5,7 @@ import {
 import { rollD100, promptedD100, promptNextRoll } from "./dice/percentile.mjs";
 import { UPB_COUNT_TABLE } from "./data/upb.mjs";
 import { clampCounts, persistGenerationStats } from "./chargen.mjs";
+import { symbioteAbilityRank } from "./data/symbiote.mjs";
 
 export async function rollHeroDice(actor, {
   originId = "altered", rollOrigin = false, useUpb = false, column = null, originLabel = null, skipOriginMods = false,
@@ -80,6 +81,10 @@ export async function rollHeroDice(actor, {
   if (!skipOriginMods && !useUpb) {
     if (origin.id === "mutant") abilities.endurance = shiftRank(abilities.endurance, 1);
     if (origin.id === "hitech") abilities.reason = shiftRank(abilities.reason, 2);
+    if (origin.id === "symbiote") {
+      abilities.strength = symbioteAbilityRank("strength", abilities.strength);
+      abilities.agility = symbioteAbilityRank("agility", abilities.agility);
+    }
   }
   const numbers = {};
   for (const key of ABILITIES) numbers[key] = rankMin(abilities[key]);
