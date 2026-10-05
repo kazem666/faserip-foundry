@@ -42,7 +42,7 @@ const BLURB = {
   mental: "A mind power. A target usually resists with Psyche.",
   offensive: "The body itself is the weapon.",
   defensive: "Armor, recovery, or a field that keeps damage off Health.",
-  symbiote: "A living coat. The usual powers are already on the hero when this is the origin. This list is for bonds the coat may also know."
+  symbiote: "Further bonds the coat may also know. The starting coat is already on the hero."
 };
 
 const WEAKNESSES = [
@@ -388,6 +388,7 @@ function CreatorApp() {
     }
 
     #powers() {
+      this.#syncSymbiotePowers();
       const originSlots = this.#originPowerSlots();
       const originSpent = this.#spent("origin");
       const spellSlots = this.#spellSlots();
@@ -549,6 +550,7 @@ function CreatorApp() {
       if (action === "pick-origin") {
         this.originId = button.dataset.id;
         this.notice = "";
+        this.#adoptOrigin();
         this.#syncSymbiotePowers();
         this.#reapplyOriginAbilities();
         return this.render();
@@ -727,6 +729,7 @@ function CreatorApp() {
       const row = lookupTable(ORIGIN_TABLE, roll);
       this.originRoll = roll;
       this.originId = row.id;
+      this.#adoptOrigin();
       this.#syncSymbiotePowers();
       this.#reapplyOriginAbilities();
       this.notice = `${originById(row.id).label} (${roll}). You can still pick a different origin.`;
@@ -885,7 +888,9 @@ function CreatorApp() {
       this.#syncSymbiotePowers();
       const shown = this.result.counts;
       this.archetypePowerBudget = Number(shown.powers[0] || 0);
-      const coat = this.powers.some((row) => row.source === "symbiote") ? " The coat's usual powers are already added." : "";
+      const coat = this.#isSymbioteOrigin()
+        ? " Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy are already on this hero."
+        : "";
       this.notice = `Powers ${shown.powers[0]}/${shown.powers[1]}. Talents ${shown.talents[0]}/${shown.talents[1]}. Contacts ${shown.contacts[0]}/${shown.contacts[1]}.${coat}`;
     }
 
@@ -1005,16 +1010,24 @@ function CreatorApp() {
       }
     }
 
+    #isSymbioteOrigin() {
+      return this.#generationContext().origin?.id === "symbiote" || this.result?.origin?.id === "symbiote";
+    }
+
+    #adoptOrigin() {
+      if (!this.result || this.useUpb) return;
+      const { origin, column } = this.#generationContext();
+      this.result.origin = { ...origin, column, notes: origin.notes, label: origin.label };
+      this.result.column = column;
+    }
+
     #syncSymbiotePowers() {
-      const on = !this.useUpb && this.#generationContext().origin?.id === "symbiote";
-      if (!on) {
+      if (!this.#isSymbioteOrigin()) {
         if (this.powers.some((row) => row.source === "symbiote")) {
           this.powers = this.powers.filter((row) => row.source !== "symbiote");
         }
-        this.symbioteGranted = false;
         return;
       }
-      if (this.symbioteGranted) return;
       const have = new Set(this.powers.map((row) => String(row.name || "").toLowerCase()));
       for (const row of symbioteStandardRows()) {
         if (have.has(row.name.toLowerCase())) continue;
@@ -1022,13 +1035,12 @@ function CreatorApp() {
         this.powers.push({
           ...row,
           name: facts.name,
-          definition: facts.definition,
+          definition: `${facts.definition} ${row.bondNote || ""}`.trim(),
           grade: facts.grade,
           bodyArmor: !!facts.bodyArmor,
           forceField: !!facts.forceField
         });
       }
-      this.symbioteGranted = true;
     }
 
     #powerList() {
@@ -1049,7 +1061,7 @@ function CreatorApp() {
         return rows.map((row) => ({ ...powerFacts(row.name, cat.label), slots: row.countsAsTwo ? 2 : powerFacts(row.name, cat.label).slots, lo: row.lo, hi: row.hi, countsAsTwo: !!row.countsAsTwo }));
       }
       if (cat.id === "symbiote") {
-        return SYMBIOTE_BONDS.map((bond) => {
+        return SYMBIOTE_BONDS.filter((bond) => !bond.standard).map((bond) => {
           const facts = powerFacts(bond.power, "Symbiote");
           return { ...facts, definition: `${facts.definition} ${bond.note}`, bondNote: bond.note };
         });

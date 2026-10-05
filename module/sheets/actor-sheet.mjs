@@ -484,7 +484,7 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       if (isUpbEnabled() || this.actor.getFlag("faserip", "generation")?.upb) {
         for (const group of upbCatalogGroups()) catalog["UPB " + group.label] = group.items;
       }
-      catalog.Symbiote = SYMBIOTE_BONDS.map((row) => ({ value: "symbiote::" + row.power, label: row.power }));
+      catalog.Symbiote = SYMBIOTE_BONDS.filter((row) => !row.standard).map((row) => ({ value: "symbiote::" + row.power, label: row.power }));
       return this.createFromCatalog("power", catalog);
     }
     if (type === "talent") {

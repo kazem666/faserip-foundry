@@ -46,6 +46,7 @@ export function symbioteStandardRows() {
     category: "Symbiote",
     rank: "good",
     cost: 0,
+    slotsTaken: 0,
     bondNote: row.note,
     source: "symbiote",
     grade: "Coat"

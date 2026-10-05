@@ -321,7 +321,9 @@ export async function applyGeneration(actor, result, {
       category: power.category ?? "",
       bodyArmor: !!power.bodyArmor,
       forceField: !!power.forceField,
-      slotsTaken: Number(power.slotsTaken ?? power.cost ?? 1) || 1,
+      slotsTaken: power.slotsTaken != null || power.cost != null
+        ? Math.max(0, Number(power.slotsTaken ?? power.cost) || 0)
+        : 1,
       powerType: power.powerType || "",
       definition: power.item ? `${power.definition || power.name} Held in ${power.item.label}.` : (power.definition || ""),
       notes: [power.bondNote || "", power.rankRoll ? `Generation roll ${power.rankRoll}` : "", power.item?.condition || ""].filter(Boolean).join(" ")
