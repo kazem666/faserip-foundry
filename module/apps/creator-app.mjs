@@ -398,8 +398,9 @@ function CreatorApp() {
       const romNote = this.useRom && this.rom?.type?.id === "items"
         ? "Each item holds one working. That item count is the power count."
         : (this.useRom ? "Workings come from the magic table." : "");
+      const originTitle = this.#mutantSource() ? "Mutant powers" : "Origin powers";
       const originNote = originSlots
-        ? `${this.result?.origin?.label || "This origin"} grants ${originSlots} power${originSlots === 1 ? "" : "s"} from the normal lists. That power is a separate source and does not spend a working.`
+        ? `${this.result?.origin?.label || originTitle} keeps ${originSlots} power${originSlots === 1 ? "" : "s"} from the ${this.useUpb ? "Ultimate Powers classes" : "normal lists"}. Pick them here. They do not spend a working.`
         : "";
       if (!this.powerCategory) {
         const table = this.#categoryTable();
@@ -411,19 +412,19 @@ function CreatorApp() {
         };
         const energyLine = this.useRom && this.rom?.energy?.label ? `<p class="creator-fine">Energy: ${esc(this.rom.energy.label)}.</p>` : "";
         const kicker = this.useRom
-          ? `Workings ${spellSpent}/${spellSlots}${originSlots ? ` · Origin powers ${originSpent}/${originSlots}` : ""}`
+          ? `Workings ${spellSpent}/${spellSlots}${originSlots ? ` · ${originTitle} ${originSpent}/${originSlots}` : ""}`
           : `Powers ${spent}/${needed}`;
         const groups = this.useRom
           ? [
-              { title: "Workings", rows: table.filter((row) => this.#magicCategory(row)), roll: "" },
-              originSlots ? { title: "Origin powers", rows: table.filter((row) => !this.#magicCategory(row)), roll: `<button type="button" class="roll-btn" data-action="roll-origin-category">Roll origin category</button>` } : null
+              originSlots ? { title: originTitle, rows: table.filter((row) => !this.#magicCategory(row)), roll: `<button type="button" class="roll-btn" data-action="roll-origin-category">Roll ${esc(originTitle.toLowerCase())}</button>` } : null,
+              { title: "Workings", rows: table.filter((row) => this.#magicCategory(row)), roll: "" }
             ].filter(Boolean)
           : [{ title: "", rows: table, roll: `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>` }];
         const grids = groups.map((group) => {
           const head = group.title ? `<div class="creator-block-head"><h3>${esc(group.title)}</h3>${group.roll}</div>` : "";
           return `${head}<div class="choice-grid">${group.rows.map(card).join("")}</div>`;
         }).join("");
-        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">${esc(kicker)}</p><h2>${this.useRom ? "Choose a working" : "Roll a category, or choose one"}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}${originNote ? `<p class="creator-fine">${esc(originNote)}</p>` : ""}</div>${this.useRom ? "" : groups[0].roll}</div>${tray}${this.useRom ? grids : `<div class="choice-grid">${table.map(card).join("")}</div>`}</section>`;
+        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">${esc(kicker)}</p><h2>${this.useRom ? (originSlots ? `${originTitle}, then workings` : "Choose a working") : "Roll a category, or choose one"}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}${originNote ? `<p class="creator-fine">${esc(originNote)}</p>` : ""}</div>${this.useRom ? "" : groups[0].roll}</div>${tray}${this.useRom ? grids : `<div class="choice-grid">${table.map(card).join("")}</div>`}</section>`;
       }
       const cat = this.powerCategory;
       const magicView = this.#magicCategory(cat);
@@ -669,7 +670,8 @@ function CreatorApp() {
       if (this.step === "powers") {
         const openOrigin = this.#originPowerSlots() - this.#spent("origin");
         if (openOrigin > 0) {
-          this.notice = `Pick the origin power${openOrigin === 1 ? "" : "s"} (${openOrigin} left). It is separate from the workings.`;
+          const label = this.#mutantSource() ? "mutant power" : "origin power";
+          this.notice = `Pick the ${label}${openOrigin === 1 ? "" : "s"} (${openOrigin} left). They sit beside the workings.`;
           return this.render();
         }
         return this.#go("talents", true);
@@ -1001,10 +1003,25 @@ function CreatorApp() {
       return table;
     }
 
+    #mutantSource() {
+      if (this.useUpb) {
+        const form = this.#upbFormRecord();
+        const group = String(form.group || "");
+        const id = String(form.id || "");
+        const label = String(form.label || this.result?.origin?.label || "");
+        return group === "Mutant" || id.startsWith("mutant") || /^mutant\b/i.test(label);
+      }
+      return this.#generationContext().origin?.id === "mutant" || this.result?.origin?.id === "mutant";
+    }
+
     #originPowerSlots() {
       if (!this.useRom) return 0;
+      if (this.#mutantSource()) {
+        if (this.romOrdinary) return Math.max(0, Number(this.romOrdinary[0]) || 0);
+        return Math.max(0, Number(this.result?.counts?.powers?.[0]) || 0);
+      }
       if (this.useUpb) return Math.max(0, Number(this.#upbFormRecord()?.extraPower) || 0);
-      return this.#generationContext().origin?.id === "mutant" ? 1 : 0;
+      return 0;
     }
 
     #spent(kind) {
@@ -1332,7 +1349,7 @@ function CreatorApp() {
       const ordinary = this.romOrdinary ? `The abilities step rolled ${this.romOrdinary[0]} ordinary powers. The workings replace that roll.` : "The ordinary power roll is set aside here.";
       const originSlots = this.#originPowerSlots();
       const originLine = originSlots
-        ? ` ${this.result?.origin?.label || "This origin"} still grants ${originSlots} power${originSlots === 1 ? "" : "s"} from the normal lists, in addition to the workings.`
+        ? ` ${this.result?.origin?.label || "Mutant"} still picks ${originSlots} power${originSlots === 1 ? "" : "s"} from the power classes, in addition to the workings.`
         : "";
       let countLine = "Roll the magic table next.";
       if (rom.type?.id === "items" && rom.itemCount) {
