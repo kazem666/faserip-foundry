@@ -390,14 +390,14 @@ function CreatorApp() {
     #powers() {
       const originSlots = this.#originPowerSlots();
       const originSpent = this.#spent("origin");
-      const spellSlots = this.useRom ? Number(this.result?.counts?.powers?.[0] || 0) : 0;
+      const spellSlots = this.#spellSlots();
       const spellSpent = this.#spent("magic");
       const needed = this.useRom ? spellSlots : Number(this.result?.counts?.powers?.[0] || 0);
       const spent = this.useRom ? spellSpent : this.#spent("all");
       const tray = this.#tray(this.powers, "power");
       const romNote = this.useRom && this.rom?.type?.id === "items"
         ? "Each item holds one working. That item count is the power count."
-        : (this.useRom ? "Workings come from the magic table." : "");
+        : (this.useRom ? "Open Personal, Universal, or Dimensional and take each spell. The school and energy are saved on the hero." : "");
       const originTitle = this.#mutantSource() ? "Mutant powers" : "Origin powers";
       const originNote = originSlots
         ? `${this.result?.origin?.label || originTitle} keeps ${originSlots} power${originSlots === 1 ? "" : "s"} from the ${this.useUpb ? "Ultimate Powers classes" : "normal lists"}. Pick them here. They do not spend a working.`
@@ -412,19 +412,22 @@ function CreatorApp() {
         };
         const energyLine = this.useRom && this.rom?.energy?.label ? `<p class="creator-fine">Energy: ${esc(this.rom.energy.label)}.</p>` : "";
         const kicker = this.useRom
-          ? `Workings ${spellSpent}/${spellSlots}${originSlots ? ` · ${originTitle} ${originSpent}/${originSlots}` : ""}`
+          ? `Spells ${spellSpent}/${spellSlots}${originSlots ? ` · ${originTitle} ${originSpent}/${originSlots}` : ""}`
           : `Powers ${spent}/${needed}`;
         const groups = this.useRom
           ? [
-              originSlots ? { title: originTitle, rows: table.filter((row) => !this.#magicCategory(row)), roll: `<button type="button" class="roll-btn" data-action="roll-origin-category">Roll ${esc(originTitle.toLowerCase())}</button>` } : null,
-              { title: "Workings", rows: table.filter((row) => this.#magicCategory(row)), roll: "" }
+              { title: "Spells", rows: table.filter((row) => this.#magicCategory(row)), roll: "" },
+              originSlots ? { title: originTitle, rows: table.filter((row) => !this.#magicCategory(row)), roll: `<button type="button" class="roll-btn" data-action="roll-origin-category">Roll ${esc(originTitle.toLowerCase())}</button>` } : null
             ].filter(Boolean)
           : [{ title: "", rows: table, roll: `<button type="button" class="roll-btn" data-action="roll-category">Roll category</button>` }];
         const grids = groups.map((group) => {
           const head = group.title ? `<div class="creator-block-head"><h3>${esc(group.title)}</h3>${group.roll}</div>` : "";
           return `${head}<div class="choice-grid">${group.rows.map(card).join("")}</div>`;
         }).join("");
-        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">${esc(kicker)}</p><h2>${this.useRom ? (originSlots ? `${originTitle}, then workings` : "Choose a working") : "Roll a category, or choose one"}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}${originNote ? `<p class="creator-fine">${esc(originNote)}</p>` : ""}</div>${this.useRom ? "" : groups[0].roll}</div>${tray}${this.useRom ? grids : `<div class="choice-grid">${table.map(card).join("")}</div>`}</section>`;
+        const heading = this.useRom
+          ? (originSlots ? `Spells, then ${originTitle.toLowerCase()}` : "Choose a spell")
+          : "Roll a category, or choose one";
+        return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">${esc(kicker)}</p><h2>${esc(heading)}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}${originNote ? `<p class="creator-fine">${esc(originNote)}</p>` : ""}</div>${this.useRom ? "" : groups[0].roll}</div>${tray}${this.useRom ? grids : `<div class="choice-grid">${table.map(card).join("")}</div>`}</section>`;
       }
       const cat = this.powerCategory;
       const magicView = this.#magicCategory(cat);
@@ -495,7 +498,10 @@ function CreatorApp() {
       const talents = this.talents.map((row) => `<li>${esc(row.name)}</li>`).join("");
       const contacts = this.contacts.map((row) => `<li>${esc(row.name)} <em>${esc(row.type)}</em></li>`).join("");
       const weak = WEAKNESSES.map((name) => `<option value="${esc(name)}" ${name === this.weakness ? "selected" : ""}>${esc(name)}</option>`).join("");
-      return `<section class="creator-block"><p class="creator-kicker">Ready</p><h2>${esc(this.name)}</h2><p class="creator-lead">${esc(this.result?.origin?.label || "")}${this.publicId ? ` · ${esc(this.publicId)}` : ""}</p><div class="review-cols"><div><h3>Powers</h3><ul>${powers || "<li>None</li>"}</ul></div><div><h3>Talents</h3><ul>${talents || "<li>None</li>"}</ul></div><div><h3>Contacts</h3><ul>${contacts || "<li>None</li>"}</ul></div></div><label>Weakness<select name="weakness">${weak}</select></label><label>Notes<input name="weaknessNotes" type="text" value="${esc(this.weaknessNotes)}" /></label></section>`;
+      const magicLine = this.useRom && this.rom
+        ? `<p class="creator-fine">${esc([this.rom.school?.label, this.rom.energy?.label, this.rom.type?.label].filter(Boolean).join(" · "))}</p>`
+        : "";
+      return `<section class="creator-block"><p class="creator-kicker">Ready</p><h2>${esc(this.name)}</h2><p class="creator-lead">${esc(this.result?.origin?.label || "")}${this.publicId ? ` · ${esc(this.publicId)}` : ""}</p>${magicLine}<div class="review-cols"><div><h3>Powers</h3><ul>${powers || "<li>None</li>"}</ul></div><div><h3>Talents</h3><ul>${talents || "<li>None</li>"}</ul></div><div><h3>Contacts</h3><ul>${contacts || "<li>None</li>"}</ul></div></div><label>Weakness<select name="weakness">${weak}</select></label><label>Notes<input name="weaknessNotes" type="text" value="${esc(this.weaknessNotes)}" /></label></section>`;
     }
 
     #tray(list, kind) {
@@ -668,10 +674,15 @@ function CreatorApp() {
         return this.#go("powers", true);
       }
       if (this.step === "powers") {
+        const openSpells = this.#spellSlots() - this.#spent("magic");
+        if (this.useRom && openSpells > 0) {
+          this.notice = `Pick the spells (${openSpells} left) from Personal, Universal, or Dimensional. The school and energy are already chosen.`;
+          return this.render();
+        }
         const openOrigin = this.#originPowerSlots() - this.#spent("origin");
         if (openOrigin > 0) {
           const label = this.#mutantSource() ? "mutant power" : "origin power";
-          this.notice = `Pick the ${label}${openOrigin === 1 ? "" : "s"} (${openOrigin} left). They sit beside the workings.`;
+          this.notice = `Pick the ${label}${openOrigin === 1 ? "" : "s"} (${openOrigin} left). They sit beside the spells.`;
           return this.render();
         }
         return this.#go("talents", true);
@@ -1014,6 +1025,13 @@ function CreatorApp() {
       return this.#generationContext().origin?.id === "mutant" || this.result?.origin?.id === "mutant";
     }
 
+    #spellSlots() {
+      if (!this.useRom) return 0;
+      const saved = Number(this.rom?.spellCount || 0);
+      if (saved) return saved;
+      return Number(this.result?.counts?.powers?.[0] || 0);
+    }
+
     #originPowerSlots() {
       if (!this.useRom) return 0;
       if (this.#mutantSource()) {
@@ -1094,7 +1112,7 @@ function CreatorApp() {
       if (!row || !this.result) return;
       const magic = this.#magicCategory(this.powerCategory);
       const needed = magic
-        ? Number(this.result.counts.powers[0] || 0)
+        ? this.#spellSlots()
         : (this.useRom ? this.#originPowerSlots() : Number(this.result.counts.powers[0] || 0));
       const spent = magic ? this.#spent("magic") : (this.useRom ? this.#spent("origin") : this.#spent("all"));
       const cost = row.slots > 1 ? 2 : 1;
@@ -1596,8 +1614,11 @@ function CreatorApp() {
       const lines = [
         `<p><strong>School:</strong> ${rom.school?.label || ""} — ${rom.school?.notes || ""}</p>`,
         `<p><strong>Path:</strong> ${rom.type?.label || ""}</p>`,
+        `<p><strong>Energy:</strong> ${rom.energy?.label || ""}</p>`,
         `<p><strong>Mastery:</strong> ${mastery.label}</p>`
       ];
+      const spells = this.powers.filter((row) => row.powerType === "Realms of Magic").map((row) => row.name);
+      if (spells.length) lines.push(`<p><strong>Spells:</strong> ${spells.join(", ")}</p>`);
       if (rom.enhancement) lines.push(`<p><strong>Enhancement:</strong> ${(rom.raisedKeys || []).join(", ")} +${rom.enhancement.raise} CS. ${rom.enhancement.condition?.label || ""}</p>`);
       if (this.romMaster) lines.push(`<p><strong>Master:</strong> ${this.romMaster}</p>`);
       if (rom.cache) {
@@ -1621,6 +1642,19 @@ function CreatorApp() {
     }
 
     async #finish() {
+      const openSpells = this.#spellSlots() - this.#spent("magic");
+      const openOrigin = this.#originPowerSlots() - this.#spent("origin");
+      if (this.useRom && openSpells > 0) {
+        this.step = "powers";
+        this.notice = `Pick the spells (${openSpells} left) from Personal, Universal, or Dimensional before finishing.`;
+        return this.render();
+      }
+      if (this.useRom && openOrigin > 0) {
+        this.step = "powers";
+        const label = this.#mutantSource() ? "mutant powers" : "origin powers";
+        this.notice = `Pick the remaining ${label} (${openOrigin} left) before finishing.`;
+        return this.render();
+      }
       await this.#ensureActor();
       const actor = this.actor;
       const weakness = !this.weakness || this.weakness === "None"
@@ -1667,6 +1701,7 @@ function CreatorApp() {
         upb: !!this.useUpb,
         rom: !!this.useRom,
         school: this.rom?.school?.label || "",
+        energy: this.rom?.energy?.label || "",
         magicType: this.rom?.type?.label || "",
         powers: this.powers.map((row) => row.name),
         talents: this.talents.map((row) => row.name),
