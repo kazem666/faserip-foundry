@@ -9,7 +9,7 @@ import { cleanPowerName, isTwoSlotPower } from "../data/slots.mjs";
 import { describeItemAction } from "../item-actions.mjs";
 import { rollD100 } from "../dice/percentile.mjs";
 import { clampCounts, persistGenerationStats, applyGeneration } from "../chargen.mjs";
-import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES } from "../life.mjs";
+import { archetypeSetup, tuneArchetypeResult, ARCHETYPE_CHOICES, packagePowers, promptArchetypeExtras, pickMartialPowers, pickImplants, vampireWeakness } from "../life.mjs";
 import { BUILDS, CALLINGS, QUIRKS, STATURE, band, heightAndWeight, statureText } from "../data/archetypes.mjs";
 import { isUpbEnabled } from "../data/upb.mjs";
 import { SYMBIOTE_BONDS } from "../data/symbiote.mjs";
@@ -114,6 +114,7 @@ function CreatorApp() {
       this.useUpb = isUpbEnabled();
       this.useUltimateTalents = isUltimateTalentsEnabled();
       this.useRom = isRomEnabled();
+      this.useHitech = false;
       this.rom = null;
       this.romOrdinary = null;
       this.romMaster = "";
@@ -164,7 +165,13 @@ function CreatorApp() {
     }
 
     get steps() {
-      if (this.special) return STEPS.slice(0, 3);
+      if (this.special && !this.#extraPath()) return STEPS.slice(0, 3);
+      if (this.#extraPath() && !this.useRom) {
+        const withPowers = this.archetype === "elder" || this.archetype === "spaceknight";
+        return withPowers
+          ? [STEPS[0], STEPS[1], STEPS[2], STEPS[3], STEPS[4], STEPS[5], STEPS[6]]
+          : [STEPS[0], STEPS[1], STEPS[2], STEPS[4], STEPS[5], STEPS[6]];
+      }
       if (!this.useRom) return STEPS;
       return [
         STEPS[0], STEPS[1], STEPS[2],
@@ -172,6 +179,14 @@ function CreatorApp() {
         { id: "powers", label: "Workings" },
         STEPS[4], STEPS[5], STEPS[6]
       ];
+    }
+
+    #dualArchetype() {
+      return ["vampire", "elder", "spaceknight", "martial", "cyborg"].includes(this.archetype);
+    }
+
+    #extraPath() {
+      return this.#dualArchetype() && (this.useRom || this.useHitech);
     }
 
     async close(options) {
@@ -296,6 +311,7 @@ function CreatorApp() {
             <label class="check"><input name="useUpb" type="checkbox" ${this.useUpb ? "checked" : ""} /> Ultimate Powers Book tables</label>
             <label class="check"><input name="useUltimateTalents" type="checkbox" ${this.useUltimateTalents ? "checked" : ""} /> Ultimate Talents list</label>
             <label class="check"><input name="useRom" type="checkbox" ${this.useRom ? "checked" : ""} /> Realms of Magic path</label>
+            <label class="check"><input name="useHitech" type="checkbox" ${this.useHitech ? "checked" : ""} /> High-tech gear</label>
             <label>Archetype<select name="archetype">${books}</select></label>
           </div>
           <div class="life-row">
@@ -307,7 +323,7 @@ function CreatorApp() {
             ${this.#lifeDie("roll-stature", "Stature", this.stature?.height, this.stature ? statureText(this.stature) : "Height. Weight is scaled by Strength.")}
           </div>
           ${this.#bodyLine()}
-          <p class="creator-fine">Hover a result to read it. An archetype other than Standard hero, or Realms of Magic, leaves this creator after Abilities.</p>
+          <p class="creator-fine">Vampire, elder, spaceknight, martial artist, and cyborg keep their own powers. Check Realms of Magic, High-tech gear, or both to add that second source. Leave both off and this creator ends after Abilities.</p>
         </section>`;
     }
 
@@ -491,7 +507,7 @@ function CreatorApp() {
       const index = this.#stepIndex();
       const back = index > 0 ? `<button type="button" class="text-btn" data-action="back">Back</button>` : `<span></span>`;
       let next = "Next";
-      if (this.step === "abilities" && this.special) next = "Continue this path";
+      if (this.step === "abilities" && this.special && !this.#extraPath()) next = "Continue this path";
       if (this.step === "review") next = "Finish hero";
       if (this.step === "powers" || this.step === "talents" || this.step === "contacts") next = "Next";
       return `${back}<button type="button" class="roll-btn" data-action="next" ${this.busy ? "disabled" : ""}>${next}</button>`;
@@ -502,7 +518,7 @@ function CreatorApp() {
       if (!el?.name) return;
       if (el.type === "checkbox") this[el.name] = !!el.checked;
       else this[el.name] = el.value;
-      if (el.name === "useUpb" || el.name === "useRom" || el.name === "archetype") this.render();
+      if (el.name === "useUpb" || el.name === "useRom" || el.name === "useHitech" || el.name === "archetype") this.render();
     }
 
     async #onClick(event) {
@@ -635,9 +651,9 @@ function CreatorApp() {
           this.notice = "Roll how many powers, talents, and contacts.";
           return this.render();
         }
-        if (this.special) return this.#guard(() => this.#handOff());
+        if (this.special && !this.#extraPath()) return this.#guard(() => this.#handOff());
         if (this.useRom) return this.#go("magic", true);
-        return this.#go("powers", true);
+        return this.#go(this.steps[this.#stepIndex() + 1].id, true);
       }
       if (this.step === "magic") {
         const ready = this.#romReady();
@@ -849,6 +865,7 @@ function CreatorApp() {
       }
       await persistGenerationStats(actor, this.result, { quiet: true, originLabel: this.result.origin.label });
       const shown = this.result.counts;
+      this.archetypePowerBudget = Number(shown.powers[0] || 0);
       this.notice = `Powers ${shown.powers[0]}/${shown.powers[1]}. Talents ${shown.talents[0]}/${shown.talents[1]}. Contacts ${shown.contacts[0]}/${shown.contacts[1]}.`;
     }
 
@@ -1573,12 +1590,27 @@ function CreatorApp() {
       await actor.update({ "system.notes": lines.join("") + (actor.system.notes || "") });
     }
 
+    async #attachArchetype(actor) {
+      const id = this.archetype;
+      await promptArchetypeExtras(actor, this.result, id);
+      if (id === "martial") {
+        const martial = (await pickMartialPowers(actor, this.archetypePowerBudget ?? this.result?.counts?.powers?.[0] ?? 0)) || [];
+        for (const row of martial) this.powers.push({ ...row, cost: 0, source: "archetype", powerType: "" });
+      }
+      if (id === "cyborg") await pickImplants(actor);
+      for (const row of packagePowers(id)) {
+        this.powers.push({ ...row, category: row.category || "Archetype", cost: 0, source: "archetype", powerType: "" });
+      }
+    }
+
     async #finish() {
       await this.#ensureActor();
       const actor = this.actor;
       const weakness = !this.weakness || this.weakness === "None"
         ? ""
         : (this.weaknessNotes ? `${this.weakness}: ${this.weaknessNotes}` : this.weakness);
+      const fullWeakness = this.archetype === "vampire" ? [weakness, vampireWeakness()].filter(Boolean).join(" ") : weakness;
+      if (this.#dualArchetype()) await this.#attachArchetype(actor);
       const canRaise = this.result?.origin?.id === "altered" || this.result?.formRaiseOne;
       await applyGeneration(actor, this.result, {
         raiseAbility: canRaise ? (this.raise || null) : null,
@@ -1586,13 +1618,19 @@ function CreatorApp() {
         powers: this.powers,
         talents: this.talents,
         contacts: this.contacts,
-        weakness
+        weakness: fullWeakness
       });
       if (this.useRom && this.rom) await this.#writeRom(actor);
       let purchasedGear = [];
       try {
         const { pickStartingShop } = await import("../wizard-shop.mjs");
-        purchasedGear = (await pickStartingShop(actor, this.result)) || [];
+        const shopResult = { ...this.result };
+        if (this.useHitech && rankIndex(shopResult.resources) < rankIndex("good")) shopResult.resources = "good";
+        purchasedGear = (await pickStartingShop(actor, shopResult)) || [];
+        if (this.useHitech) {
+          const note = "<p><strong>High-tech gear:</strong> Starting purchases used at least Good Resources.</p>";
+          await actor.update({ "system.notes": note + (actor.system.notes || "") });
+        }
       } catch (err) {
         console.warn("FASERIP | starting shop skipped", err);
       }
@@ -1616,7 +1654,7 @@ function CreatorApp() {
         powers: this.powers.map((row) => row.name),
         talents: this.talents.map((row) => row.name),
         contacts: this.contacts.map((row) => row.name),
-        weakness,
+        weakness: fullWeakness,
         gear: purchasedGear,
         powerCount: this.result.counts.powers,
         talentCount: this.result.counts.talents,
