@@ -44,7 +44,15 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.39";
+const VERSION = "1.18.40";
+const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
+
+function applyUiTheme(value) {
+  const theme = UI_THEMES.includes(value) ? value : "classic";
+  const root = document.documentElement;
+  for (const name of UI_THEMES) root.classList.remove(`faserip-theme-${name}`);
+  root.classList.add(`faserip-theme-${theme}`);
+}
 
 async function seedRollTables(opts = {}) {
   try {
@@ -450,6 +458,22 @@ Hooks.once("init", () => {
     } catch (err) {
       console.warn("FASERIP | helper register", err);
     }
+    game.settings.register("faserip", "uiTheme", {
+      name: "Interface theme",
+      hint: "Colors for sheets, chat cards, dialogs, and the character builder. Each player chooses their own.",
+      scope: "client",
+      config: true,
+      type: String,
+      choices: {
+        classic: "Classic",
+        fourcolor: "Four-Color",
+        pulp: "Pulp",
+        dark: "Dark"
+      },
+      default: "classic",
+      onChange: applyUiTheme
+    });
+    applyUiTheme(game.settings.get("faserip", "uiTheme"));
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls.",

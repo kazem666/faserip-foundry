@@ -1,15 +1,176 @@
 @import url("https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@400;600&family=Source+Sans+3:wght@400;600;700&display=swap");
 
-.faserip.sheet,
-.faserip-chat {
+/* Sheet, chat, and dialog colors. A theme class on <html> replaces this set. */
+html {
   --ink: #141414;
   --paper: #f6f1e4;
   --panel: #fffdf6;
+  --field: #ffffff;
   --rule: #1b1b1b;
   --blue: #1d4ed8;
   --gold: #eab308;
+  --gold-hot: #facc15;
+  --on-gold: #141414;
   --red: #b91c1c;
   --green: #15803d;
+  --fill-red: #b91c1c;
+  --fill-blue: #1d4ed8;
+  --coat: #9a3412;
+  --pop: #7c3aed;
+  --muted: #dddddd;
+  --line: #cccccc;
+  --soft: #333333;
+  --banner: #111111;
+  --banner-ink: #ffffff;
+  --shadow: #111111;
+  --tab: #dddddd;
+  --char: #1e3a8a;
+  --vital: #b91c1c;
+  --bio: #15803d;
+  --strike: #9d0208;
+  --defense: #1d4ed8;
+  --talent: #7c3a00;
+  --card: #fffdf6;
+  --card-hover: #ffe14a;
+  --condition: #3d1515;
+  --condition-ink: #ffffff;
+  --dash: #bbbbbb;
+  --pip: #eeeeee;
+  --profile: #dddddd;
+  --ability: #141414;
+  --ability-ink: #ffffff;
+  --link: #efe6d2;
+  --link-line: #8a7040;
+}
+
+html.faserip-theme-fourcolor,
+.faserip-theme-fourcolor {
+  --ink: #0b1f4a;
+  --paper: #fffef8;
+  --panel: #ffffff;
+  --field: #fffdf2;
+  --rule: #0b1f4a;
+  --blue: #1d4ed8;
+  --gold: #f5c400;
+  --gold-hot: #ffe14a;
+  --on-gold: #0b1f4a;
+  --red: #d0121a;
+  --green: #0f7a32;
+  --fill-red: #d0121a;
+  --fill-blue: #1d4ed8;
+  --coat: #c2410c;
+  --pop: #6d28d9;
+  --muted: #e8eef8;
+  --line: #c5d0e6;
+  --soft: #1e3a8a;
+  --banner: #d0121a;
+  --banner-ink: #ffffff;
+  --shadow: #0b1f4a;
+  --tab: #dbe7ff;
+  --char: #1d4ed8;
+  --vital: #d0121a;
+  --bio: #0f7a32;
+  --strike: #d0121a;
+  --defense: #1d4ed8;
+  --talent: #b45309;
+  --card: #fff8d0;
+  --card-hover: #ffe14a;
+  --condition: #7f1d1d;
+  --condition-ink: #ffffff;
+  --dash: #93a4c8;
+  --pip: #e8eef8;
+  --profile: #dbe7ff;
+  --ability: #0b1f4a;
+  --ability-ink: #ffffff;
+  --link: #fff3b0;
+  --link-line: #0b1f4a;
+}
+
+html.faserip-theme-pulp,
+.faserip-theme-pulp {
+  --ink: #2a1c12;
+  --paper: #e7d3b0;
+  --panel: #f3e6cc;
+  --field: #faf3e4;
+  --rule: #5c3b22;
+  --blue: #2f4a5c;
+  --gold: #c4a15a;
+  --gold-hot: #d4b56a;
+  --on-gold: #2a1c12;
+  --red: #8c3a2f;
+  --green: #3f6b45;
+  --fill-red: #8c3a2f;
+  --fill-blue: #2f4a5c;
+  --coat: #7a4a28;
+  --pop: #6b4c7a;
+  --muted: #d7c4a4;
+  --line: #c4ae8c;
+  --soft: #4a3424;
+  --banner: #3b2918;
+  --banner-ink: #f3e6cc;
+  --shadow: #3b2918;
+  --tab: #d7c4a4;
+  --char: #3d5a4c;
+  --vital: #8c3a2f;
+  --bio: #3f6b45;
+  --strike: #8c3a2f;
+  --defense: #2f4a5c;
+  --talent: #7a4a28;
+  --card: #f3e6cc;
+  --card-hover: #e2c98a;
+  --condition: #4a241c;
+  --condition-ink: #f3e6cc;
+  --dash: #b89a74;
+  --pip: #e7d3b0;
+  --profile: #d7c4a4;
+  --ability: #3b2918;
+  --ability-ink: #f3e6cc;
+  --link: #f3e6cc;
+  --link-line: #5c3b22;
+}
+
+html.faserip-theme-dark,
+.faserip-theme-dark {
+  color-scheme: dark;
+  --ink: #f3ead7;
+  --paper: #1a1614;
+  --panel: #241f1c;
+  --field: #2c2622;
+  --rule: #e2b657;
+  --blue: #7dd3fc;
+  --gold: #e2b657;
+  --gold-hot: #f0d48a;
+  --on-gold: #1a120c;
+  --red: #fca5a5;
+  --green: #86efac;
+  --fill-red: #b91c1c;
+  --fill-blue: #1d4ed8;
+  --coat: #fdba74;
+  --pop: #c4b5fd;
+  --muted: #3a332c;
+  --line: #4a4036;
+  --soft: #d9cbb6;
+  --banner: #0e0c0b;
+  --banner-ink: #f3ead7;
+  --shadow: #000000;
+  --tab: #2c2622;
+  --char: #7dd3fc;
+  --vital: #f87171;
+  --bio: #4ade80;
+  --strike: #fca5a5;
+  --defense: #7dd3fc;
+  --talent: #f0d48a;
+  --card: #2c2622;
+  --card-hover: #3d3428;
+  --condition: #451a1a;
+  --condition-ink: #fecaca;
+  --dash: #5c5146;
+  --pip: #3a332c;
+  --profile: #3a332c;
+  --ability: #0e0c0b;
+  --ability-ink: #f3ead7;
+  --link: #3a2a16;
+  --link-line: #e2b657;
 }
 
 .faserip.sheet .window-content {
@@ -62,7 +223,7 @@
   flex: 0 0 72px;
   border: 3px solid var(--rule);
   object-fit: cover;
-  background: #ddd;
+  background: var(--profile);
 }
 
 .faserip-sheet .header-fields {
@@ -100,7 +261,8 @@
   border: 2px solid var(--rule) !important;
   outline: none !important;
   box-shadow: none !important;
-  background: #fff !important;
+  background: var(--field) !important;
+  color: var(--ink) !important;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
@@ -145,14 +307,14 @@
   text-transform: uppercase;
   border: 2px solid var(--rule);
   background: var(--gold);
-  color: var(--ink);
+  color: var(--on-gold);
   height: 28px;
   cursor: pointer;
 }
 
 .faserip-sheet .panel-grid { display: grid; gap: 10px; }
 .faserip-sheet .panel-grid.two { grid-template-columns: 1fr 1fr; }
-.faserip-sheet .panel { border: 3px solid var(--rule); background: #fff; padding: 8px; }
+.faserip-sheet .panel { border: 3px solid var(--rule); background: var(--panel); padding: 8px; }
 .faserip-sheet .panel h2 {
   font-family: "Bangers", Impact, sans-serif;
   font-size: 20px;
@@ -160,10 +322,10 @@
   margin: 0 0 8px;
   border-bottom: 2px solid var(--rule);
 }
-.faserip-sheet .panel.characteristics { border-color: #1e3a8a; }
-.faserip-sheet .panel.vitals { border-color: #b91c1c; }
-.faserip-sheet .panel.description { border-color: #b91c1c; }
-.faserip-sheet .panel.biography-fields { border-color: #15803d; }
+.faserip-sheet .panel.characteristics { border-color: var(--char); }
+.faserip-sheet .panel.vitals { border-color: var(--vital); }
+.faserip-sheet .panel.description { border-color: var(--vital); }
+.faserip-sheet .panel.biography-fields { border-color: var(--bio); }
 .faserip-sheet .id-grid.three { grid-template-columns: 1fr 1fr 1fr; }
 .faserip-sheet .record-grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .faserip-sheet label {
@@ -180,7 +342,8 @@
   font-family: "Source Sans 3", "Oswald", sans-serif;
   font-size: 13px;
   border: 2px solid var(--rule);
-  background: white;
+  background: var(--field);
+  color: var(--ink);
   height: 26px;
   line-height: 22px;
   padding: 0 6px;
@@ -224,11 +387,11 @@
   letter-spacing: 1px;
 }
 .faserip-sheet .stat-box.health header { color: var(--red); }
-.faserip-sheet .stat-box.coat header { color: #9a3412; }
+.faserip-sheet .stat-box.coat header { color: var(--coat); }
 .faserip-sheet .coat-note { margin: 4px 0 0; font-size: 11px; line-height: 1.3; }
 .faserip-sheet .stat-box.karma header { color: var(--blue); }
 .faserip-sheet .stat-box.resources header { color: var(--green); }
-.faserip-sheet .stat-box.popularity header { color: #7c3aed; }
+.faserip-sheet .stat-box.popularity header { color: var(--pop); }
 .faserip-sheet .stat-values {
   display: flex;
   align-items: center;
@@ -238,9 +401,10 @@
   font-size: 20px;
 }
 .faserip-sheet .stat-values input { width: 64px; text-align: center; }
-.faserip-sheet .bar { height: 8px; background: #ddd; border: 1px solid var(--rule); margin: 4px 0; }
-.faserip-sheet .health .bar span { display: block; height: 100%; background: var(--red); }
-.faserip-sheet .karma .bar span { display: block; height: 100%; background: var(--blue); }
+.faserip-sheet .bar { height: 8px; background: var(--muted); border: 1px solid var(--rule); margin: 4px 0; }
+.faserip-sheet .health .bar span,
+.faserip-sheet .coat .bar span { display: block; height: 100%; background: var(--fill-red); }
+.faserip-sheet .karma .bar span { display: block; height: 100%; background: var(--fill-blue); }
 .faserip-sheet .ability-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -248,13 +412,13 @@
 }
 .faserip-sheet .ability-card {
   border: 3px solid var(--rule);
-  background: white;
+  background: var(--panel);
   display: flex;
   flex-direction: column;
 }
 .faserip-sheet .ability-roll {
-  background: var(--ink);
-  color: white;
+  background: var(--ability);
+  color: var(--ability-ink);
   border: none;
   border-radius: 0;
   padding: 6px 2px;
@@ -273,7 +437,7 @@
   white-space: normal;
   line-height: 1.2;
 }
-.faserip-sheet .ability-roll:hover { background: var(--red); }
+.faserip-sheet .ability-roll:hover { background: var(--fill-red); color: #fff; }
 .faserip-sheet .toolbox {
   display: flex;
   flex-wrap: wrap;
@@ -290,18 +454,18 @@
   text-transform: uppercase;
   border: 2px solid var(--rule);
   background: var(--gold);
-  color: var(--ink);
+  color: var(--on-gold);
   height: 26px;
   line-height: 22px;
   cursor: pointer;
 }
 .faserip-sheet .toolbox button:hover,
-.faserip-sheet button.create:hover { background: #facc15; }
+.faserip-sheet button.create:hover { background: var(--gold-hot); }
 .faserip-sheet .condition-banner {
   margin: 6px 0;
   padding: 6px 8px;
-  background: #3d1515;
-  color: #fff;
+  background: var(--condition);
+  color: var(--condition-ink);
   border-radius: 4px;
 }
 .faserip-sheet .advancement-actions {
@@ -315,7 +479,7 @@
   text-transform: uppercase;
   border: 2px solid var(--rule);
   background: var(--gold);
-  color: var(--ink);
+  color: var(--on-gold);
   height: 26px;
   line-height: 22px;
   cursor: pointer;
@@ -347,12 +511,12 @@
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   color: var(--ink);
-  background: #fffdf6;
-  border: 3px solid #111;
-  box-shadow: 3px 3px 0 #111;
+  background: var(--card);
+  border: 3px solid var(--rule);
+  box-shadow: 3px 3px 0 var(--shadow);
   cursor: pointer;
 }
-.faserip-sheet button.action-card:hover { background: #ffe14a; }
+.faserip-sheet button.action-card:hover { background: var(--card-hover); }
 .faserip-sheet .action-name {
   font-size: 15px;
   letter-spacing: 0.03em;
@@ -364,13 +528,13 @@
   line-height: 1.2;
   text-transform: none;
   letter-spacing: 0;
-  color: #333;
+  color: var(--soft);
 }
-.faserip-sheet .group-strikes h2 { color: #9d0208; }
-.faserip-sheet .group-defense h2 { color: #1d4ed8; }
+.faserip-sheet .group-strikes h2 { color: var(--strike); }
+.faserip-sheet .group-defense h2 { color: var(--defense); }
 .faserip-sheet .group-powers h2,
 .faserip-sheet .group-weapons h2,
-.faserip-sheet .group-talents h2 { color: #7c3a00; }
+.faserip-sheet .group-talents h2 { color: var(--talent); }
 .faserip-sheet .sheet-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -381,12 +545,13 @@
   padding: 6px 12px;
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
-  background: #ddd;
+  background: var(--tab);
+  color: var(--ink);
   border: 2px solid var(--rule);
   border-bottom: none;
   cursor: pointer;
 }
-.faserip-sheet .sheet-tabs .item.active { background: var(--gold); }
+.faserip-sheet .sheet-tabs .item.active { background: var(--gold); color: var(--on-gold); }
 .faserip-sheet .sheet-body {
   flex: 1;
   min-height: 180px;
@@ -402,30 +567,30 @@
   grid-template-columns: 28px 1fr auto auto 22px 22px;
   gap: 6px;
   align-items: center;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid var(--line);
   padding: 4px 0;
 }
 .faserip-sheet .item-list img { width: 24px; height: 24px; border: 1px solid var(--rule); }
 .faserip-sheet .shots-left { font-variant-numeric: tabular-nums; font-size: 12px; }
-.faserip-sheet .shots-left.empty { color: #c92a2a; font-weight: 700; }
+.faserip-sheet .shots-left.empty { color: var(--red); font-weight: 700; }
 .faserip-sheet .item-rank { font-family: "Oswald", sans-serif; text-transform: uppercase; font-size: 12px; }
 .faserip-item-sheet .sheet-header { display: flex; gap: 10px; margin-bottom: 10px; }
 .faserip-item-sheet img { width: 64px; height: 64px; border: 3px solid var(--rule); }
-.faserip-chat { font-family: "Source Sans 3", sans-serif; border: 3px solid #111; background: #fffdf6; }
+.faserip-chat { font-family: "Source Sans 3", sans-serif; border: 3px solid var(--rule); background: var(--panel); color: var(--ink); }
 .faserip-chat header {
   display: flex;
   justify-content: space-between;
   padding: 6px 8px;
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
-  background: #111;
-  color: white;
+  background: var(--banner);
+  color: var(--banner-ink);
 }
 .faserip-chat .result-chip {
   font-family: "Bangers", Impact, sans-serif;
   letter-spacing: 1px;
   padding: 0 6px;
-  border: 2px solid #111;
+  border: 2px solid var(--rule);
   line-height: 1.2;
 }
 .faserip-chat .feat-facts {
@@ -439,8 +604,9 @@
 .faserip-chat .target-pill {
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
-  border: 2px solid #111;
-  background: #fff;
+  border: 2px solid var(--rule);
+  background: var(--field);
+  color: var(--ink);
   cursor: pointer;
   padding: 0 6px;
 }
@@ -450,7 +616,7 @@
   font-size: 28px;
   letter-spacing: 2px;
   padding: 8px;
-  border-bottom: 3px solid #111;
+  border-bottom: 3px solid var(--rule);
 }
 .faserip-chat .result-banner.white, .faserip-chat .result-chip.white { background: #f4f0e6; color: #111; }
 .faserip-chat .result-banner.green, .faserip-chat .result-chip.green { background: #22c55e; color: #052e16; }
@@ -461,8 +627,9 @@
 .faserip-chat .feat-actions button {
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
-  border: 2px solid #111;
-  background: #facc15;
+  border: 2px solid var(--rule);
+  background: var(--gold);
+  color: var(--on-gold);
   cursor: pointer;
 }
 button.faserip-award {
@@ -471,9 +638,9 @@ button.faserip-award {
   font-weight: 700;
   font-family: Oswald, sans-serif;
   text-transform: uppercase;
-  background: #fff;
-  color: #111;
-  border: 2px solid #111;
+  background: var(--field);
+  color: var(--ink);
+  border: 2px solid var(--rule);
   cursor: pointer;
 }
 .faserip-sheet .pending-shift { margin: 4px 0 0; font-weight: 700; }
@@ -488,7 +655,7 @@ button.faserip-award {
 }
 .faserip-sheet .derived-row div {
   border: 2px solid var(--rule);
-  background: white;
+  background: var(--field);
   padding: 2px 8px;
 }
 .faserip-sheet .ability-card input[type="number"] {
@@ -555,12 +722,14 @@ button.faserip-award {
   width: 100%;
   min-height: 52px;
   border: 2px solid var(--rule);
+  background: var(--field);
+  color: var(--ink);
   font-family: "Source Sans 3", sans-serif;
   padding: 4px 6px;
 }
 .faserip-sheet .record-card {
   border: 3px solid var(--rule);
-  background: #fff;
+  background: var(--panel);
   padding: 8px;
   margin: 8px 0;
 }
@@ -615,17 +784,17 @@ button.faserip-award {
   text-transform: none;
   letter-spacing: 0;
 }
-.faserip-sheet .slots { background: var(--gold); border: 2px solid var(--rule); padding: 0 6px; font-size: 12px; }
+.faserip-sheet .slots { background: var(--gold); color: var(--on-gold); border: 2px solid var(--rule); padding: 0 6px; font-size: 12px; }
 .faserip-sheet .attempt-pips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
 .faserip-sheet .pip {
   width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--rule);
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; background: #eee;
+  font-size: 10px; font-weight: 700; background: var(--pip); color: var(--ink);
 }
 .faserip-sheet .pip.on { background: #22c55e; color: #052e16; }
-.faserip-sheet .mastered { background: var(--red); color: #fff; padding: 1px 6px; font-family: "Oswald", sans-serif; text-transform: uppercase; }
+.faserip-sheet .mastered { background: var(--fill-red); color: #fff; padding: 1px 6px; font-family: "Oswald", sans-serif; text-transform: uppercase; }
 .faserip-sheet .mini-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
-.faserip-sheet .stunt-row { border-top: 1px dashed #bbb; padding-top: 6px; margin-top: 6px; }
+.faserip-sheet .stunt-row { border-top: 1px dashed var(--dash); padding-top: 6px; margin-top: 6px; }
 button.faserip-generate,
 .directory-header button.faserip-generate,
 .header-actions button.faserip-generate {
@@ -634,9 +803,9 @@ button.faserip-generate,
   font-weight: 700;
   font-family: Oswald, sans-serif;
   text-transform: uppercase;
-  background: #eab308;
-  color: #111;
-  border: 2px solid #111;
+  background: var(--gold);
+  color: var(--on-gold);
+  border: 2px solid var(--rule);
   cursor: pointer;
 }
 button.faserip-import-pdf,
@@ -648,13 +817,13 @@ button.faserip-import-pdf,
   font-weight: 700;
   font-family: Oswald, sans-serif;
   text-transform: uppercase;
-  background: #1a120c;
-  color: #eab308;
-  border: 2px solid #eab308;
+  background: var(--banner);
+  color: var(--gold);
+  border: 2px solid var(--gold);
   cursor: pointer;
 }
 .faserip-journal-import-bar { display: flex; justify-content: flex-end; }
-.faserip-page-pick { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; color: #f5e6c8; }
+.faserip-page-pick { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; color: var(--ink); }
 .faserip-page-tools, .faserip-page-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .faserip-page-tools select, .faserip-page-tools input { max-width: 100%; }
 .faserip-page-hint, .faserip-page-status { margin: 0; }
@@ -678,9 +847,9 @@ button.faserip-import-pdf,
   width: 32px;
   height: 32px;
   margin: 0 4px;
-  border: 2px solid #111;
-  background: #facc15;
-  color: #111;
+  border: 2px solid var(--rule);
+  background: var(--gold);
+  color: var(--on-gold);
   cursor: pointer;
 }
 .faserip-universal-table .window-content {
@@ -695,7 +864,8 @@ button.faserip-import-pdf,
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: #fffdf6;
+  background: var(--panel);
+  color: var(--ink);
   font-family: "Source Sans 3", sans-serif;
 }
 .faserip-utable .utable-caption {
@@ -704,7 +874,7 @@ button.faserip-import-pdf,
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  border-bottom: 2px solid #111;
+  border-bottom: 2px solid var(--rule);
 }
 .faserip-utable .utable-caption.white { background: #f4f0e6; }
 .faserip-utable .utable-caption.green { background: #22c55e; color: #052e16; }
@@ -718,7 +888,7 @@ button.faserip-import-pdf,
   font-weight: 700;
   text-transform: uppercase;
 }
-.faserip-utable .swatch { padding: 0 6px; border: 1px solid #111; }
+.faserip-utable .swatch { padding: 0 6px; border: 1px solid var(--rule); }
 .faserip-utable .swatch.white { background: #f4f0e6; }
 .faserip-utable .swatch.green { background: #22c55e; color: #052e16; }
 .faserip-utable .swatch.yellow { background: #facc15; }
@@ -736,7 +906,7 @@ button.faserip-import-pdf,
 }
 .faserip-utable th,
 .faserip-utable td {
-  border: 1px solid #111;
+  border: 1px solid var(--rule);
   text-align: center;
   min-width: 36px;
   height: 22px;
@@ -746,8 +916,8 @@ button.faserip-import-pdf,
 .faserip-utable th.dice,
 .faserip-utable th.rank {
   position: sticky;
-  background: #111;
-  color: #fff;
+  background: var(--banner);
+  color: var(--banner-ink);
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   z-index: 2;
@@ -763,7 +933,7 @@ button.faserip-import-pdf,
 .faserip-utable th.hit-col,
 .faserip-utable th.hit-row { background: #1d4ed8; }
 .faserip-utable td.hit {
-  box-shadow: inset 0 0 0 3px #111;
+  box-shadow: inset 0 0 0 3px var(--rule);
   font-weight: 800;
   font-size: 12px;
   z-index: 1;
@@ -884,20 +1054,38 @@ button.faserip-import-pdf,
   cursor: pointer;
 }
 
-.application.faserip-creator { max-height: 94vh; }
+.application.faserip-creator {
+  --c-bg: #140e0a;
+  --c-ink: #f6f1e4;
+  --c-muted: #d9cbb6;
+  --c-dim: #b5a48d;
+  --c-faint: #cbbba6;
+  --c-label: #e7dcc8;
+  --c-heading: #fff8ea;
+  --c-card: #241910;
+  --c-card-line: #3a2d22;
+  --c-field: #2a2118;
+  --c-on: #3a2a16;
+  --c-gold: #e2b657;
+  --c-line: rgba(226, 182, 87, 0.45);
+  --c-paper: #f4ead7;
+  --c-paper-ink: #1a120c;
+  --c-empty: #6b5c4c;
+  max-height: 94vh;
+}
 .application.faserip-creator .window-content {
-  background: #140e0a;
-  color: #f6f1e4;
+  background: var(--c-bg);
+  color: var(--c-ink);
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 .faserip-creator .creator {
-  --ink: #1a120c;
-  --paper: #f4ead7;
-  --gold: #e2b657;
-  --line: rgba(226, 182, 87, 0.45);
+  --ink: var(--c-paper-ink);
+  --paper: var(--c-paper);
+  --gold: var(--c-gold);
+  --line: var(--c-line);
   flex: 1;
   min-height: 0;
   display: flex;
@@ -917,7 +1105,7 @@ button.faserip-import-pdf,
   gap: 8px;
   border: 1px solid transparent;
   background: transparent;
-  color: #b5a48d;
+  color: var(--c-dim);
   font-family: Oswald, sans-serif;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -938,7 +1126,7 @@ button.faserip-import-pdf,
   color: var(--gold);
   border-bottom-color: var(--gold);
 }
-.faserip-creator .creator-step.is-done { color: #f6f1e4; }
+.faserip-creator .creator-step.is-done { color: var(--c-ink); }
 .faserip-creator .creator-step:disabled { opacity: 0.35; cursor: default; }
 .faserip-creator .creator-stage {
   flex: 1;
@@ -958,9 +1146,9 @@ button.faserip-import-pdf,
   font-family: Oswald, sans-serif;
   font-weight: 600;
   margin: 0 0 6px;
-  color: #fff8ea;
+  color: var(--c-heading);
 }
-.faserip-creator .creator-lead, .faserip-creator .creator-fine { color: #d9cbb6; margin: 0 0 10px; }
+.faserip-creator .creator-lead, .faserip-creator .creator-fine { color: var(--c-muted); margin: 0 0 10px; }
 .faserip-creator .creator-hero, .faserip-creator .creator-fields {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
@@ -972,13 +1160,13 @@ button.faserip-import-pdf,
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
-  color: #e7dcc8;
+  color: var(--c-label);
   margin-bottom: 8px;
 }
 .faserip-creator label.check { flex-direction: row; align-items: center; gap: 8px; }
 .faserip-creator input[type="text"], .faserip-creator select {
-  background: #2a2118;
-  color: #fff8ea;
+  background: var(--c-field);
+  color: var(--c-heading);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px 10px;
@@ -995,9 +1183,9 @@ button.faserip-import-pdf,
   align-items: center;
   text-align: center;
   padding: 18px 14px;
-  background: #241910;
-  color: #f6f1e4;
-  border: 1px solid #3a2d22;
+  background: var(--c-card);
+  color: var(--c-ink);
+  border: 1px solid var(--c-card-line);
   border-radius: 12px;
   cursor: pointer;
 }
@@ -1009,15 +1197,15 @@ button.faserip-import-pdf,
 }
 .faserip-creator .name-card.is-on {
   border-color: var(--gold);
-  background: #3a2a16;
+  background: var(--c-on);
   color: var(--gold);
 }
 .faserip-creator .name-card.is-locked { opacity: 0.4; }
 .creator-tip {
   position: fixed;
   z-index: 100000;
-  background: #f4ead7;
-  color: #1a120c;
+  background: var(--c-paper);
+  color: var(--c-paper-ink);
   border-radius: 14px;
   padding: 16px 18px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
@@ -1035,12 +1223,12 @@ button.faserip-import-pdf,
   height: 72px;
   border-radius: 16px;
   border: 2px solid var(--gold);
-  background: #3a2a16;
+  background: var(--c-on);
   color: var(--gold);
   font-size: 32px;
   cursor: pointer;
 }
-.faserip-creator .stat-die:hover { background: var(--gold); color: #1a120c; }
+.faserip-creator .stat-die:hover { background: var(--gold); color: var(--on-gold); }
 .faserip-creator .life-row, .faserip-creator .count-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
@@ -1053,8 +1241,8 @@ button.faserip-import-pdf,
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  background: #241910;
-  border: 1px solid #3a2d22;
+  background: var(--c-card);
+  border: 1px solid var(--c-card-line);
   border-radius: 12px;
   padding: 12px;
   text-align: center;
@@ -1066,12 +1254,12 @@ button.faserip-import-pdf,
   color: var(--gold);
 }
 .faserip-creator .life-die strong { font-size: 15px; line-height: 1.25; }
-.faserip-creator .count-roll p { margin: 8px 0 0; color: #d9cbb6; }
+.faserip-creator .count-roll p { margin: 8px 0 0; color: var(--c-muted); }
 .faserip-creator .choice-card, .faserip-creator .power-card {
   text-align: left;
-  background: #241910;
-  color: #f6f1e4;
-  border: 1px solid #3a2d22;
+  background: var(--c-card);
+  color: var(--c-ink);
+  border: 1px solid var(--c-card-line);
   border-radius: 10px;
   padding: 10px;
   cursor: pointer;
@@ -1081,15 +1269,15 @@ button.faserip-import-pdf,
 }
 .faserip-creator .choice-card strong, .faserip-creator .power-card strong { font-size: 15px; }
 .faserip-creator .choice-card em, .faserip-creator .power-card em { color: var(--gold); font-style: normal; font-size: 12px; }
-.faserip-creator .choice-card span { color: #cbbba6; font-size: 12px; }
+.faserip-creator .choice-card span { color: var(--c-faint); font-size: 12px; }
 .faserip-creator .choice-card.is-on, .faserip-creator .power-card.is-on {
   border-color: var(--gold);
-  background: #3a2a16;
+  background: var(--c-on);
 }
 .faserip-creator .power-card.is-locked { opacity: 0.45; }
 .faserip-creator .power-card b {
   align-self: flex-start;
-  background: #7f1d1d;
+  background: var(--fill-red);
   color: white;
   border-radius: 99px;
   padding: 1px 7px;
@@ -1113,7 +1301,7 @@ button.faserip-import-pdf,
 }
 .faserip-creator .power-detail h3 { color: var(--ink); }
 .faserip-creator .power-detail .play { font-weight: 600; }
-.faserip-creator .power-detail.empty { color: #6b5c4c; }
+.faserip-creator .power-detail.empty { color: var(--c-empty); }
 .faserip-creator .creator-block-head, .faserip-creator .btn-row, .faserip-creator .creator-bar {
   display: flex;
   justify-content: space-between;
@@ -1130,14 +1318,14 @@ button.faserip-import-pdf,
 }
 .faserip-creator .roll-btn {
   background: var(--gold);
-  color: #1a120c;
+  color: var(--on-gold);
   border: none;
 }
 .faserip-creator .roll-btn.big { font-size: 18px; padding: 12px 18px; }
-.faserip-creator .text-btn { background: transparent; color: #f6f1e4; border: 1px solid var(--line); }
+.faserip-creator .text-btn { background: transparent; color: var(--c-ink); border: 1px solid var(--line); }
 .faserip-creator .creator-bar {
   padding: 10px 16px 14px;
-  border-top: 1px solid #3a2d22;
+  border-top: 1px solid var(--c-card-line);
 }
 .faserip-creator .ability-row {
   display: grid;
@@ -1146,8 +1334,8 @@ button.faserip-import-pdf,
   margin: 8px 0;
 }
 .faserip-creator .ability-card {
-  background: #241910;
-  border: 1px solid #3a2d22;
+  background: var(--c-card);
+  border: 1px solid var(--c-card-line);
   border-radius: 12px;
   padding: 12px 8px;
   display: flex;
@@ -1165,7 +1353,7 @@ button.faserip-import-pdf,
 .faserip-creator .ability-card strong { font-family: Oswald, sans-serif; font-size: 18px; color: var(--gold); }
 .faserip-creator .ability-card.is-rolled { border-color: var(--gold); }
 .faserip-creator .ability-card em { font-style: normal; font-size: 18px; }
-.faserip-creator .ability-card small { color: #b5a48d; }
+.faserip-creator .ability-card small { color: var(--c-dim); }
 .faserip-creator .stat-pills, .faserip-creator .tray, .faserip-creator .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -1176,8 +1364,8 @@ button.faserip-import-pdf,
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 4px 10px;
-  background: #241910;
-  color: #f6f1e4;
+  background: var(--c-card);
+  color: var(--c-ink);
 }
 .faserip-creator .mini-chip.is-on { border-color: var(--gold); color: var(--gold); }
 .faserip-creator .creator-notice {
@@ -1203,15 +1391,16 @@ button.faserip-import-pdf,
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid #c4a574;
+  border: 1px solid var(--gold);
   border-radius: 4px;
-  background: #241910;
-  color: #f6f1e4;
+  background: var(--banner);
+  color: var(--banner-ink);
   cursor: pointer;
 }
-.faserip-judge-app .window-content {
-  background: #f6f1e4;
-  color: #141414;
+.faserip-judge-app .window-content,
+.application.faserip-dialog .window-content {
+  background: var(--paper);
+  color: var(--ink);
   font-family: "Source Sans 3", sans-serif;
 }
 .faserip-judge {
@@ -1246,10 +1435,10 @@ button.faserip-import-pdf,
 }
 .faserip-judge button {
   align-self: flex-start;
-  border: 1px solid #1b1b1b;
+  border: 1px solid var(--rule);
   border-radius: 4px;
-  background: #241910;
-  color: #f6f1e4;
+  background: var(--banner);
+  color: var(--banner-ink);
   padding: 6px 12px;
   cursor: pointer;
 }
@@ -1259,12 +1448,12 @@ button.faserip-import-pdf,
   gap: 6px;
 }
 .faserip-judge .judge-tabs button {
-  background: #efe6d4;
-  color: #141414;
+  background: var(--tab);
+  color: var(--ink);
 }
 .faserip-judge .judge-tabs button.active {
-  background: #241910;
-  color: #f6f1e4;
+  background: var(--banner);
+  color: var(--banner-ink);
 }
 .faserip-judge .team-table {
   width: 100%;
@@ -1275,7 +1464,7 @@ button.faserip-import-pdf,
 .faserip-judge .team-table td {
   text-align: left;
   padding: 4px 6px;
-  border-bottom: 1px solid #d9cbb3;
+  border-bottom: 1px solid var(--line);
 }
 .faserip-judge .check-list,
 .faserip-judge .stash-list {
@@ -1315,16 +1504,16 @@ button.faserip-import-pdf,
 .activity-line {
   margin: 8px 0 12px;
   padding: 8px 10px 4px;
-  border: 1px solid #d9cbb3;
+  border: 1px solid var(--line);
 }
 a.faserip-feat-link {
   display: inline-block;
   margin: 2px 4px 2px 0;
   padding: 0 6px;
-  background: #efe6d2;
-  border: 1px solid #8a7040;
+  background: var(--link);
+  border: 1px solid var(--link-line);
   border-radius: 3px;
-  color: #141414;
+  color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1354,4 +1543,75 @@ a.faserip-feat-link i {
 }
 .npc-card-sheet .stat-values span {
   align-self: center;
+}
+
+.application.faserip-dialog input,
+.application.faserip-dialog select,
+.application.faserip-dialog textarea,
+.faserip-judge input,
+.faserip-judge select,
+.faserip-judge textarea {
+  background: var(--field);
+  color: var(--ink);
+  border-color: var(--rule);
+}
+
+html.faserip-theme-fourcolor .application.faserip-creator,
+.faserip-theme-fourcolor.application.faserip-creator {
+  --c-bg: #0b1f4a;
+  --c-ink: #fff8d6;
+  --c-muted: #dbe7ff;
+  --c-dim: #b9c8ea;
+  --c-faint: #dbe7ff;
+  --c-label: #e8eef8;
+  --c-heading: #ffffff;
+  --c-card: #132a5c;
+  --c-card-line: #3b5cb8;
+  --c-field: #1a3570;
+  --c-on: #1d4ed8;
+  --c-gold: #f5c400;
+  --c-line: rgba(245, 196, 0, 0.55);
+  --c-paper: #fffef8;
+  --c-paper-ink: #0b1f4a;
+  --c-empty: #93a4c8;
+}
+
+html.faserip-theme-pulp .application.faserip-creator,
+.faserip-theme-pulp.application.faserip-creator {
+  --c-bg: #2a1c12;
+  --c-ink: #f3e6cc;
+  --c-muted: #e7d3b0;
+  --c-dim: #c4ae8c;
+  --c-faint: #d7c4a4;
+  --c-label: #e7d3b0;
+  --c-heading: #faf3e4;
+  --c-card: #3b2918;
+  --c-card-line: #5c3b22;
+  --c-field: #4a3424;
+  --c-on: #5c3b22;
+  --c-gold: #c4a15a;
+  --c-line: rgba(196, 161, 90, 0.55);
+  --c-paper: #f3e6cc;
+  --c-paper-ink: #2a1c12;
+  --c-empty: #a89078;
+}
+
+html.faserip-theme-dark .application.faserip-creator,
+.faserip-theme-dark.application.faserip-creator {
+  --c-bg: #100e0c;
+  --c-ink: #f3ead7;
+  --c-muted: #d9cbb6;
+  --c-dim: #a89880;
+  --c-faint: #cbbba6;
+  --c-label: #e7dcc8;
+  --c-heading: #fff8ea;
+  --c-card: #1c1917;
+  --c-card-line: #3f3a34;
+  --c-field: #292420;
+  --c-on: #3d3428;
+  --c-gold: #e2b657;
+  --c-line: rgba(226, 182, 87, 0.45);
+  --c-paper: #241f1c;
+  --c-paper-ink: #f3ead7;
+  --c-empty: #8a7b68;
 }
