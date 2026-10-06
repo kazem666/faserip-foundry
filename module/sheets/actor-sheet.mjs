@@ -24,7 +24,7 @@ import { playAttackSound } from "../psfx.mjs";
 import { formatMovement, movementLines } from "../movement.mjs";
 import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
-import { SYMBIOTE_BONDS } from "../data/symbiote.mjs";
+import { SYMBIOTE_BONDS, symbioteCoatHealth, symbioteHasCoat } from "../data/symbiote.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
 import { ultimateCatalog } from "../data/ultimate-list.mjs";
 import { buildCatalogItemData } from "../data/descriptions.mjs";
@@ -84,6 +84,20 @@ function guardSheetUpdate(actor, formData) {
     if (formData && Number(sourceKarma.value) === Number(sourceKarma.max) && ment > 0 && submittedKarma === Number(sourceKarma.value)) {
       formData["system.karma.value"] = ment;
     }
+    if (formData && symbioteHasCoat(actor) && "flags.faserip.coatHealth" in formData) {
+      const mult = actor.getFlag?.("faserip", "doubleHealth") ? 2 : 1;
+      const newMax = phys * mult;
+      const shownMax = Number(actor.system?.health?.max) || newMax;
+      const submitted = Number(formData["flags.faserip.coatHealth"]);
+      const stored = actor.getFlag?.("faserip", "coatHealth");
+      const wasFull = stored == null || stored === "" || Number(stored) >= shownMax;
+      if ((wasFull && submitted >= shownMax) || submitted >= newMax) {
+        delete formData["flags.faserip.coatHealth"];
+        formData["flags.faserip.-=coatHealth"] = null;
+      } else {
+        formData["flags.faserip.coatHealth"] = Math.max(0, submitted);
+      }
+    }
   return formData;
 }
 
@@ -141,6 +155,7 @@ export async function fillActorSheetContext(sheet, context) {
       context.healthPct = actor.system.health.max
         ? Math.round((actor.system.health.value / actor.system.health.max) * 100)
         : 0;
+      context.coatHealth = symbioteCoatHealth(actor);
       context.karmaPct = actor.system.karma.max
         ? Math.round((actor.system.karma.value / actor.system.karma.max) * 100)
         : 0;
@@ -338,6 +353,7 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("recover", this._onRecover);
     on("naturalHeal", this._onNaturalHeal);
     on("resetHealth", this._onResetHealth);
+    on("resetCoat", this._onResetCoat);
     on("resetKarma", this._onResetKarma);
     on("universal", this._onUniversal);
     on("rollResources", this._onRollResources);
@@ -595,6 +611,11 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     }, { faseripHeal: true });
     const { releaseIfConscious } = await import("../battle-results.mjs");
     await releaseIfConscious(this.actor);
+  }
+
+  async _onResetCoat(event) {
+    event.preventDefault();
+    await this.actor.unsetFlag("faserip", "coatHealth");
   }
 
   async _onResetKarma(event) {

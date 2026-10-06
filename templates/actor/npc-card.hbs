@@ -38,6 +38,16 @@
         <span>/ {{system.health.max}}</span>
       </div>
     </div>
+    {{#if coatHealth}}
+    <div class="stat-box health coat">
+      <header>Coat</header>
+      <div class="stat-values">
+        <input type="number" name="flags.faserip.coatHealth" value="{{coatHealth.value}}" min="0" />
+        <span>/ {{coatHealth.max}}</span>
+      </div>
+      <p class="coat-note">Heals {{coatHealth.regen}} each round. Aimed attacks −4 CS.</p>
+    </div>
+    {{/if}}
     <div class="npc-damage">
       <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>
       <label class="check"><input type="checkbox" name="energyAttack" /> Energy</label>

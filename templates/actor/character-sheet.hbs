@@ -84,6 +84,19 @@
               <label class="mini">Regen <input type="number" name="system.health.regen" value="{{system.health.regen}}" min="0" /></label>
               <button type="button" data-action="resetHealth">Reset</button>
             </div>
+            {{#if coatHealth}}
+            <div class="stat-box health coat">
+              <header title="Equals Health. Heals the Regeneration rank each round. Attacks aimed at the coat are −4 CS.">Coat</header>
+              <div class="stat-values">
+                <input type="number" name="flags.faserip.coatHealth" value="{{coatHealth.value}}" min="0" />
+                <span>/</span>
+                <span class="max">{{coatHealth.max}}</span>
+              </div>
+              <div class="bar"><span style="width: {{coatHealth.pct}}%"></span></div>
+              <p class="coat-note">Heals {{coatHealth.regen}} each round</p>
+              <button type="button" data-action="resetCoat">Reset</button>
+            </div>
+            {{/if}}
             <div class="stat-box karma">
               <header>Karma (R+I+P)</header>
               <div class="stat-values">

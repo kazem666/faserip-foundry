@@ -224,6 +224,8 @@
   letter-spacing: 1px;
 }
 .faserip-sheet .stat-box.health header { color: var(--red); }
+.faserip-sheet .stat-box.coat header { color: #9a3412; }
+.faserip-sheet .coat-note { margin: 4px 0 0; font-size: 11px; line-height: 1.3; }
 .faserip-sheet .stat-box.karma header { color: var(--blue); }
 .faserip-sheet .stat-box.resources header { color: var(--green); }
 .faserip-sheet .stat-box.popularity header { color: #7c3aed; }

@@ -1,8 +1,8 @@
 /** A living coat. Each row is a power the system already has. */
 
-import { rankIndex, shiftRank } from "../config.mjs";
+import { rankIndex, rankValue, shiftRank } from "../config.mjs";
 
-export const SYMBIOTE_WEAKNESS = "The coat can be attacked at −4 CS. It has its own Health and heals each round; at 0 it is out for 1–10 hours, and that damage is suffered by the host. Loud sound does +3 CS damage to the bond. Intense heat and open flame do +1 CS.";
+export const SYMBIOTE_WEAKNESS = "The coat can be attacked at −4 CS. Coat Health equals the hero's Health (Fighting + Agility + Strength + Endurance) and is tracked on its own. It heals the Regeneration rank number each round. At 0 it is out for 1–10 hours, and that damage is suffered by the host. Loud sound does +3 CS damage to the bond. Intense heat and open flame do +1 CS.";
 
 export const SYMBIOTE_LIMITS = `${SYMBIOTE_WEAKNESS} The coat needs a living host. It keeps memories of earlier hosts and can share them. A danger sense learned from an earlier host of this same bond does not warn against it. A strong coat can push the host toward what it wants.`;
 
@@ -29,6 +29,28 @@ export const SYMBIOTE_BONDS = [
   { power: "Power Absorption", note: "The coat can imprint powers it wore on a superhuman host and carry them to a later host." }
 ];
 
+export function symbioteHasCoat(actor) {
+  if (!actor) return false;
+  const arch = String(actor.system?.identity?.archetype || "");
+  const origin = String(actor.system?.identity?.origin || "");
+  const weak = String(actor.system?.story?.weaknesses || "");
+  return /symbiote/i.test(arch) || /symbiote/i.test(origin) || /coat can be attacked/i.test(weak) || /coat health equals/i.test(weak);
+}
+
+export function symbioteCoatHealth(actor) {
+  if (!symbioteHasCoat(actor)) return null;
+  const max = Math.max(0, Number(actor.system?.health?.max) || 0);
+  const stored = actor.getFlag?.("faserip", "coatHealth");
+  const value = stored == null || stored === "" ? max : Math.max(0, Math.min(max, Number(stored) || 0));
+  const regenItem = actor.items?.find?.((item) => item.type === "power" && /^regeneration$/i.test(item.name));
+  const regen = rankValue(regenItem?.system?.rank || "good");
+  return {
+    value,
+    max,
+    pct: max ? Math.round((value / max) * 100) : 0,
+    regen
+  };
+}
 export function symbioteNote(name) {
   const key = String(name || "").toLowerCase();
   return SYMBIOTE_BONDS.find((row) => row.power.toLowerCase() === key)?.note || "";
