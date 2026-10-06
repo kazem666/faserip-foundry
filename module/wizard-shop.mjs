@@ -118,10 +118,10 @@ function affordLabel(resources, cost) {
 function canAttempt(resources, cost) { return intensityNeeded(resources, cost).delta >= -1; }
 function autoBuy(resources, cost) { return intensityNeeded(resources, cost).delta >= 1; }
 
-async function tryPurchase(actor, resources, item) {
+async function tryPurchase(actor, resources, item, note) {
   const info = intensityNeeded(resources, item.cost || "typical");
   if (info.delta <= -2) {
-    ui.notifications.warn(item.name + " costs " + rankLabel(item.cost) + ". Your Resources cannot cover it at creation.");
+    ui.notifications.warn(item.name + " costs " + rankLabel(item.cost) + ". Your Resources cannot cover it.");
     return false;
   }
   if (!autoBuy(resources, item.cost)) {
@@ -144,20 +144,22 @@ async function tryPurchase(actor, resources, item) {
     range: item.extra?.range || "",
     damage: item.extra?.damage || "",
     bodyArmor: !!item.extra?.bodyArmor,
-    notes: "Starting gear. Resource cost " + rankLabel(item.cost) + "."
+    notes: note + ". Resource cost " + rankLabel(item.cost) + "."
   });
   ui.notifications.info("Bought " + item.name + " (" + rankLabel(item.cost) + "). Resources stay " + rankLabel(resources) + ".");
   return true;
 }
 
-export async function pickStartingShop(actor, result = {}) {
+export async function pickStartingShop(actor, result = {}, opts = {}) {
   const resources = result.resources || actor?.system?.resources?.rank || "typical";
+  const title = opts.title || "Starting Gear Shop";
+  const note = opts.note || "Starting gear";
   const depts = buildShopDepartments();
   const bought = [];
   while (true) {
     const deptOpts = depts.map((d) => ({ id: d.id, label: d.label + " (" + d.items.length + ")" }));
     const menu = await dialog(
-      "Starting Gear Shop",
+      title,
       "<p><strong>Resources:</strong> " + rankLabel(resources) + "</p>" +
       "<p class='hint'>Advanced Set: buy against the item Resource cost. Rank is not spent. Cheaper than your rank is automatic. Same rank needs Yellow. One rank higher needs Red. Two-plus higher is refused.</p>" +
       "<p class='hint'>Bought so far: " + (bought.length ? bought.join(", ") : "nothing") + "</p>" +
@@ -194,7 +196,7 @@ export async function pickStartingShop(actor, result = {}) {
       ui.notifications.warn(item.name + " is too expensive for " + rankLabel(resources) + " Resources.");
       continue;
     }
-    const ok = await tryPurchase(actor, resources, item);
+    const ok = await tryPurchase(actor, resources, item, note);
     if (ok) bought.push(item.name);
   }
   return bought;

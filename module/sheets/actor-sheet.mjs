@@ -482,6 +482,10 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       return this.createFromCatalog("talent", catalog);
     }
     if (type === "contact") return this.createContact();
+    if ((type === "weapon" || type === "equipment") && this.actor.type !== "npc") {
+      const { pickStartingShop } = await import("../wizard-shop.mjs");
+      return pickStartingShop(this.actor, {}, { title: "Gear Shop", note: "Purchased" });
+    }
     await this.actor.createEmbeddedDocuments("Item", [{
       name: type === "weapon" ? "New Weapon" : "New Equipment",
       type
