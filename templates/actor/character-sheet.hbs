@@ -14,7 +14,6 @@
           <span>Secret ID?</span>
           <input type="checkbox" name="system.identity.secretId" {{#if system.identity.secretId}}checked{{/if}} />
         </label>
-        <button type="button" class="generate" data-action="generate">Generate Hero</button>
       </div>
       <div class="identity-row four">
         <label>Origin
@@ -226,12 +225,6 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="identity">
-      <div class="life-rolls">
-        <button type="button" data-action="rollHeight">Height &amp; weight</button>
-        <button type="button" data-action="rollCalling">Calling</button>
-        <button type="button" data-action="rollQuirk">Quirk</button>
-        <button type="button" data-action="rollLife">Life details</button>
-      </div>
       <div class="id-grid three">
         <label>Archetype <input name="system.identity.archetype" type="text" value="{{system.identity.archetype}}" /></label>
         <label>Calling <input name="system.identity.calling" type="text" value="{{system.identity.calling}}" /></label>

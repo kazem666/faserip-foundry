@@ -22,7 +22,6 @@ import { chargeStatus, expendableKind, refillCharges, spendSupply } from "../cha
 import { playComicHit } from "../comic-hit.mjs";
 import { playAttackSound } from "../psfx.mjs";
 import { formatMovement, movementLines } from "../movement.mjs";
-import { promptGeneration } from "../chargen.mjs";
 import { isUpbEnabled, upbCatalogGroups, UPB_ORIGINS_OF_POWER, UPB_PHYSICAL_FORMS } from "../data/upb.mjs";
 import { SYMBIOTE_BONDS, symbioteCoatHealth, symbioteHasCoat } from "../data/symbiote.mjs";
 import { isUltimateTalentsEnabled, ULTIMATE_TALENT_CATEGORIES, ULTIMATE_TALENT_CATALOG } from "../data/ultimate-talents.mjs";
@@ -337,7 +336,6 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("toggleTable", this._onToggleTable);
     on("award", this._onAward);
     if (!this.isEditable) return;
-    on("generate", this._onGenerate);
     on("rollAbility", this._onRollAbility);
     on("rollItem", this._onRollItem);
     on("reloadWeapon", this._onReloadWeapon);
@@ -363,10 +361,6 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("addStunt", this._onAddStunt);
     on("stuntAttempt", this._onStuntAttempt);
     on("contactAssist", this._onContactAssist);
-    on("rollHeight", this._onRollHeight);
-    on("rollCalling", this._onRollCalling);
-    on("rollQuirk", this._onRollQuirk);
-    on("rollLife", this._onRollLife);
     on("rollPopularity", this._onRollPopularity);
     on("fallImpact", this._onFall);
     on("catchFall", this._onCatch);
@@ -385,41 +379,16 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("addPower", this._onAddPower);
     on("addTalent", this._onAddTalent);
     on("addContact", this._onAddContact);
+    on("learnWorking", this._onLearnWorking);
+    on("studyWorking", this._onStudyWorking);
+    on("refineWorking", this._onRefineWorking);
+    on("drawCache", this._onDrawCache);
     on("holdBreath", this._onHoldBreath);
     on("drown", this._onDrown);
     on("poison", this._onPoison);
     on("treatPoison", this._onTreatPoison);
     on("escapeFate", this._onEscapeFate);
     on("askContact", this._onAskContact);
-  }
-
-  async _onGenerate(event) {
-    event.preventDefault();
-    return promptGeneration(this.actor);
-  }
-
-  async _onRollHeight(event) {
-    event.preventDefault();
-    const { writeHeightWeight } = await import("../life.mjs");
-    return writeHeightWeight(this.actor);
-  }
-
-  async _onRollCalling(event) {
-    event.preventDefault();
-    const { writeCalling } = await import("../life.mjs");
-    return writeCalling(this.actor);
-  }
-
-  async _onRollQuirk(event) {
-    event.preventDefault();
-    const { writeQuirk } = await import("../life.mjs");
-    return writeQuirk(this.actor);
-  }
-
-  async _onRollLife(event) {
-    event.preventDefault();
-    const { writeLifeDetails } = await import("../life.mjs");
-    return writeLifeDetails(this.actor);
   }
 
   async _onRollAbility(event) {
