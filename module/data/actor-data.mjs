@@ -1,5 +1,5 @@
 import { ABILITIES, PHYSICAL, MENTAL, abilityNumber, abilityRankId, MOVEMENT_AREAS } from "../config.mjs";
-import { capKarma } from "./karma-ceiling.mjs";
+import { capKarma } from "../karma-ceiling.mjs";
 
 const { NumberField, StringField, SchemaField, HTMLField, BooleanField } = foundry.data.fields;
 
