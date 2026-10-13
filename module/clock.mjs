@@ -48,11 +48,32 @@ async function clearStaleRecovery() {
   }
 }
 
+async function refillPurses() {
+  if (!globalThis.game?.user?.isGM) return;
+  let houseOn;
+  let refillPurse;
+  try {
+    ({ houseOn } = await import("./house-rules.mjs"));
+    ({ refillPurse } = await import("./purse.mjs"));
+  } catch {
+    return;
+  }
+  if (!houseOn("housePurse")) return;
+  for (const actor of globalThis.game.actors ?? []) {
+    try {
+      await refillPurse(actor);
+    } catch (err) {
+      console.warn("FASERIP | purse", err);
+    }
+  }
+}
+
 export function registerClock() {
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripClock) return;
   Hooks._faseripClock = true;
   Hooks.on("updateWorldTime", () => {
     clearStaleRecovery().catch((err) => console.warn("FASERIP | world clock", err));
+    refillPurses().catch((err) => console.warn("FASERIP | purse", err));
   });
 }

@@ -1,4 +1,4 @@
-import { rankLabel, intensityNeeded } from "./config.mjs";
+import { rankLabel, intensityNeeded, rankValue } from "./config.mjs";
 import { dialog, collect, options } from "./wizard-picks.mjs";
 import { writeGeneratedItem } from "./chargen.mjs";
 import {
@@ -118,7 +118,37 @@ function affordLabel(resources, cost) {
 function canAttempt(resources, cost) { return intensityNeeded(resources, cost).delta >= -1; }
 function autoBuy(resources, cost) { return intensityNeeded(resources, cost).delta >= 1; }
 
+async function grantItem(actor, item, note) {
+  await writeGeneratedItem(actor, item.kind, item.name, {
+    rank: item.extra?.material || "typical",
+    number: 0,
+    category: item.category || "",
+    definition: item.definition || "",
+    weaponType: item.extra?.weaponType || "",
+    effectsColumn: item.extra?.effectsColumn || "",
+    range: item.extra?.range || "",
+    damage: item.extra?.damage || "",
+    bodyArmor: !!item.extra?.bodyArmor,
+    notes: note + ". Resource cost " + rankLabel(item.cost) + "."
+  });
+}
+
+async function payFromPurse(actor, item) {
+  const { houseOn } = await import("./house-rules.mjs");
+  if (!houseOn("housePurse")) return false;
+  const price = rankValue(item.cost || "typical");
+  const { purseState, spendPurse } = await import("./purse.mjs");
+  const state = purseState(actor);
+  if (!(price > 0) || price > state.left) return false;
+  const paid = await spendPurse(actor, price, item.name);
+  if (!paid) return false;
+  await grantItem(actor, item, "Paid from the weekly purse");
+  ui.notifications.info("Bought " + item.name + " from the purse (" + price + ").");
+  return true;
+}
+
 async function tryPurchase(actor, resources, item, note) {
+  if (await payFromPurse(actor, item)) return true;
   const info = intensityNeeded(resources, item.cost || "typical");
   if (info.delta <= -2) {
     ui.notifications.warn(item.name + " costs " + rankLabel(item.cost) + ". Your Resources cannot cover it.");
@@ -134,18 +164,7 @@ async function tryPurchase(actor, resources, item, note) {
       return false;
     }
   }
-  await writeGeneratedItem(actor, item.kind, item.name, {
-    rank: item.extra?.material || "typical",
-    number: 0,
-    category: item.category || "",
-    definition: item.definition || "",
-    weaponType: item.extra?.weaponType || "",
-    effectsColumn: item.extra?.effectsColumn || "",
-    range: item.extra?.range || "",
-    damage: item.extra?.damage || "",
-    bodyArmor: !!item.extra?.bodyArmor,
-    notes: note + ". Resource cost " + rankLabel(item.cost) + "."
-  });
+  await grantItem(actor, item, note);
   ui.notifications.info("Bought " + item.name + " (" + rankLabel(item.cost) + "). Resources stay " + rankLabel(resources) + ".");
   return true;
 }

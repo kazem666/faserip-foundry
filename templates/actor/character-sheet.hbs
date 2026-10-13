@@ -120,6 +120,7 @@
                 <label>Pay<input name="system.resources.payment" type="text" value="{{system.resources.payment}}" /></label>
               </div>
               <button type="button" data-action="rollResources">FEAT</button>
+              {{#if housePurse}}<p class="hint">Purse {{purseLeft}} / {{purseMax}} this week. Spending it leaves the Resources FEAT free.</p><button type="button" data-action="spendPurse">Spend purse</button>{{/if}}
             </div>
             <div class="stat-box popularity">
               <header>Popularity</header>

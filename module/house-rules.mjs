@@ -460,6 +460,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "housePurse", {
+    name: "House rule: Weekly purse",
+    hint: "Judge only. The Resources rank number is walking-around money for the world week. Spending it does not use the weekly Resources FEAT. A buy the purse cannot cover still uses that FEAT.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;
   Hooks._faseripHouse = true;

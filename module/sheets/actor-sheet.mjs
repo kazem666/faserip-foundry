@@ -141,6 +141,13 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseGadgets = house.houseOn("houseGadgets");
         context.houseSecrecy = house.houseOn("houseSecrecy");
         context.housePowerPool = house.houseOn("housePowerPool");
+        context.housePurse = house.houseOn("housePurse");
+        if (context.housePurse) {
+          const purse = await import("../purse.mjs");
+          const state = purse.purseState(actor);
+          context.purseLeft = state.left;
+          context.purseMax = state.max;
+        }
         const secrecy = await import("../secrecy.mjs");
         context.secrecyChoices = secrecy.secrecyChoices(actor.system?.identity?.secrecy);
         context.coverBlown = context.houseSecrecy && !!actor.system?.identity?.secretId && secrecy.coverBlown(actor.system?.identity?.secrecy);
@@ -154,6 +161,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseGadgets = false;
         context.houseSecrecy = false;
         context.housePowerPool = false;
+        context.housePurse = false;
         context.coverBlown = false;
         context.secrecyChoices = [];
         context.focus = null;
@@ -635,6 +643,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     if (!item) return;
     const { makePoolReady } = await import("../power-pool.mjs");
     return makePoolReady(item);
+  }
+
+  async _onSpendPurse(event) {
+    event.preventDefault();
+    const { promptSpendPurse } = await import("../purse.mjs");
+    return promptSpendPurse(this.actor);
   }
 
   _formEl(name) {

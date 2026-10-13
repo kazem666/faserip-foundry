@@ -60,7 +60,8 @@ const PAGES = [
       { title: "Tailored characters", keys: ["houseTailored", "houseTailoredCap", "houseTailoredWeakness", "houseTailoredBudget"] },
       { title: "Gadgets", keys: ["houseGadgets"] },
       { title: "Secrecy", keys: ["houseSecrecy"] },
-      { title: "Power pool", keys: ["housePowerPool"] }
+      { title: "Power pool", keys: ["housePowerPool"] },
+      { title: "Weekly purse", keys: ["housePurse"] }
     ]
   }
 ];
