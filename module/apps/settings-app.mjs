@@ -59,7 +59,8 @@ const PAGES = [
       { title: "Focus", keys: ["houseFocus", "houseFocusAbility"] },
       { title: "Tailored characters", keys: ["houseTailored", "houseTailoredCap", "houseTailoredWeakness", "houseTailoredBudget"] },
       { title: "Gadgets", keys: ["houseGadgets"] },
-      { title: "Secrecy", keys: ["houseSecrecy"] }
+      { title: "Secrecy", keys: ["houseSecrecy"] },
+      { title: "Power pool", keys: ["housePowerPool"] }
     ]
   }
 ];

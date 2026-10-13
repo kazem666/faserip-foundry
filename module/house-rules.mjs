@@ -453,6 +453,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "housePowerPool", {
+    name: "House rule: Power pool",
+    hint: "Judge only. Powers marked in the pool share one ready slot. A power that is set aside cannot be used. Making another ready sets the previous one aside.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;
   Hooks._faseripHouse = true;

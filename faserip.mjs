@@ -47,7 +47,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.52";
+const VERSION = "1.18.53";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {

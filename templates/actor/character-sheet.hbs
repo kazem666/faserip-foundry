@@ -325,6 +325,7 @@
 
     <div class="tab" data-group="primary" data-tab="powers">
       <p class="hint">Click Attack or FEAT. Target a token first so a hit applies Health. Shift-click to spend Karma or change the column.{{#if generation}} Slots {{powerSlotsUsed}} / {{generation.powerNeed}}.{{/if}}</p>
+      {{#if housePowerPool}}<p class="hint">Powers marked in the pool share one ready slot. A power that is set aside cannot be used until you make it ready.</p>{{/if}}
       {{#each powers as |item|}}
       <article class="record-card power-card item" data-item-id="{{item.id}}">
         <header>
@@ -333,7 +334,12 @@
           {{#if item.unknown}}<span class="mastered">Unknown</span>{{/if}}
           <span class="item-rank">{{item.rankLabel}}</span>
           {{#unless item.veiled}}<span class="slots">Slots {{item.slotsTaken}}</span>{{/unless}}
-          {{#if item.veiled}}
+          {{#if item.poolReady}}<span class="mastered">Ready</span>{{/if}}
+          {{#if item.poolSetAside}}<span class="mastered">Set aside</span>{{/if}}
+          {{#if housePowerPool}}<button type="button" data-action="togglePool">{{#if item.pool}}Out of the pool{{else}}In the pool{{/if}}</button>{{/if}}
+          {{#if item.poolSetAside}}
+          <button type="button" data-action="makePoolReady">Make ready</button>
+          {{else if item.veiled}}
           <button type="button" data-action="identifyItem">Identify</button>
           {{else}}
           <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>

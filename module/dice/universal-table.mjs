@@ -30,6 +30,7 @@ import {
 } from "../battle-results.mjs";
 import { shiftDamageAmount, situationProblem, splashMiss } from "../situation.mjs";
 import { fantasticOutcome, houseFeatFields, houseOn, percentileHits, readHouseFeat, spendFocus } from "../house-rules.mjs";
+import { poolBlocked } from "../power-pool.mjs";
 import {
   applyVariable, autoCombatAdjust, combatFeatFields, combatOn, dodgeAndAttack, downgradeColor,
   edgedCut, grappleEffect, noteSecondAction, readCombatFeat, resolveCalled, variableBonus, variableKind
@@ -96,6 +97,10 @@ export async function rollFeat({
   const columnIdEarly = resolveBattleColumn(effectsColumn);
   if (item?.getFlag?.("faserip", "dropped") || item?.flags?.faserip?.dropped) {
     ui.notifications?.warn(`${item.name} is on the ground.`);
+    return null;
+  }
+  if (poolBlocked(item)) {
+    ui.notifications?.warn(`${item.name} is set aside. Make it ready first.`);
     return null;
   }
   if (combatOn("combatCalled") && actor?.getFlag?.("faserip", "lostAction") && !isCheckColumn(columnIdEarly)) {

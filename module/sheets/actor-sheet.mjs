@@ -140,6 +140,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseAdvancement = house.houseOn("houseAdvancement");
         context.houseGadgets = house.houseOn("houseGadgets");
         context.houseSecrecy = house.houseOn("houseSecrecy");
+        context.housePowerPool = house.houseOn("housePowerPool");
         const secrecy = await import("../secrecy.mjs");
         context.secrecyChoices = secrecy.secrecyChoices(actor.system?.identity?.secrecy);
         context.coverBlown = context.houseSecrecy && !!actor.system?.identity?.secretId && secrecy.coverBlown(actor.system?.identity?.secrecy);
@@ -152,6 +153,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseAdvancement = false;
         context.houseGadgets = false;
         context.houseSecrecy = false;
+        context.housePowerPool = false;
         context.coverBlown = false;
         context.secrecyChoices = [];
         context.focus = null;
@@ -232,6 +234,9 @@ export async function fillActorSheetContext(sheet, context) {
         gadgetBurned: !!context.houseGadgets && !!item.getFlag?.("faserip", "gadget")?.burned,
         gadgetUses: item.getFlag?.("faserip", "gadget")?.usesLeft ?? 0,
         dropped: !!item.getFlag?.("faserip", "dropped"),
+        pool: !!context.housePowerPool && !!item.getFlag?.("faserip", "pool"),
+        poolReady: !!context.housePowerPool && !!item.getFlag?.("faserip", "poolReady"),
+        poolSetAside: !!context.housePowerPool && !!item.getFlag?.("faserip", "pool") && !item.getFlag?.("faserip", "poolReady"),
         pips: pips(item.system.assistance),
         stunts: (item.system.stunts ?? []).map((s, index) => ({
           ...s,
@@ -614,6 +619,22 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     if (!item) return;
     const { pickUpItem } = await import("../combat-rules.mjs");
     return pickUpItem(item);
+  }
+
+  async _onTogglePool(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    const { togglePool } = await import("../power-pool.mjs");
+    return togglePool(item);
+  }
+
+  async _onMakePoolReady(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    const { makePoolReady } = await import("../power-pool.mjs");
+    return makePoolReady(item);
   }
 
   _formEl(name) {
