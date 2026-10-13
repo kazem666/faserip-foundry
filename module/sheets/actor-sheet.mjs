@@ -138,6 +138,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseTags = house.houseOn("houseTags");
         context.houseFocus = house.houseOn("houseFocus");
         context.houseAdvancement = house.houseOn("houseAdvancement");
+        context.houseGadgets = house.houseOn("houseGadgets");
         context.focus = context.houseFocus ? house.focusView(actor) : null;
         context.freeStunt = !!actor.getFlag?.("faserip", "freeStunt");
       } catch {
@@ -145,6 +146,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseTags = false;
         context.houseFocus = false;
         context.houseAdvancement = false;
+        context.houseGadgets = false;
         context.focus = null;
         context.freeStunt = false;
       }
@@ -218,6 +220,10 @@ export async function fillActorSheetContext(sheet, context) {
         chargesEmpty: !!charges?.empty,
         canRefill: expendableKind(item) === "medkit",
         showSpend: spare,
+        gadget: !!context.houseGadgets && !!item.getFlag?.("faserip", "gadget"),
+        gadgetOmni: !!context.houseGadgets && !!(item.getFlag?.("faserip", "gadget")?.omni) && !item.getFlag?.("faserip", "gadget")?.burned,
+        gadgetBurned: !!context.houseGadgets && !!item.getFlag?.("faserip", "gadget")?.burned,
+        gadgetUses: item.getFlag?.("faserip", "gadget")?.usesLeft ?? 0,
         pips: pips(item.system.assistance),
         stunts: (item.system.stunts ?? []).map((s, index) => ({
           ...s,
@@ -550,6 +556,36 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     const type = formValue(form, "type");
     const name = formValue(form, "name");
     await this.actor.createEmbeddedDocuments("Item", [{ name: name || type, type: "contact", system: { category: type, occupation: type } }]);
+  }
+
+  async _onDesignGadget(event) {
+    event.preventDefault();
+    const { promptDesignGadget } = await import("../gadgets.mjs");
+    return promptDesignGadget(this.actor);
+  }
+
+  async _onUseGadget(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    const { promptUseGadget } = await import("../gadgets.mjs");
+    return promptUseGadget(this.actor, item);
+  }
+
+  async _onRepairGadget(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    const { promptRepairGadget } = await import("../gadgets.mjs");
+    return promptRepairGadget(this.actor, item);
+  }
+
+  async _onBreakGadget(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    const { promptBreakGadget } = await import("../gadgets.mjs");
+    return promptBreakGadget(this.actor, item);
   }
 
   _formEl(name) {

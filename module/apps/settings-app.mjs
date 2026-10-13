@@ -57,7 +57,8 @@ const PAGES = [
       { title: "Team Maneuvers", keys: ["houseTeam"] },
       { title: "Tags", keys: ["houseTags"] },
       { title: "Focus", keys: ["houseFocus", "houseFocusAbility"] },
-      { title: "Tailored characters", keys: ["houseTailored", "houseTailoredCap", "houseTailoredWeakness", "houseTailoredBudget"] }
+      { title: "Tailored characters", keys: ["houseTailored", "houseTailoredCap", "houseTailoredWeakness", "houseTailoredBudget"] },
+      { title: "Gadgets", keys: ["houseGadgets"] }
     ]
   }
 ];

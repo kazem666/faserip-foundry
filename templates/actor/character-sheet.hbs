@@ -429,6 +429,7 @@
 
     <div class="tab" data-group="primary" data-tab="gear">
       <p class="hint">+ Weapon and + Equipment open the gear shop. A cheaper item is automatic. The same Resource rank needs a Yellow FEAT. One rank higher needs Red. Two or more ranks higher is refused. The rank itself is not spent.</p>
+      {{#if houseGadgets}}<p class="hint">Design a gadget stakes Karma, rolls Resources for the parts, then rolls Reason for the body and each piece. The workshop caps the ranks. An omni-gadget is named when used and then burns out.</p>{{/if}}
       <p class="hint">Guns, bows, and other ammo weapons show shots left. One attack spends one. Reload draws from ammunition on this sheet. Grenades, kits, spray, tablets, and parachutes spend one use. Spend on gas, fuel, and other ammunition uses one from the stack.</p>
       <ol class="item-list">
         {{#each gear as |item|}}
@@ -442,8 +443,11 @@
           {{#if item.spareAmmo}}<span class="shots-left">{{item.roundsLabel}}</span><button type="button" data-action="spendSupply">Spend</button>{{/if}}
           {{#if item.veiled}}
           <button type="button" data-action="identifyItem">Identify</button>
+          {{else if item.gadgetBurned}}
+          <button type="button" data-action="repairGadget">Repair</button>
           {{else}}
-          <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
+          {{#if item.gadgetOmni}}<button type="button" data-action="useGadget">Use ({{item.gadgetUses}} left)</button>{{else}}<button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>{{/if}}
+          {{#if item.gadget}}<button type="button" data-action="breakGadget">It broke</button>{{/if}}
           {{/if}}
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
           <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
@@ -452,6 +456,7 @@
       </ol>
       <button type="button" class="create" data-action="itemCreate" data-type="weapon">+ Weapon</button>
       <button type="button" class="create" data-action="itemCreate" data-type="equipment">+ Equipment</button>
+      {{#if houseGadgets}}<button type="button" class="create" data-action="designGadget">Design a gadget</button>{{/if}}
     </div>
 
     <div class="tab" data-group="primary" data-tab="karma">

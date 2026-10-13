@@ -439,6 +439,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseGadgets", {
+    name: "House rule: Gadgets",
+    hint: "Judge only. A hero can design a device: stake Karma, roll Resources for the parts, then roll Reason for the body and each ability or power. The workshop caps the ranks. An omni-gadget is named when used, works a short time, then burns out until repaired. Field repair is two columns harder.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;
   Hooks._faseripHouse = true;

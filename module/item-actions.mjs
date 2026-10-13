@@ -246,11 +246,18 @@ export function describeItemAction(item) {
     }
     return spec;
   }
-  if (item.type === "equipment") return action({ kind: "feat", ability: "reason", rankFrom: "item" });
+  if (item.type === "equipment") {
+    const gadget = item.getFlag?.("faserip", "gadget") || item.flags?.faserip?.gadget;
+    const ability = gadget?.facets?.find((facet) => facet.kind === "ability")?.ability;
+    if (ability) return action({ kind: "feat", ability, rankFrom: "item", title: item.system?.definition || "" });
+    return action({ kind: "feat", ability: "reason", rankFrom: "item" });
+  }
   return action({ kind: "feat", ability: "reason" });
 }
 
 export function rankIdForAction(actor, item, spec) {
+  const gadget = item?.getFlag?.("faserip", "gadget") || item?.flags?.faserip?.gadget;
+  if (gadget && spec?.kind === "attack") return gadget.attackRank || item?.system?.rank || "typical";
   const override = mentalRankOverride(actor, spec);
   if (override) return override;
   if (spec.rankFrom === "item") return item?.system?.rank || "typical";
