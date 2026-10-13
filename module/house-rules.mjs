@@ -467,6 +467,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseFear", {
+    name: "House rule: Fear",
+    hint: "Judge only. A Psyche FEAT against the fear's rank. Failure is fight, flee, or freeze for the round. The low third of the miss freezes, the middle flees, and the high third fights.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;
   Hooks._faseripHouse = true;

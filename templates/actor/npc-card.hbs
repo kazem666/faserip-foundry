@@ -10,6 +10,7 @@
   </header>
 
   {{#if poisoned}}<p class="condition-banner">{{poisonText}}</p>{{/if}}
+  {{#if fearText}}<p class="condition-banner">{{fearText}}</p>{{/if}}
   {{#if conditionText}}<p class="condition-banner">{{conditionText}}</p>{{/if}}
 
   <section class="panel">
@@ -53,6 +54,7 @@
       <label class="check"><input type="checkbox" name="energyAttack" /> Energy</label>
       <button type="button" data-action="applyDamage">Apply</button>
       <button type="button" data-action="heal">Heal</button>
+      {{#if houseFear}}<button type="button" data-action="fear">Fear</button>{{/if}}
     </div>
   </section>
 

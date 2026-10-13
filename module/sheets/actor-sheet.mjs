@@ -142,6 +142,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseSecrecy = house.houseOn("houseSecrecy");
         context.housePowerPool = house.houseOn("housePowerPool");
         context.housePurse = house.houseOn("housePurse");
+        context.houseFear = house.houseOn("houseFear");
         if (context.housePurse) {
           const purse = await import("../purse.mjs");
           const state = purse.purseState(actor);
@@ -162,6 +163,8 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseSecrecy = false;
         context.housePowerPool = false;
         context.housePurse = false;
+        context.houseFear = false;
+        context.fearText = "";
         context.coverBlown = false;
         context.secrecyChoices = [];
         context.focus = null;
@@ -320,6 +323,12 @@ export async function fillActorSheetContext(sheet, context) {
       try { context.groupKarma = game.settings.get("faserip", "groupKarma") || 0; } catch { context.groupKarma = 0; }
       context.poisoned = !!actor.getFlag("faserip", "poison");
       context.poisonText = context.poisoned ? "Poisoned. Health does not return until this is treated." : "";
+      try {
+        const { fearNote } = await import("../fear.mjs");
+        context.fearText = fearNote(actor);
+      } catch {
+        context.fearText = "";
+      }
   return context;
 }
 
@@ -649,6 +658,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     event.preventDefault();
     const { promptSpendPurse } = await import("../purse.mjs");
     return promptSpendPurse(this.actor);
+  }
+
+  async _onFear(event) {
+    event.preventDefault();
+    const { promptFear } = await import("../fear.mjs");
+    return promptFear(this.actor);
   }
 
   _formEl(name) {

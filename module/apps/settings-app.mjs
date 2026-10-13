@@ -61,7 +61,8 @@ const PAGES = [
       { title: "Gadgets", keys: ["houseGadgets"] },
       { title: "Secrecy", keys: ["houseSecrecy"] },
       { title: "Power pool", keys: ["housePowerPool"] },
-      { title: "Weekly purse", keys: ["housePurse"] }
+      { title: "Weekly purse", keys: ["housePurse"] },
+      { title: "Fear", keys: ["houseFear"] }
     ]
   }
 ];

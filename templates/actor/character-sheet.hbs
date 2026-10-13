@@ -158,6 +158,9 @@
       {{#if poisoned}}
       <p class="condition-banner">{{poisonText}}</p>
       {{/if}}
+      {{#if fearText}}
+      <p class="condition-banner">{{fearText}}</p>
+      {{/if}}
       {{#if conditionText}}
       <p class="condition-banner">{{conditionText}}</p>
       <div class="advancement-actions">
@@ -188,6 +191,7 @@
           </select>
         </label>
         <button type="button" data-action="universal">Roll FEAT</button>
+        {{#if houseFear}}<button type="button" data-action="fear">Fear</button>{{/if}}
         <button type="button" data-action="toggleTable">Universal Table</button>
         <button type="button" data-action="fallImpact">Fall</button>
         <button type="button" data-action="catchFall">Catch</button>

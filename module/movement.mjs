@@ -1,5 +1,6 @@
 import { MOVEMENT_AREAS, TELEPORT_AREAS, THROW_RANGE } from "./config.mjs";
 import { runLocked } from "./combat-rules.mjs";
+import { fearActive, fearPace } from "./fear.mjs";
 
 export const DEFAULT_FEET_PER_AREA = 20;
 
@@ -136,6 +137,9 @@ export function movementModes(actor) {
       if (Number.isFinite(modes[key])) modes[key] = Math.min(modes[key], 1);
     }
   }
+  if (fearPace(actor) === 0) {
+    for (const key of Object.keys(modes)) modes[key] = 0;
+  }
   return modes;
 }
 
@@ -152,7 +156,9 @@ export function movementLines(actor) {
     if (action === "walk" || !MODE_LABELS[action] || !(areas > 0)) continue;
     extra.push({ label: MODE_LABELS[action], text: formatMovement(areas) });
   }
-  const walk = formatMovement(modes.walk || 0) + (runLocked(actor) ? " · can't run" : "");
+  const fear = fearActive(actor);
+  const paceNote = fear === "freeze" ? " · frozen" : fear === "flee" ? " · fleeing" : fear === "fight" ? " · fighting" : (runLocked(actor) ? " · can't run" : "");
+  const walk = formatMovement(modes.walk || 0) + paceNote;
   return { walk, extra, feetPerArea: feetPerArea(), squaresPerArea: feetPerArea() / gridFeet(), gridFeet: gridFeet() };
 }
 

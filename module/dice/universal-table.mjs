@@ -31,6 +31,7 @@ import {
 import { shiftDamageAmount, situationProblem, splashMiss } from "../situation.mjs";
 import { fantasticOutcome, houseFeatFields, houseOn, percentileHits, readHouseFeat, spendFocus } from "../house-rules.mjs";
 import { poolBlocked } from "../power-pool.mjs";
+import { fearDenial, spendFear } from "../fear.mjs";
 import {
   applyVariable, autoCombatAdjust, combatFeatFields, combatOn, dodgeAndAttack, downgradeColor,
   edgedCut, grappleEffect, noteSecondAction, readCombatFeat, resolveCalled, variableBonus, variableKind
@@ -92,7 +93,8 @@ export async function rollFeat({
   subdual = false,
   dodgeAttack = false,
   cover = "",
-  called = ""
+  called = "",
+  fearCheck = false
 } = {}) {
   const columnIdEarly = resolveBattleColumn(effectsColumn);
   if (item?.getFlag?.("faserip", "dropped") || item?.flags?.faserip?.dropped) {
@@ -102,6 +104,14 @@ export async function rollFeat({
   if (poolBlocked(item)) {
     ui.notifications?.warn(`${item.name} is set aside. Make it ready first.`);
     return null;
+  }
+  if (!fearCheck) {
+    const scared = fearDenial(actor, columnIdEarly, isCheckColumn(columnIdEarly));
+    if (scared) {
+      await spendFear(actor, columnIdEarly);
+      ui.notifications?.warn(scared);
+      return null;
+    }
   }
   if (combatOn("combatCalled") && actor?.getFlag?.("faserip", "lostAction") && !isCheckColumn(columnIdEarly)) {
     await actor.unsetFlag("faserip", "lostAction");
@@ -497,6 +507,7 @@ export async function rollFeat({
   if (actor && !isCheckColumn(columnId) && actor.getFlag?.("faserip", "noRun") === "next") {
     await actor.unsetFlag("faserip", "noRun");
   }
+  if (actor && !fearCheck && !isCheckColumn(columnId)) await spendFear(actor, columnId);
   return message;
 }
 
@@ -547,8 +558,13 @@ export async function promptFeatRoll({
   whisperGM = false,
   extraCs = 0,
   extraNote = "",
-  magic = false
+  magic = false,
+  fearCheck = false
 } = {}) {
+  if (!fearCheck && actor && fearDenial(actor, defaultColumn, isCheckColumn(defaultColumn))) {
+    ui.notifications?.warn(fearDenial(actor, defaultColumn, isCheckColumn(defaultColumn)));
+    return null;
+  }
   if (actor && !isCheckColumn(defaultColumn) && conditionBlock(actor)) {
     ui.notifications?.warn(conditionBlock(actor));
     return null;
@@ -769,6 +785,7 @@ export async function promptFeatRoll({
     dodgeAttack: strike.dodgeAttack,
     cover: strike.cover,
     called: strike.called,
+    fearCheck,
     resultOf,
     whisperGM
   });
