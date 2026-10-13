@@ -1,4 +1,5 @@
 import { MOVEMENT_AREAS, TELEPORT_AREAS, THROW_RANGE } from "./config.mjs";
+import { runLocked } from "./combat-rules.mjs";
 
 export const DEFAULT_FEET_PER_AREA = 20;
 
@@ -130,6 +131,11 @@ export function movementModes(actor) {
       if (Number.isFinite(modes[key])) modes[key] = Math.max(0, modes[key] * combined);
     }
   }
+  if (runLocked(actor)) {
+    for (const key of Object.keys(modes)) {
+      if (Number.isFinite(modes[key])) modes[key] = Math.min(modes[key], 1);
+    }
+  }
   return modes;
 }
 
@@ -146,7 +152,8 @@ export function movementLines(actor) {
     if (action === "walk" || !MODE_LABELS[action] || !(areas > 0)) continue;
     extra.push({ label: MODE_LABELS[action], text: formatMovement(areas) });
   }
-  return { walk: formatMovement(modes.walk || 0), extra, feetPerArea: feetPerArea(), squaresPerArea: feetPerArea() / gridFeet(), gridFeet: gridFeet() };
+  const walk = formatMovement(modes.walk || 0) + (runLocked(actor) ? " · can't run" : "");
+  return { walk, extra, feetPerArea: feetPerArea(), squaresPerArea: feetPerArea() / gridFeet(), gridFeet: gridFeet() };
 }
 
 const MELEE_COLUMNS = new Set(["blunt", "edged", "grappling", "grabbing"]);

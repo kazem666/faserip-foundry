@@ -231,6 +231,7 @@ export async function fillActorSheetContext(sheet, context) {
         gadgetOmni: !!context.houseGadgets && !!(item.getFlag?.("faserip", "gadget")?.omni) && !item.getFlag?.("faserip", "gadget")?.burned,
         gadgetBurned: !!context.houseGadgets && !!item.getFlag?.("faserip", "gadget")?.burned,
         gadgetUses: item.getFlag?.("faserip", "gadget")?.usesLeft ?? 0,
+        dropped: !!item.getFlag?.("faserip", "dropped"),
         pips: pips(item.system.assistance),
         stunts: (item.system.stunts ?? []).map((s, index) => ({
           ...s,
@@ -605,6 +606,14 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     if (!item) return;
     const { promptBreakGadget } = await import("../gadgets.mjs");
     return promptBreakGadget(this.actor, item);
+  }
+
+  async _onPickUp(event) {
+    event.preventDefault();
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return;
+    const { pickUpItem } = await import("../combat-rules.mjs");
+    return pickUpItem(item);
   }
 
   _formEl(name) {

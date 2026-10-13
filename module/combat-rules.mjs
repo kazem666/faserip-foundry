@@ -20,6 +20,13 @@ const MANEUVERS = {
   pull: { cs: -1, damageCs: 0, label: "Pull the punch (−1 to hit)", rules: ["combatPull"] }
 };
 
+export const CALLED = {
+  drop: { cs: -1, label: "Drop what they are holding (−1)" },
+  action: { cs: -2, label: "Lose the next action (−2)" },
+  run: { cs: -2, label: "Unable to run (−2)" },
+  stagger: { cs: -4, label: "Stagger (−4): next action and no run" }
+};
+
 export const COMBAT_PAGES = [
   {
     title: "The exchange",
@@ -31,7 +38,7 @@ export const COMBAT_PAGES = [
   },
   {
     title: "Strikes",
-    keys: ["combatCritical", "combatDevastating", "combatFlail", "combatSweep", "combatPull", "combatDodgeAttack"]
+    keys: ["combatCritical", "combatDevastating", "combatFlail", "combatSweep", "combatPull", "combatDodgeAttack", "combatCalled"]
   },
   {
     title: "Defense",
@@ -69,7 +76,8 @@ const SETTINGS = [
   ["combatGrappleFight", "Grapple with Fighting", "The first grab is a Fighting FEAT. Strength still describes the hold afterward."],
   ["combatColorShift", "Color shifts", "Column shifts past Shift 0 lower the color instead, to a maximum of two steps. Red can fall to green. They do not create a fumble."],
   ["combatFighting", "Fighting comparison", "On a melee attack, the difference in Fighting rank numbers is added to the attacker's d100 and subtracted from the lower Fighting."],
-  ["combatCover", "Cover and concealment", "A partly hidden target is harder to hit. A miss of 15 or more can strike the cover."]
+  ["combatCover", "Cover and concealment", "A partly hidden target is harder to hit. A miss of 15 or more can strike the cover."],
+  ["combatCalled", "Called shots", "Spend column shifts to aim. On a yellow or red, the target rolls Endurance. Failure drops what they hold, loses the next action, stops a run, or staggers."]
 ];
 
 function esc(value) {
@@ -168,6 +176,10 @@ export function combatFeatFields() {
       <option value="cover75">75% visible, hard cover (−2)</option>
     </select></div>`);
   }
+  if (combatOn("combatCalled")) {
+    const options = Object.entries(CALLED).map(([id, row]) => `<option value="${esc(id)}">${esc(row.label)}</option>`).join("");
+    bits.push(`<div class="form-group"><label>Called shot</label><select name="called"><option value="">— no call —</option>${options}</select></div>`);
+  }
   return bits.join("");
 }
 
@@ -181,7 +193,8 @@ export async function readCombatFeat(actor, form) {
   let subdual = false;
   let dodgeAttack = false;
   let cover = "";
-  if (!form) return { cs, damageCs, piercing, subdual, dodgeAttack, cover, notes };
+  let called = "";
+  if (!form) return { cs, damageCs, piercing, subdual, dodgeAttack, cover, called, notes };
   const strike = MANEUVERS[form.querySelector?.('[name="combatStrike"]')?.value || ""];
   if (strike && strike.rules.some((key) => combatOn(key))) {
     cs += strike.cs;
@@ -202,6 +215,12 @@ export async function readCombatFeat(actor, form) {
     cs += COVER_CS[cover];
     notes.push(`Cover ${COVER_CS[cover]} CS`);
   }
+  const call = CALLED[form.querySelector?.('[name="called"]')?.value || ""];
+  if (combatOn("combatCalled") && call) {
+    called = form.querySelector('[name="called"]').value;
+    cs += call.cs;
+    notes.push(call.label);
+  }
   const mine = globalThis.game?.combat?.combatant?.actor?.id === actor?.id;
   if (combatOn("combatPress") && form.querySelector?.('[name="pressAttack"]')?.checked) {
     if (!mine) notes.push("Pressing the attack waits for this character's turn.");
@@ -217,7 +236,7 @@ export async function readCombatFeat(actor, form) {
       await actor.unsetFlag("faserip", "pressRound").catch(() => {});
     }
   }
-  return { cs, damageCs, piercing, subdual, dodgeAttack, cover, notes };
+  return { cs, damageCs, piercing, subdual, dodgeAttack, cover, called, notes };
 }
 
 export function autoCombatAdjust({ actor, target, rankId, cs, columnId, blindside }) {
@@ -412,6 +431,74 @@ export async function promptSoak(message) {
     speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: target }),
     content: `<div class="faserip-chat"><p>${esc(line)}</p></div>`
   });
+}
+
+export function calledReady(color) {
+  return color === "yellow" || color === "red";
+}
+
+export function calledEffects(id) {
+  if (id === "drop") return ["drop"];
+  if (id === "action") return ["action"];
+  if (id === "run") return ["run"];
+  if (id === "stagger") return ["action", "run"];
+  return [];
+}
+
+export function runLocked(actor) {
+  if (!combatOn("combatCalled")) return false;
+  const flag = actor?.getFlag?.("faserip", "noRun") || actor?.flags?.faserip?.noRun;
+  if (!flag) return false;
+  if (flag === "next") return true;
+  return flag === roundStamp();
+}
+
+function noRunMark() {
+  return globalThis.game?.combat?.started ? roundStamp() : "next";
+}
+
+async function dropHeld(target) {
+  const gear = [...(target?.items ?? [])].filter((item) => item.type === "weapon" || item.type === "equipment");
+  const held = gear.find((item) => item.type === "weapon" && !item.getFlag?.("faserip", "dropped"))
+    || gear.find((item) => !item.getFlag?.("faserip", "dropped"));
+  if (!held) return "Nothing in hand to drop.";
+  await held.setFlag("faserip", "dropped", true);
+  return `${held.name} is on the ground.`;
+}
+
+export async function resolveCalled({ target, color, callId, rankId }) {
+  if (!combatOn("combatCalled") || !CALLED[callId]) return "";
+  if (!calledReady(color)) {
+    return color === "green" ? "The called shot needed a yellow or red. The hit is ordinary." : "";
+  }
+  if (!target) return "The called shot has no target.";
+  const endurance = target.getAbilityRank?.("endurance") || "typical";
+  const need = intensityNeeded(endurance, rankId);
+  const needColor = need.automatic ? "green" : (need.impossible ? "red" : need.color);
+  const rolled = await featColor(endurance);
+  if (intensityMet(rolled.color, needColor)) {
+    return `${target.name} shrugs off the called shot (${rolled.roll}, ${rolled.color}).`;
+  }
+  const notes = [`${target.name} fails to shrug it off (${rolled.roll}, ${rolled.color}).`];
+  for (const effect of calledEffects(callId)) {
+    if (effect === "drop") notes.push(await dropHeld(target));
+    if (effect === "action") {
+      await target.setFlag("faserip", "lostAction", true);
+      notes.push("The next action is lost.");
+    }
+    if (effect === "run") {
+      await target.setFlag("faserip", "noRun", noRunMark());
+      notes.push("They cannot run.");
+    }
+  }
+  return notes.join(" ");
+}
+
+export async function pickUpItem(item) {
+  if (!item?.getFlag?.("faserip", "dropped")) return null;
+  await item.unsetFlag("faserip", "dropped");
+  globalThis.ui?.notifications?.info(`${item.name} is back in hand.`);
+  return item;
 }
 
 export function registerCombatRules() {

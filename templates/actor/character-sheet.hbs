@@ -457,7 +457,9 @@
           {{#if item.tracksAmmo}}<span class="shots-left{{#if item.ammoEmpty}} empty{{/if}}">{{item.shotsLabel}}</span><button type="button" data-action="reloadWeapon">Reload</button>{{/if}}
           {{#if item.tracksCharges}}<span class="shots-left{{#if item.chargesEmpty}} empty{{/if}}">{{item.chargesLabel}}</span>{{#if item.canRefill}}<button type="button" data-action="refillCharges">Refill</button>{{/if}}{{/if}}
           {{#if item.spareAmmo}}<span class="shots-left">{{item.roundsLabel}}</span><button type="button" data-action="spendSupply">Spend</button>{{/if}}
-          {{#if item.veiled}}
+          {{#if item.dropped}}
+          <button type="button" data-action="pickUp">Pick up</button>
+          {{else if item.veiled}}
           <button type="button" data-action="identifyItem">Identify</button>
           {{else if item.gadgetBurned}}
           <button type="button" data-action="repairGadget">Repair</button>

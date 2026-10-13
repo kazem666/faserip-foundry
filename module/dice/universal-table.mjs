@@ -32,7 +32,7 @@ import { shiftDamageAmount, situationProblem, splashMiss } from "../situation.mj
 import { fantasticOutcome, houseFeatFields, houseOn, percentileHits, readHouseFeat, spendFocus } from "../house-rules.mjs";
 import {
   applyVariable, autoCombatAdjust, combatFeatFields, combatOn, dodgeAndAttack, downgradeColor,
-  edgedCut, grappleEffect, noteSecondAction, readCombatFeat, variableBonus, variableKind
+  edgedCut, grappleEffect, noteSecondAction, readCombatFeat, resolveCalled, variableBonus, variableKind
 } from "../combat-rules.mjs";
 
 const COLOR_HEX = {
@@ -90,9 +90,20 @@ export async function rollFeat({
   piercing = false,
   subdual = false,
   dodgeAttack = false,
-  cover = ""
+  cover = "",
+  called = ""
 } = {}) {
   const columnIdEarly = resolveBattleColumn(effectsColumn);
+  if (item?.getFlag?.("faserip", "dropped") || item?.flags?.faserip?.dropped) {
+    ui.notifications?.warn(`${item.name} is on the ground.`);
+    return null;
+  }
+  if (combatOn("combatCalled") && actor?.getFlag?.("faserip", "lostAction") && !isCheckColumn(columnIdEarly)) {
+    await actor.unsetFlag("faserip", "lostAction");
+    if (actor.getFlag?.("faserip", "noRun") === "next") await actor.unsetFlag("faserip", "noRun");
+    ui.notifications?.warn(`${actor.name} loses this action to a called shot.`);
+    return null;
+  }
   if (!skipCondition && actor && !isCheckColumn(columnIdEarly) && conditionBlock(actor)) {
     ui.notifications?.warn(conditionBlock(actor));
     return null;
@@ -245,6 +256,10 @@ export async function rollFeat({
   if (blindside) combat.checkColumn = "";
   if (cover && color === "white" && adjusted >= 15) {
     shiftNotes = [shiftNotes, "The roll missed the target and can hit the cover."].filter(Boolean).join(". ");
+  }
+  if (called) {
+    const aimed = await resolveCalled({ target, color, callId: called, rankId: effectiveId });
+    if (aimed) shiftNotes = [shiftNotes, aimed].filter(Boolean).join(". ");
   }
   if (combatOn("combatVariable") && combat.damageAmount) {
     const kind = variableKind(effectiveId, adjusted);
@@ -473,6 +488,9 @@ export async function rollFeat({
   }
   if (!lineCheck && color === "white" && target) {
     await splashMiss({ actor, target, columnId, rankId: effectiveId, label, item });
+  }
+  if (actor && !isCheckColumn(columnId) && actor.getFlag?.("faserip", "noRun") === "next") {
+    await actor.unsetFlag("faserip", "noRun");
   }
   return message;
 }
@@ -745,6 +763,7 @@ export async function promptFeatRoll({
     subdual: strike.subdual,
     dodgeAttack: strike.dodgeAttack,
     cover: strike.cover,
+    called: strike.called,
     resultOf,
     whisperGM
   });

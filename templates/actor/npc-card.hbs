@@ -61,7 +61,7 @@
     <button type="button" data-action="rollSheetAction" data-standard="slugfest">Slugfest</button>
     {{#each cardWeapons as |item|}}
     <div class="npc-row" data-item-id="{{item.id}}">
-      <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.name}}</button>
+      {{#if item.dropped}}<button type="button" data-action="pickUp">Pick up</button>{{else}}<button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.name}}</button>{{/if}}
       <span class="item-rank">{{item.rankLabel}}</span>
       {{#if item.tracksAmmo}}<span class="shots-left{{#if item.ammoEmpty}} empty{{/if}}">{{item.shotsLabel}}</span><button type="button" data-action="reloadWeapon">Reload</button>{{/if}}
       <button type="button" data-action="itemEdit" title="Edit">Edit</button>
@@ -90,7 +90,7 @@
       <span class="item-name">{{item.name}}</span>
       {{#if item.tracksCharges}}<span class="shots-left{{#if item.chargesEmpty}} empty{{/if}}">{{item.chargesLabel}}</span>{{/if}}
       {{#if item.spareAmmo}}<span class="shots-left">{{item.roundsLabel}}</span><button type="button" data-action="spendSupply">Spend</button>{{/if}}
-      {{#unless item.spareAmmo}}<button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>{{/unless}}
+      {{#if item.dropped}}<button type="button" data-action="pickUp">Pick up</button>{{else}}{{#unless item.spareAmmo}}<button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>{{/unless}}{{/if}}
     </div>
     {{/each}}
   </section>
