@@ -276,6 +276,7 @@ async function houseContact(actor) {
 }
 
 export async function promptContactRegard(actor) {
+  if (!houseAdvance()) return;
   const contacts = [...(actor.items ?? [])].filter((item) => item.type === "contact");
   if (!contacts.length) {
     ui.notifications?.warn(`${actor.name} has no contacts.`);
