@@ -1,5 +1,6 @@
 import { BATTLE_EFFECTS } from "./config.mjs";
-import { describeFantasticPanel, grantFreeStunt, rerollWithFocus } from "./house-rules.mjs";
+import { describeFantasticPanel, grantFreeStunt, houseOn, rerollWithFocus } from "./house-rules.mjs";
+import { privateKarmaBlocked } from "./secrecy.mjs";
 import { promptForm, formValue } from "./foundry-api.mjs";
 import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
 import { powerDamage } from "./item-actions.mjs";
@@ -388,6 +389,7 @@ export async function promptJudgeAward(preselect = []) {
       </label></div>
       <div class="form-group"><label>Hero Popularity<input type="number" name="popularity" value="0" step="1" /></label></div>
       <div class="form-group"><label>Secret Popularity<input type="number" name="secret" value="0" step="1" /></label></div>
+      ${houseOn("houseSecrecy") ? `<label class="check"><input type="checkbox" name="privateLife" /> This Karma comes from the private life</label>` : ""}
       <div class="award-list">${checks}</div>
     `
   });
@@ -396,21 +398,30 @@ export async function promptJudgeAward(preselect = []) {
   const preset = formValue(form, "popPreset");
   const popularity = preset === "" ? Number(formValue(form, "popularity") || 0) : Number(preset);
   const secret = Number(formValue(form, "secret") || 0);
+  const fromPrivate = houseOn("houseSecrecy") && !!form.querySelector?.('[name="privateLife"]')?.checked;
   const ids = [...form.querySelectorAll('[name="actor"]:checked')].map((el) => el.value);
   if (!ids.length) {
     ui.notifications.warn("Choose at least one character.");
     return null;
   }
   const names = [];
+  const blocked = [];
   for (const id of ids) {
     const actor = game.actors.get(id);
     if (!actor) continue;
     const update = {};
-    if (karma) update["system.karma.value"] = Math.max(0, Number(actor.system.karma?.value || 0) + karma);
+    const holdKarma = karma > 0 && privateKarmaBlocked({
+      ruleOn: houseOn("houseSecrecy"),
+      keepsSecret: !!actor.system?.identity?.secretId,
+      fromPrivateLife: fromPrivate,
+      stored: actor.system?.identity?.secrecy
+    });
+    if (karma && !holdKarma) update["system.karma.value"] = Math.max(0, Number(actor.system.karma?.value || 0) + karma);
     if (popularity) update["system.popularity.value"] = Number(actor.system.popularity?.value || 0) + popularity;
     if (secret) update["system.popularity.secret"] = Number(actor.system.popularity?.secret || 0) + secret;
     if (Object.keys(update).length) await actor.update(update);
-    names.push(actor.name);
+    if (holdKarma) blocked.push(actor.name);
+    if (!holdKarma || Object.keys(update).length) names.push(actor.name);
   }
   const parts = [];
   if (karma) parts.push(`${karma > 0 ? "+" : ""}${karma} Karma`);
@@ -418,7 +429,7 @@ export async function promptJudgeAward(preselect = []) {
   if (secret) parts.push(`${secret > 0 ? "+" : ""}${secret} Secret Popularity`);
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker(),
-    content: `<div class="faserip-chat"><header><span class="feat-label">Judge award</span></header><p>${esc(parts.join(", ") || "No change")} — ${esc(names.join(", "))}</p></div>`
+    content: `<div class="faserip-chat"><header><span class="feat-label">Judge award</span></header><p>${esc(parts.join(", ") || "No change")} — ${esc(names.join(", ") || "no one")}${blocked.length ? `. No private-life Karma for ${esc(blocked.join(", "))}: the cover is below Typical.` : ""}</p></div>`
   });
   ui.notifications.info(`Awarded ${names.length} character${names.length === 1 ? "" : "s"}.`);
   return names;

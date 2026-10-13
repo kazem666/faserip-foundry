@@ -139,6 +139,10 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseFocus = house.houseOn("houseFocus");
         context.houseAdvancement = house.houseOn("houseAdvancement");
         context.houseGadgets = house.houseOn("houseGadgets");
+        context.houseSecrecy = house.houseOn("houseSecrecy");
+        const secrecy = await import("../secrecy.mjs");
+        context.secrecyChoices = secrecy.secrecyChoices(actor.system?.identity?.secrecy);
+        context.coverBlown = context.houseSecrecy && !!actor.system?.identity?.secretId && secrecy.coverBlown(actor.system?.identity?.secrecy);
         context.focus = context.houseFocus ? house.focusView(actor) : null;
         context.freeStunt = !!actor.getFlag?.("faserip", "freeStunt");
       } catch {
@@ -147,6 +151,9 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseFocus = false;
         context.houseAdvancement = false;
         context.houseGadgets = false;
+        context.houseSecrecy = false;
+        context.coverBlown = false;
+        context.secrecyChoices = [];
         context.focus = null;
         context.freeStunt = false;
       }
@@ -556,6 +563,18 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     const type = formValue(form, "type");
     const name = formValue(form, "name");
     await this.actor.createEmbeddedDocuments("Item", [{ name: name || type, type: "contact", system: { category: type, occupation: type } }]);
+  }
+
+  async _onSecrecySlip(event) {
+    event.preventDefault();
+    const { changeSecrecy } = await import("../secrecy.mjs");
+    return changeSecrecy(this.actor, -1, "The cover slipped this session.");
+  }
+
+  async _onSecrecyRepair(event) {
+    event.preventDefault();
+    const { changeSecrecy } = await import("../secrecy.mjs");
+    return changeSecrecy(this.actor, 1, "The cover was repaired.");
   }
 
   async _onDesignGadget(event) {

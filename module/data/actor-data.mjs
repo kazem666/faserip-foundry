@@ -87,6 +87,7 @@ export class HeroData extends foundry.abstract.TypeDataModel {
         archetype: new StringField({ initial: "" }),
         orientation: new StringField({ initial: "" }),
         languages: new StringField({ initial: "" }),
+        secrecy: new StringField({ initial: "" }),
         player: new StringField({ initial: "" }),
         era: new StringField({ initial: "" }),
         campaign: new StringField({ initial: "" })

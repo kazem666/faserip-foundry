@@ -197,6 +197,7 @@
         <button type="button" data-action="escapeFate">Escape to 100 Karma</button>
         {{#if houseTeam}}<button type="button" data-action="teamManeuver">Team Maneuver</button>{{/if}}
         {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
+        {{#if coverBlown}}<p class="hint">The cover is below Typical. Private-life Karma does not come in until Secrecy is repaired.</p>{{/if}}
         {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
         <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
         <label>Battle Effects
@@ -238,6 +239,21 @@
         <label>Calling <input name="system.identity.calling" type="text" value="{{system.identity.calling}}" /></label>
         <label>Orientation <input name="system.identity.orientation" type="text" value="{{system.identity.orientation}}" /></label>
       </div>
+      {{#if houseSecrecy}}
+      {{#if system.identity.secretId}}
+      <section class="panel">
+        <h2>Secrecy {{#each secrecyChoices as |row|}}{{#if row.selected}}{{row.label}}{{/if}}{{/each}}</h2>
+        <p class="hint">A slip, someone being told, or a scene played in the open drops this one column. Below Typical, the cover is in trouble and private-life Karma does not come in.</p>
+        <label>Rank
+          <select name="system.identity.secrecy">
+            {{#each secrecyChoices as |row|}}<option value="{{row.id}}" {{#if row.selected}}selected{{/if}}>{{row.label}}</option>{{/each}}
+          </select>
+        </label>
+        <button type="button" data-action="secrecySlip">Slip this session</button>
+        <button type="button" data-action="secrecyRepair">Cover repaired</button>
+      </section>
+      {{/if}}
+      {{/if}}
       <label>Quirks
         <textarea name="system.identity.quirks" rows="2">{{system.identity.quirks}}</textarea>
       </label>

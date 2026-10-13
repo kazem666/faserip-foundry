@@ -446,6 +446,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseSecrecy", {
+    name: "House rule: Secrecy",
+    hint: "Judge only. A hero with a secret identity has one Secrecy rank. A slip, someone being told, or a scene in the open drops it one column. Below Typical, private-life Karma does not come in until the cover is repaired.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;
   Hooks._faseripHouse = true;
