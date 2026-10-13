@@ -129,6 +129,13 @@
               </div>
               <button type="button" data-action="rollPopularity">FEAT</button>
             </div>
+            {{#if houseFocus}}
+            <div class="stat-box">
+              <header title="Short-term pool. New scene or the start of a fight refills it.">Focus</header>
+              <div class="stat-values"><span>{{focus.value}}</span><span>/</span><span class="max">{{focus.max}}</span></div>
+              <button type="button" data-action="refreshFocus">New scene</button>
+            </div>
+            {{/if}}
           </div>
         </section>
       </div>
@@ -188,6 +195,7 @@
         <button type="button" data-action="poison">Poison</button>
         <button type="button" data-action="treatPoison">Treat poison</button>
         <button type="button" data-action="escapeFate">Escape to 100 Karma</button>
+        {{#if houseTeam}}<button type="button" data-action="teamManeuver">Team Maneuver</button>{{/if}}
         {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
         {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
         <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
@@ -233,6 +241,13 @@
       <label>Quirks
         <textarea name="system.identity.quirks" rows="2">{{system.identity.quirks}}</textarea>
       </label>
+      {{#if houseTags}}
+      <div class="id-grid">
+        <label>Tags <input name="system.identity.tags" type="text" value="{{system.identity.tags}}" placeholder="Up to three, separated by commas" /></label>
+        <label>Hindrances <input name="system.identity.hindrances" type="text" value="{{system.identity.hindrances}}" placeholder="Judge applies these" /></label>
+      </div>
+      <p class="hint">Invoke one tag per round for +1 or +2 columns when it clearly applies. A hindrance is −1 column.</p>
+      {{/if}}
       <div class="panel-grid two">
         <section class="panel description">
           <h2>Description</h2>
@@ -343,7 +358,12 @@
             {{#if stunt.mastered}}<span class="mastered">Mastered</span>{{/if}}
           </div>
           {{#unless stunt.mastered}}
+          {{#if freeStunt}}
+          <button type="button" data-action="stuntAttempt" data-item-id="{{item.id}}" data-stunt="{{stunt.index}}" data-pay="free">Try stunt (free)</button>
+          {{else}}
           <button type="button" data-action="stuntAttempt" data-item-id="{{item.id}}" data-stunt="{{stunt.index}}">Try stunt (−100 Karma)</button>
+          {{#if houseFocus}}<button type="button" data-action="stuntAttempt" data-item-id="{{item.id}}" data-stunt="{{stunt.index}}" data-pay="focus">Try stunt (1 Focus)</button>{{/if}}
+          {{/if}}
           {{/unless}}
         </div>
         {{/each}}

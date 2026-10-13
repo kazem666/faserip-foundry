@@ -1,4 +1,5 @@
 import { BATTLE_EFFECTS } from "./config.mjs";
+import { describeFantasticPanel, grantFreeStunt, rerollWithFocus } from "./house-rules.mjs";
 import { promptForm, formValue } from "./foundry-api.mjs";
 import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
 import { powerDamage } from "./item-actions.mjs";
@@ -270,6 +271,18 @@ export function bindFeatChat(message, html) {
   root.querySelector("[data-faserip-pan]")?.addEventListener("contextmenu", (event) => {
     event.preventDefault();
     panToFeatTarget(message);
+  });
+  root.querySelector("[data-faserip-panel]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    describeFantasticPanel(message);
+  });
+  root.querySelector("[data-faserip-free-stunt]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    grantFreeStunt(message);
+  });
+  root.querySelector("[data-faserip-focus-reroll]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    rerollWithFocus(message);
   });
 }
 

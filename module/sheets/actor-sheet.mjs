@@ -133,6 +133,20 @@ export async function fillActorSheetContext(sheet, context) {
       context.healRate = actor.getAbilityNumber("endurance");
       context.resourceCache = Number(actor.getFlag?.("faserip", "resourceCache") || 0);
       try {
+        const house = await import("../house-rules.mjs");
+        context.houseTeam = house.houseOn("houseTeam");
+        context.houseTags = house.houseOn("houseTags");
+        context.houseFocus = house.houseOn("houseFocus");
+        context.focus = context.houseFocus ? house.focusView(actor) : null;
+        context.freeStunt = !!actor.getFlag?.("faserip", "freeStunt");
+      } catch {
+        context.houseTeam = false;
+        context.houseTags = false;
+        context.houseFocus = false;
+        context.focus = null;
+        context.freeStunt = false;
+      }
+      try {
         const { magicStudyNote } = await import("../magic.mjs");
         context.magicStudyNote = magicStudyNote(actor);
       } catch {
@@ -383,6 +397,8 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("studyWorking", this._onStudyWorking);
     on("refineWorking", this._onRefineWorking);
     on("drawCache", this._onDrawCache);
+    on("teamManeuver", this._onTeamManeuver);
+    on("refreshFocus", this._onRefreshFocus);
     on("holdBreath", this._onHoldBreath);
     on("drown", this._onDrown);
     on("poison", this._onPoison);
@@ -837,21 +853,33 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     const item = this.actor.items.get(event.currentTarget.dataset.itemId);
     const idx = Number(event.currentTarget.dataset.stunt);
     if (!item || Number.isNaN(idx)) return;
-    const fee = 100;
-    const available = this.actor.system.karma.value ?? 0;
-    if (available < fee) {
-      ui.notifications.warn(this.actor.name + " needs " + fee + " Karma for this stunt attempt.");
-      return;
-    }
     const stunts = foundry.utils.deepClone(item.system.stunts ?? []);
     const row = stunts[idx];
     if (!row || row.mastered) return;
+    const pay = event.currentTarget.dataset.pay || "karma";
+    const available = this.actor.system.karma.value ?? 0;
     const bank = this.actor.system.karmaBank ?? {};
-    await this.actor.update({
-      "system.karma.value": available - fee,
-      "system.karmaBank.powers": (bank.powers ?? 0) + fee,
-      "system.karmaBank.totalSpent": (bank.totalSpent ?? 0) + fee
-    });
+    const house = await import("../house-rules.mjs");
+    if (pay === "free") {
+      if (!this.actor.getFlag("faserip", "freeStunt")) {
+        ui.notifications.warn(`${this.actor.name} does not have a free Power Stunt.`);
+        return;
+      }
+      await this.actor.unsetFlag("faserip", "freeStunt");
+    } else if (pay === "focus") {
+      if (!(await house.spendFocus(this.actor))) return;
+    } else {
+      const fee = 100;
+      if (available < fee) {
+        ui.notifications.warn(this.actor.name + " needs " + fee + " Karma for this stunt attempt.");
+        return;
+      }
+      await this.actor.update({
+        "system.karma.value": available - fee,
+        "system.karmaBank.powers": (bank.powers ?? 0) + fee,
+        "system.karmaBank.totalSpent": (bank.totalSpent ?? 0) + fee
+      });
+    }
     const message = await promptFeatRoll({
       actor: this.actor,
       rankId: item.system.rank || "typical",
@@ -859,13 +887,29 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       ability: "powers"
     });
     const color = message?.flags?.faserip?.color || message?.getFlag?.("faserip", "color") || "";
-    if (!message || color === "white") {
-      await this.actor.update({
-        "system.karma.value": available,
-        "system.karmaBank.powers": bank.powers ?? 0,
-        "system.karmaBank.totalSpent": bank.totalSpent ?? 0
-      });
-      ui.notifications.info(`${row.name} does not work. The 100 Karma is returned.`);
+    if (!message) {
+      if (pay === "free") await this.actor.setFlag("faserip", "freeStunt", true);
+      else if (pay === "focus") await house.refundFocus(this.actor);
+      else {
+        await this.actor.update({
+          "system.karma.value": available,
+          "system.karmaBank.powers": bank.powers ?? 0,
+          "system.karmaBank.totalSpent": bank.totalSpent ?? 0
+        });
+      }
+      return;
+    }
+    if (color === "white") {
+      if (pay === "karma") {
+        await this.actor.update({
+          "system.karma.value": available,
+          "system.karmaBank.powers": bank.powers ?? 0,
+          "system.karmaBank.totalSpent": bank.totalSpent ?? 0
+        });
+        ui.notifications.info(`${row.name} does not work. The 100 Karma is returned.`);
+      } else {
+        ui.notifications.info(`${row.name} does not work.`);
+      }
       return;
     }
     row.attempts = Math.min(10, Number(row.attempts || 0) + 1);
@@ -877,6 +921,19 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
       red: "works. The Judge sets what it does."
     }[color] || "is attempted.";
     ui.notifications.info(`${row.name} ${verdict} Attempt ${row.attempts}/10.`);
+  }
+
+  async _onTeamManeuver(event) {
+    event.preventDefault();
+    const { promptTeamManeuver } = await import("../house-rules.mjs");
+    return promptTeamManeuver(this.actor);
+  }
+
+  async _onRefreshFocus(event) {
+    event.preventDefault();
+    const { refreshFocus } = await import("../house-rules.mjs");
+    const next = await refreshFocus(this.actor);
+    ui.notifications.info(`${this.actor.name} has ${next?.value ?? 0} Focus.`);
   }
 
   async _onAskContact(event) {

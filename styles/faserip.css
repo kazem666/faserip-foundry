@@ -610,6 +610,7 @@ html.faserip-theme-dark,
 .faserip-chat .result-banner.green, .faserip-chat .result-chip.green { background: #22c55e; color: #052e16; }
 .faserip-chat .result-banner.yellow, .faserip-chat .result-chip.yellow { background: #facc15; color: #111; }
 .faserip-chat .result-banner.red, .faserip-chat .result-chip.red { background: #dc2626; color: white; }
+.faserip-chat .result-chip.fantastic { background: #f59e0b; color: #1a120c; }
 .faserip-chat .feat-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
 .faserip-chat .feat-actions:empty { display: none; }
 .faserip-chat .feat-actions button {
@@ -881,16 +882,18 @@ button.faserip-import-pdf,
 .faserip-utable .swatch.green { background: #22c55e; color: #052e16; }
 .faserip-utable .swatch.yellow { background: #facc15; }
 .faserip-utable .swatch.red { background: #dc2626; color: #fff; }
-.faserip-utable .utable-scroll {
+.faserip-utable .utable-scale {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  min-width: 0;
+  overflow: hidden;
 }
 .faserip-utable table {
   border-collapse: separate;
   border-spacing: 0;
-  width: 100%;
+  width: max-content;
   font-size: 11px;
+  transform-origin: top left;
 }
 .faserip-utable th,
 .faserip-utable td {

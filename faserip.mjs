@@ -9,6 +9,7 @@ import { rollFeat, promptFeatRoll } from "./module/dice/universal-table.mjs";
 import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-table-app.mjs";
 import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.mjs";
 import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./module/workflow.mjs";
+import { registerHouseRules } from "./module/house-rules.mjs";
 import { registerComicSocket } from "./module/comic-hit.mjs";
 import { registerMovement } from "./module/movement.mjs";
 import { registerElevation } from "./module/elevation.mjs";
@@ -44,7 +45,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.42";
+const VERSION = "1.18.44";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -474,6 +475,12 @@ Hooks.once("init", () => {
       onChange: applyUiTheme
     });
     applyUiTheme(game.settings.get("faserip", "uiTheme"));
+    game.settings.register("faserip", "utableFrame", {
+      scope: "client",
+      config: false,
+      type: String,
+      default: ""
+    });
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls.",
@@ -493,6 +500,7 @@ Hooks.once("init", () => {
       scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
     registerWorkflowSettings();
+    registerHouseRules();
     try {
       game.settings.registerMenu("faserip", "generateHero", {
         name: "Generate Hero", label: "Open Character Builder",

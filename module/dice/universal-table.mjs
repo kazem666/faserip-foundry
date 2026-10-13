@@ -3,6 +3,7 @@ import {
   rankIndex,
   rankLabel,
   columnShiftRank,
+  shiftRank,
   RANK_BY_ID,
   BATTLE_EFFECTS,
   intensityNeeded,
@@ -28,6 +29,7 @@ import {
   spoilBlindside
 } from "../battle-results.mjs";
 import { shiftDamageAmount, situationProblem, splashMiss } from "../situation.mjs";
+import { fantasticOutcome, houseFeatFields, houseOn, percentileHits, readHouseFeat, spendFocus } from "../house-rules.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -78,7 +80,9 @@ export async function rollFeat({
   damageCs = 0,
   lineCheck = false,
   whisperGM = false,
-  magic = false
+  magic = false,
+  focusPush = false,
+  fantasticKarma = 0
 } = {}) {
   const columnIdEarly = resolveBattleColumn(effectsColumn);
   if (!skipCondition && actor && !isCheckColumn(columnIdEarly) && conditionBlock(actor)) {
@@ -89,6 +93,10 @@ export async function rollFeat({
   if (lure) columnShift += 2;
   if (shieldRank) columnShift -= 2;
   let baseRank = rankId;
+  if (focusPush && actor && await spendFocus(actor)) {
+    baseRank = shiftRank(baseRank, 1);
+    shiftNotes = [shiftNotes, "Focus pushes the power one rank."].filter(Boolean).join(". ");
+  }
   if (magic) {
     const adjusted = magicColumnShift(baseRank, columnShift);
     baseRank = adjusted.rankId;
@@ -124,6 +132,18 @@ export async function rollFeat({
   const raw = Number(roll.total);
   const adjusted = Math.min(100, Math.max(1, raw + spend));
   const color = colorForRoll(effectiveId, adjusted);
+  const fantasticPlan = fantasticOutcome({ color, raw, paid: fantasticKarma });
+  let fantastic = fantasticPlan.fantastic;
+  if (fantasticPlan.spend > 0 && actor?.system?.karma) {
+    const available = Number(actor.system.karma.value ?? 0);
+    if (available < fantasticPlan.spend) {
+      ui.notifications?.warn(`${actor.name} does not have ${fantasticPlan.spend} Karma for a Fantastic check.`);
+      fantastic = color === "red" && percentileHits(raw);
+    } else {
+      await actor.update({ "system.karma.value": available - fantasticPlan.spend });
+      shiftNotes = [shiftNotes, `Spent ${fantasticPlan.spend} Karma on a Fantastic check.`].filter(Boolean).join(" ");
+    }
+  }
   const rank = RANK_BY_ID[effectiveId];
   const intensity = intensityNeeded(effectiveId, intensityId || "");
   let intensityPass = true;
@@ -187,6 +207,12 @@ export async function rollFeat({
   if (psycheGate) shiftNotes = [shiftNotes, "Psyche FEAT to resist. Yellow or red: no effect. White or green: the working takes."].filter(Boolean).join(" ");
   if (magic && combat.damageAmount != null) combat.damageAmount = magicHarm(effectiveId);
   if (damageCs && combat.damageAmount) combat.damageAmount = shiftDamageAmount(combat.damageAmount, damageCs);
+  if (fantastic && combat.damageAmount) {
+    combat.damageAmount = Number(combat.damageAmount) * 2;
+    shiftNotes = [shiftNotes, "Fantastic Success. Damage is doubled."].filter(Boolean).join(" ");
+  } else if (fantastic) {
+    shiftNotes = [shiftNotes, "Fantastic Success. Intensity or duration is doubled."].filter(Boolean).join(" ");
+  }
   if (blindside) combat.checkColumn = "";
   const shieldValue = shieldRank ? rankValue(shieldRank) : 0;
   let healthNote = "";
@@ -320,7 +346,9 @@ export async function rollFeat({
     karma: spend,
     cs: columnShift,
     color,
-    colorLabel: game.i18n.localize(`FASERIP.Color.${color}`),
+    fantastic,
+    houseFocus: houseOn("houseFocus"),
+    colorLabel: fantastic ? "Fantastic" : game.i18n.localize(`FASERIP.Color.${color}`),
     colorHint: game.i18n.localize(`FASERIP.ColorHint.${color}`),
     baseRank: rankLabel(rankId),
     effectiveRank: rankLabel(effectiveId),
@@ -350,6 +378,8 @@ export async function rollFeat({
     flags: {
       faserip: {
         color,
+        fantastic,
+        baseRankId: rankId,
         rankId: effectiveId,
         roll: adjusted,
         label,
@@ -478,6 +508,7 @@ export async function promptFeatRoll({
         <label>Spend Karma (minimum 10 to modify the d100)</label>
         <input type="number" name="karma" value="0" min="0" step="1" />
       </div>`}
+      ${houseFeatFields(actor, item)}
       ${karmaMode === "normal" ? `<details>
         <summary>Maneuvers</summary>
         <label class="check"><input type="checkbox" name="blindside" /> Blindside (no Karma, and no Slam, Stun, or Kill check)</label>
@@ -618,13 +649,17 @@ export async function promptFeatRoll({
   ].filter(Boolean);
   if (csInput?.dataset.edited && typedCs !== sum) notes.push(`Column shift set to ${signed(typedCs)}`);
   const using = (id) => active.some((part) => part.id === id);
+  const house = await readHouseFeat(actor, form);
+  if (house.notes.length) notes.push(...house.notes);
   return rollFeat({
     actor,
     item,
     rankId,
     label,
-    cs,
+    cs: cs + house.cs,
     karma,
+    focusPush: house.focusPush,
+    fantasticKarma: house.fantasticKarma,
     intensityId,
     effectsColumn,
     targetId: target?.id || "",

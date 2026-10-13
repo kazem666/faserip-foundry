@@ -1,7 +1,7 @@
 <div class="faserip-chat color-{{color}}">
   <header>
     <span class="feat-label">{{label}}</span>
-    <span class="result-chip {{color}}">{{colorLabel}}</span>
+    <span class="result-chip {{color}}{{#if fantastic}} fantastic{{/if}}">{{colorLabel}}</span>
     {{#if actorName}}<span class="who">{{actorName}}</span>{{/if}}
   </header>
   <p class="hint">{{colorHint}}</p>
@@ -27,5 +27,10 @@
     {{#if canDamage}}<button type="button" data-faserip-apply>Apply {{damageAmount}}{{#if damageEnergy}} energy{{/if}}{{#if targetName}} to {{targetName}}{{/if}}</button>{{/if}}
     {{#if checkColumn}}<button type="button" data-faserip-check>{{checkLabel}}</button>{{/if}}
     {{/if}}
+    {{#if fantastic}}
+    <button type="button" data-faserip-panel>Describe the panel</button>
+    <button type="button" data-faserip-free-stunt>Free Power Stunt</button>
+    {{/if}}
+    {{#if houseFocus}}<button type="button" data-faserip-focus-reroll>Reroll (1 Focus)</button>{{/if}}
   </div>
 </div>

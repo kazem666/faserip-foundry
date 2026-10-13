@@ -82,6 +82,8 @@ export class HeroData extends foundry.abstract.TypeDataModel {
         personality: new StringField({ initial: "" }),
         calling: new StringField({ initial: "" }),
         quirks: new StringField({ initial: "" }),
+        tags: new StringField({ initial: "" }),
+        hindrances: new StringField({ initial: "" }),
         archetype: new StringField({ initial: "" }),
         orientation: new StringField({ initial: "" }),
         languages: new StringField({ initial: "" }),
