@@ -482,6 +482,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseSpeed", {
+    name: "House rule: Speed extra action",
+    hint: "Judge only. Lightning Speed, Hyper-Speed, or Hyper-Running grants one extra dice action in a combat round. The rank does not add more. A further dice action is still noted when One dice action is on.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   bindKarmaCeiling();
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;

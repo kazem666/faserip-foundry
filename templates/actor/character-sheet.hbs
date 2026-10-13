@@ -153,6 +153,7 @@
         <div>Armor {{bodyArmor}}</div>
         <div>Field {{forceField}}</div>
         <div>Power slots {{powerSlotsUsed}}{{#if generation}} / {{generation.powerNeed}}{{/if}}</div>
+        {{#if speedAction}}<div>{{speedAction}}</div>{{/if}}
       </section>
 
       <p class="hint">1 area = {{feetPerArea}} ft ({{squaresPerArea}} squares). Each square is {{gridFeet}} ft.</p>

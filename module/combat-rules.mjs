@@ -4,6 +4,8 @@
  */
 
 import { colorForRoll, intensityNeeded, rankFromNumber, rankIndex, rankValue, UNIVERSAL_TABLE } from "./config.mjs";
+import { houseOn } from "./house-rules.mjs";
+import { nextActionNote, speedPowerName } from "./speed-actions.mjs";
 
 const MELEE = new Set(["blunt", "edged", "grappling", "grabbing", "charging"]);
 const BLOW = new Set(["blunt", "force", "throwBlunt"]);
@@ -350,11 +352,23 @@ export async function edgedCut(item, actor, target) {
 }
 
 export async function noteSecondAction(actor, columnId, isCheck) {
-  if (!combatOn("combatTurn") || !actor || isCheck) return "";
-  const stamp = roundStamp();
-  if (actor.getFlag?.("faserip", "diceRound") === stamp) return "Second dice action this round.";
-  try { await actor.setFlag("faserip", "diceRound", stamp); } catch { /* the roll still stands */ }
-  return "";
+  if (!actor || isCheck) return "";
+  const speed = houseOn("houseSpeed") && globalThis.game?.combat?.started ? speedPowerName(actor) : "";
+  const turn = combatOn("combatTurn");
+  const step = nextActionNote({
+    turn,
+    speed,
+    acted: actor.getFlag?.("faserip", "diceRound") === roundStamp(),
+    speedUsed: actor.getFlag?.("faserip", "speedRound") === roundStamp()
+  });
+  if (!step.diceRound && !step.speedRound) return step.note;
+  try {
+    if (step.diceRound) await actor.setFlag("faserip", "diceRound", roundStamp());
+    if (step.speedRound) await actor.setFlag("faserip", "speedRound", roundStamp());
+  } catch {
+    /* the roll still stands */
+  }
+  return step.note;
 }
 
 async function targetOf(message) {

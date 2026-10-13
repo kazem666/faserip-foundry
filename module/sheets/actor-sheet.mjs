@@ -144,6 +144,15 @@ export async function fillActorSheetContext(sheet, context) {
         context.housePurse = house.houseOn("housePurse");
         context.houseFear = house.houseOn("houseFear");
         context.houseKarmaCeiling = house.houseOn("houseKarmaCeiling");
+        context.houseSpeed = house.houseOn("houseSpeed");
+        context.speedAction = "";
+        if (context.houseSpeed) {
+          const speed = await import("../speed-actions.mjs");
+          const { roundStamp } = await import("../combat-rules.mjs");
+          const name = speed.speedPowerName(actor);
+          const used = !!globalThis.game?.combat?.started && actor.getFlag?.("faserip", "speedRound") === roundStamp();
+          context.speedAction = speed.speedSheetLine(name, used);
+        }
         if (context.housePurse) {
           const purse = await import("../purse.mjs");
           const state = purse.purseState(actor);
@@ -166,6 +175,8 @@ export async function fillActorSheetContext(sheet, context) {
         context.housePurse = false;
         context.houseFear = false;
         context.houseKarmaCeiling = false;
+        context.houseSpeed = false;
+        context.speedAction = "";
         context.fearText = "";
         context.coverBlown = false;
         context.secrecyChoices = [];

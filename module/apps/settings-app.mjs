@@ -63,7 +63,8 @@ const PAGES = [
       { title: "Power pool", keys: ["housePowerPool"] },
       { title: "Weekly purse", keys: ["housePurse"] },
       { title: "Fear", keys: ["houseFear"] },
-      { title: "Karma ceiling", keys: ["houseKarmaCeiling"] }
+      { title: "Karma ceiling", keys: ["houseKarmaCeiling"] },
+      { title: "Speed", keys: ["houseSpeed"] }
     ]
   }
 ];
