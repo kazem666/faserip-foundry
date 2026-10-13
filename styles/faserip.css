@@ -1478,6 +1478,23 @@ button.faserip-import-pdf,
   gap: 12px;
 }
 .faserip-settings .settings-body[hidden] { display: none; }
+.faserip-settings .settings-subtabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.faserip-settings .settings-subtabs button {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.faserip-settings .settings-subtabs button.active {
+  background: var(--gold);
+  color: var(--on-gold);
+  border-color: var(--rule);
+}
+.faserip-settings [data-subpanel][hidden] { display: none; }
+.faserip-settings .schedule { display: flex; flex-direction: column; gap: 12px; }
+.faserip-settings .schedule p { margin: 0; font-size: 13px; }
 .faserip-settings section {
   border: 1px solid var(--line);
   background: var(--panel);

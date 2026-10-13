@@ -106,6 +106,7 @@ function fieldHtml(key, locked) {
 }
 
 function pageHtml(page, active, gm) {
+  if (page.id === "house") return housePageHtml(page, active, gm);
   const groups = page.groups.map((group) => {
     const fields = group.keys.map((key) => {
       const setting = settingConfig(key);
@@ -116,6 +117,37 @@ function pageHtml(page, active, gm) {
   }).join("");
   const lock = !gm ? `<p class="hint">World settings on this tab are for the Judge. Your own screen theme can still be saved.</p>` : "";
   return `<div class="settings-body" data-panel="${esc(page.id)}" ${page.id === active ? "" : "hidden"}>${lock}${groups}</div>`;
+}
+
+function housePageHtml(page, active, gm) {
+  const play = page.groups.map((group) => {
+    const fields = group.keys.map((key) => {
+      const setting = settingConfig(key);
+      const locked = !gm && setting?.scope === "world";
+      return fieldHtml(key, locked);
+    }).join("");
+    return `<section><h3>${esc(group.title)}</h3>${fields}</section>`;
+  }).join("");
+  const locked = !gm;
+  const advanceToggle = fieldHtml("houseAdvancement", locked);
+  const lock = !gm ? `<p class="hint">World settings on this tab are for the Judge. Your own screen theme can still be saved.</p>` : "";
+  const schedule = `<div class="schedule">
+    <section><h3>Abilities</h3><p>Raised 5 points at a time for 1000 Karma. The player says what the hero did in personal time to earn it. A number that is not a multiple of 5 costs 200 Karma per point until it is. Training or an outside change is enough of an explanation.</p></section>
+    <section><h3>Powers</h3><p>Raised 5 points at a time for 2000 Karma, with a note about the new potential. A rank past Unearthly needs the Judge's approval and a limitation.</p></section>
+    <section><h3>Resources</h3><p>Raised 5 points at a time for 500 Karma. The Judge and the player agree where the money came from. The raise waits on the Judge.</p></section>
+    <section><h3>Popularity</h3><p>Karma cannot buy Popularity. Deeds and charity raise it, and it can be lost. A contact's regard can be raised 5 points for 500 Karma after a scene with the Judge, or a note that the tie improved. Acting against that contact can still damage the tie.</p></section>
+    <section><h3>Talents</h3><p>1000 Karma from an NPC teacher. 2000 Karma from another player character. Say you are learning it before you spend, and play the practice.</p></section>
+    <section><h3>New powers</h3><p>4000 Karma, plus 1000 for each 5 points of the starting rank. The Judge approves it. A limitation can waive part of the cost.</p></section>
+    <section><h3>Contacts</h3><p>A contact already earned in play is free. 500 Karma names one sooner.</p></section>
+  </div>`;
+  return `<div class="settings-body" data-panel="house" ${active === "house" ? "" : "hidden"}>${lock}
+    <nav class="settings-subtabs">
+      <button type="button" data-subtab="play" class="active">During play</button>
+      <button type="button" data-subtab="advance">Advancement</button>
+    </nav>
+    <div data-subpanel="play">${play}</div>
+    <div data-subpanel="advance" hidden><section><h3>Schedule</h3>${advanceToggle}</section>${schedule}</div>
+  </div>`;
 }
 
 export function makeSettingsApp() {
@@ -147,6 +179,14 @@ export function makeSettingsApp() {
     async _replaceHTML(result, content) {
       content.replaceChildren(result);
       result.addEventListener("click", (event) => {
+        const sub = event.target.closest("[data-subtab]");
+        if (sub && result.contains(sub)) {
+          event.preventDefault();
+          const panel = sub.closest("[data-panel]");
+          panel?.querySelectorAll("[data-subtab]").forEach((button) => button.classList.toggle("active", button === sub));
+          panel?.querySelectorAll("[data-subpanel]").forEach((block) => { block.hidden = block.dataset.subpanel !== sub.dataset.subtab; });
+          return;
+        }
         const tab = event.target.closest("[data-tab]");
         if (!tab || !result.contains(tab)) return;
         event.preventDefault();

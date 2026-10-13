@@ -137,12 +137,14 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseTeam = house.houseOn("houseTeam");
         context.houseTags = house.houseOn("houseTags");
         context.houseFocus = house.houseOn("houseFocus");
+        context.houseAdvancement = house.houseOn("houseAdvancement");
         context.focus = context.houseFocus ? house.focusView(actor) : null;
         context.freeStunt = !!actor.getFlag?.("faserip", "freeStunt");
       } catch {
         context.houseTeam = false;
         context.houseTags = false;
         context.houseFocus = false;
+        context.houseAdvancement = false;
         context.focus = null;
         context.freeStunt = false;
       }
@@ -393,6 +395,7 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("addPower", this._onAddPower);
     on("addTalent", this._onAddTalent);
     on("addContact", this._onAddContact);
+    on("advanceContact", this._onAdvanceContact);
     on("learnWorking", this._onLearnWorking);
     on("studyWorking", this._onStudyWorking);
     on("refineWorking", this._onRefineWorking);
@@ -771,6 +774,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     event.preventDefault();
     const { promptContactAdd } = await import("../advancement.mjs");
     return promptContactAdd(this.actor);
+  }
+
+  async _onAdvanceContact(event) {
+    event.preventDefault();
+    const { promptContactRegard } = await import("../advancement.mjs");
+    return promptContactRegard(this.actor);
   }
 
   async _onLearnWorking(event) {

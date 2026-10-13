@@ -455,7 +455,11 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="karma">
+      {{#if houseAdvancement}}
+      <p class="hint">Abilities rise 5 points for 1000 Karma, or 200 per point until the number is a multiple of 5. Say what the hero did to earn it. Powers rise 5 points for 2000 Karma. Past Unearthly needs the Judge and a limitation. Resources rise 5 points for 500 Karma, with the Judge's approval. Karma cannot buy Popularity. A talent is 1000 from an NPC or 2000 from a player character. A new power is 4000 plus 1000 for each 5 points of its rank. A contact earned in play is free, or 500 Karma to name one now. A contact's regard rises 5 points for 500 Karma.</p>
+      {{else}}
       <p class="hint">Current Karma changes a die. The fund is set aside between scenes. One ability number costs 10 times the current number, plus 400 when the rank changes. A power number costs 20 times the new number, plus 500 to change rank. Resources cost 10 times the rank number plus 200. Popularity costs 10 times the current score. A new power is 3000 plus 40 times its starting number. A talent is 1000 with a teacher, or 2000 without. A contact is 500 plus 10 times that contact's Resources.</p>
+      {{/if}}
       <p class="hint">A new personal, universal, or entreaty working is 2500 Karma and starts at Excellent from a master, or Good from a text. Each spell in a group is 1500, and none of them work until the whole group is known. Refining a known working without raising its rank is 500 Karma.{{#if magicStudyNote}} {{magicStudyNote}}{{/if}}</p>
       <p class="hint">Group pool: {{groupKarma}}. {{#if groupMember}}This hero shares it.{{else}}This hero does not share it.{{/if}}</p>
       <div class="advancement-actions">
@@ -472,6 +476,7 @@
         {{#if resourceCache}}<button type="button" data-action="drawCache">Draw from cache ({{resourceCache}})</button>{{/if}}
         <button type="button" data-action="addTalent">Add talent</button>
         <button type="button" data-action="addContact">Add contact</button>
+        {{#if houseAdvancement}}<button type="button" data-action="advanceContact">Raise a contact's regard</button>{{/if}}
       </div>
       <div class="id-grid">
         <label>FASE <input type="number" name="system.karmaBank.fase" value="{{system.karmaBank.fase}}" min="0" /></label>

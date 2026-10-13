@@ -425,6 +425,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseAdvancement", {
+    name: "House rule: Advancement",
+    hint: "Judge only. Abilities, powers, and Resources rise 5 points at a time. Talents, new powers, and contacts use the advancement schedule. Karma cannot buy Popularity.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   settings.register("faserip", "houseTailoredBudget", {
     name: "Tailored: point budget",
     hint: "Used when Tailored characters is on. Ability ranks and chosen powers spend a light budget for that tier. A higher rank costs more.",
