@@ -507,7 +507,7 @@ export function registerMovement() {
     name: "Feet in one area",
     hint: "FASERIP movement is in areas. One area is a room, about 20 feet across: 4 squares on a 5-foot grid. The grid stays 5 feet per square. Use 50 for a longer outdoor area (10 squares).",
     scope: "world",
-    config: true,
+    config: false,
     type: Number,
     default: DEFAULT_FEET_PER_AREA,
     range: { min: 5, max: 200, step: 5 },

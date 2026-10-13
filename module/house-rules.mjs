@@ -359,7 +359,7 @@ export async function promptTeamManeuver(actor) {
 export function registerHouseRules() {
   const settings = globalThis.game?.settings;
   if (!settings) return;
-  const judge = { scope: "world", config: true, restricted: true };
+  const judge = { scope: "world", config: false, restricted: true };
   settings.register("faserip", "houseFantastic", {
     name: "House rule: Fantastic Success",
     hint: "Judge only. A Red FEAT whose percentile is in the chosen band is a Fantastic Success: damage, intensity, or duration is doubled. The player can describe the panel or take one Power Stunt at no Karma cost. Spending 10–20 Karma lets a Yellow or Red check that same band.",

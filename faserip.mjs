@@ -10,6 +10,7 @@ import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-t
 import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.mjs";
 import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./module/workflow.mjs";
 import { registerHouseRules } from "./module/house-rules.mjs";
+import { makeSettingsApp } from "./module/apps/settings-app.mjs";
 import { registerComicSocket } from "./module/comic-hit.mjs";
 import { registerMovement } from "./module/movement.mjs";
 import { registerElevation } from "./module/elevation.mjs";
@@ -45,7 +46,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.45";
+const VERSION = "1.18.46";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -463,7 +464,7 @@ Hooks.once("init", () => {
       name: "Interface theme",
       hint: "Colors for sheets, chat cards, dialogs, and the character builder. Each player chooses their own.",
       scope: "client",
-      config: true,
+      config: false,
       type: String,
       choices: {
         classic: "Classic",
@@ -484,12 +485,12 @@ Hooks.once("init", () => {
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls.",
-      scope: "world", config: true, type: Boolean, default: false, restricted: true
+      scope: "world", config: false, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "useUltimateTalents", {
       name: "Use Ultimate Talents list",
       hint: "Judge only. When on, Generate Hero rolls talent categories and specialties from the Ultimate Talents list instead of the short Advanced Set list.",
-      scope: "world", config: true, type: Boolean, default: false, restricted: true
+      scope: "world", config: false, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "partyStash", {
       scope: "world", config: false, type: String, default: "[]", restricted: true
@@ -497,10 +498,20 @@ Hooks.once("init", () => {
     game.settings.register("faserip", "useRealmsOfMagic", {
       name: "Use Realms of Magic (MHAC-9)",
       hint: "Judge only. When on, Generate Hero can use the magical-character path. Packs seed even if this is off.",
-      scope: "world", config: true, type: Boolean, default: false, restricted: true
+      scope: "world", config: false, type: Boolean, default: false, restricted: true
     });
     registerWorkflowSettings();
     registerHouseRules();
+    try {
+      game.settings.registerMenu("faserip", "faseripSettings", {
+        name: "FASERIP Settings",
+        label: "Open Settings",
+        hint: "Appearance, books, combat, the table, and house rules.",
+        icon: "fas fa-sliders",
+        type: makeSettingsApp(),
+        restricted: false
+      });
+    } catch (err) { console.warn("FASERIP | settings window skipped", err); }
     try {
       game.settings.registerMenu("faserip", "generateHero", {
         name: "Generate Hero", label: "Open Character Builder",

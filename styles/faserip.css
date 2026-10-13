@@ -1389,6 +1389,7 @@ button.faserip-import-pdf,
   cursor: pointer;
 }
 .faserip-judge-app .window-content,
+.faserip-settings-app .window-content,
 .application.faserip-dialog .window-content {
   background: var(--paper);
   color: var(--ink);
@@ -1445,6 +1446,68 @@ button.faserip-import-pdf,
 .faserip-judge .judge-tabs button.active {
   background: var(--banner);
   color: var(--banner-ink);
+}
+.application.faserip-settings-app .window-content { overflow: hidden; }
+.faserip-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  color: var(--ink);
+}
+.faserip-settings .settings-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.faserip-settings .settings-tabs button {
+  background: var(--tab);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.faserip-settings .settings-tabs button.active {
+  background: var(--banner);
+  color: var(--banner-ink);
+}
+.faserip-settings .settings-body {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.faserip-settings .settings-body[hidden] { display: none; }
+.faserip-settings section {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 10px 12px;
+}
+.faserip-settings h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.faserip-settings label.setting { display: grid; gap: 4px; margin: 0 0 10px; }
+.faserip-settings label.setting.check { display: block; }
+.faserip-settings .hint { color: var(--soft); font-size: 12px; margin: 0; }
+.faserip-settings select,
+.faserip-settings input[type="number"],
+.faserip-settings input[type="text"] { max-width: 280px; }
+.faserip-settings footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.faserip-settings footer button {
+  background: var(--gold);
+  color: var(--on-gold);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
 }
 .faserip-judge .team-table {
   width: 100%;
