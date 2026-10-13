@@ -20,6 +20,9 @@ import {
   ROM_SCHOOLS, ROM_SCHOOL_TABLE, ROM_RESOURCE_RANK, ROM_RESOURCE_CACHE, ROM_ENHANCEMENT, ROM_ENHANCEMENT_CONDITION, ROM_ITEM_CONDITION
 } from "../data/rom.mjs";
 import { isUltimateTalentsEnabled } from "../data/ultimate-talents.mjs";
+import {
+  TAILOR_TIERS, tailorBudgetOn, tailorCapOn, tailorOn, tailorRankChoices, tailorSignatures, tailorWeaknessOn
+} from "../house-rules.mjs";
 
 const STEPS = [
   { id: "identity", label: "Hero" },
@@ -158,6 +161,11 @@ function CreatorApp() {
       this.contactName = "";
       this.weakness = "None";
       this.weaknessNotes = "";
+      this.tailored = tailorOn();
+      this.concept = "";
+      this.signatures = "";
+      this.tier = "superhuman";
+      this.tailorPowerRank = "";
     }
 
     get special() {
@@ -314,6 +322,7 @@ function CreatorApp() {
             <label class="check"><input name="useHitech" type="checkbox" ${this.useHitech ? "checked" : ""} /> High-tech gear</label>
             <label>Archetype<select name="archetype">${books}</select></label>
           </div>
+          ${this.#tailorBlock()}
           <div class="life-row">
             ${this.#lifeDie("roll-calling", "Calling", this.calling?.label, this.calling?.note || "")}
             ${this.#lifeDie("roll-quirk", "Quirk", quirkText, quirkBlurb)}
@@ -326,6 +335,24 @@ function CreatorApp() {
           <p class="creator-fine">Vampire, elder, spaceknight, martial artist, and cyborg keep their own powers. Check Realms of Magic, High-tech gear, or both to add that second source. Leave both off and this creator ends after Abilities.</p>
           ${this.archetype === "symbiote" ? `<p class="creator-fine">Symbiote starts with Body Armor, Regeneration, Extra Body Parts, Claws, Elongation, Shape-Shifting, Blending, Life Support, Resistance to Radiation, and Empathy. Strength +2 CS and Agility +1 CS. The coat weakness is added on the hero. Up to 2 more powers are chosen after that.</p>` : ""}
         </section>`;
+    }
+
+    #tailorBlock() {
+      if (!this.tailored) return "";
+      const tier = TAILOR_TIERS[this.tier] || TAILOR_TIERS.superhuman;
+      const options = Object.entries(TAILOR_TIERS).map(([id, row]) => `<option value="${esc(id)}" ${id === this.tier ? "selected" : ""}>${esc(row.label)}</option>`).join("");
+      const limits = [
+        tailorCapOn() ? "Ranks stay inside the tier." : "",
+        tailorWeaknessOn() ? "A weakness is required." : "",
+        tailorBudgetOn() ? `Point budget ${tier.budget}.` : ""
+      ].filter(Boolean).join(" ");
+      return `<div class="creator-fields">
+        <label>Concept<textarea name="concept" rows="2">${esc(this.concept)}</textarea></label>
+        <label>Signature powers or themes<textarea name="signatures" rows="3" placeholder="One per line, up to three">${esc(this.signatures)}</textarea></label>
+        <label>Power tier<select name="tier">${options}</select></label>
+        <p class="creator-fine">${esc(tier.note)}${limits ? ` ${esc(limits)}` : ""}</p>
+        <button type="button" class="text-btn" data-action="surprise-me">Surprise me</button>
+      </div>`;
     }
 
     #origin() {
@@ -346,7 +373,20 @@ function CreatorApp() {
     }
 
     #abilities() {
+      if (this.tailored) this.#ensureTailored();
+      const tier = TAILOR_TIERS[this.tier] || TAILOR_TIERS.superhuman;
       const cards = ABILITIES.map((key) => {
+        if (this.tailored) {
+          const rank = this.abilities[key] || tier.ability;
+          const cap = tailorCapOn() ? tier.abilityCap : "";
+          const options = tailorRankChoices(cap).map((id) => `<option value="${esc(id)}" ${id === rank ? "selected" : ""}>${esc(rankLabel(id))}</option>`).join("");
+          return `<article class="ability-card is-rolled">
+            <span>${esc(ABILITY_LABEL[key].slice(0, 1))}</span>
+            <small>${esc(ABILITY_LABEL[key])}</small>
+            <select name="tailor-${esc(key)}">${options}</select>
+            <em>${this.numbers[key] || rankMin(rank)}</em>
+          </article>`;
+        }
         const rank = this.abilities[key];
         const face = rank
           ? `<strong>${esc(rankLabel(rank))}</strong><em>${this.numbers[key]}</em><small>${this.abilityRolls[key] || "—"}</small>`
@@ -364,9 +404,25 @@ function CreatorApp() {
       const canRaise = this.result && (this.result.origin?.id === "altered" || this.result.formRaiseOne);
       const raise = canRaise ? `<label class="raise">Raise one ability +1 CS<select name="raise">${ABILITIES.map((key) => `<option value="${key}" ${this.raise === key ? "selected" : ""}>${esc(ABILITY_LABEL[key])}</option>`).join("")}</select></label>` : "";
       const resourceFace = this.resources ? rankLabel(this.resources) : "Roll";
+      const resourceCap = this.tailored && tailorCapOn() ? tier.abilityCap : "";
+      const resourceSelect = this.tailored
+        ? `<select name="tailor-resources">${tailorRankChoices(resourceCap).map((id) => `<option value="${esc(id)}" ${id === this.resources ? "selected" : ""}>${esc(rankLabel(id))}</option>`).join("")}</select>`
+        : `<button type="button" class="stat-die" data-action="roll-resources" title="Roll Resources"><i class="fa-solid fa-dice"></i></button><strong>${esc(resourceFace)}</strong>`;
+      const spend = this.tailored ? this.#tailorSpend() : 0;
+      const budgetLine = this.tailored && tailorBudgetOn()
+        ? `<p class="creator-fine">Spent ${spend} of ${tier.budget}. Each rank costs its place on the ladder. Package powers are free.</p>`
+        : "";
+      const countBlock = this.tailored
+        ? `<div class="count-roll"><p>Signatures ${counts?.powers?.[0] || 0}. Talents and contacts stay optional.</p>${budgetLine}</div>`
+        : `<div class="count-roll">
+            <button type="button" class="roll-btn big" data-action="roll-counts">Roll powers, talents, and contacts</button>
+            <p>${counts ? `Powers ${counts.powers[0]}/${counts.powers[1]} · Talents ${counts.talents[0]}/${counts.talents[1]} · Contacts ${counts.contacts[0]}/${counts.contacts[1]}` : "Rolled after the seven abilities."}</p>
+            ${this.useRom ? `<p class="creator-fine">Realms of Magic replaces that power number with workings on the Magic step. A power the origin itself grants is still chosen afterward. Talents and contacts still use this roll, unless the hero is a wielder.</p>` : ""}
+          </div>`;
       return `<section class="creator-block">
         <p class="creator-kicker">FASERIP</p>
-        <h2>Click each die</h2>
+        <h2>${this.tailored ? esc(tier.label) : "Click each die"}</h2>
+        ${this.tailored ? `<p class="creator-fine">${esc(tier.note)}</p>` : ""}
         <div class="ability-row">${cards}</div>
         <div class="stat-pills">
           <span>Health ${health || "—"}</span>
@@ -375,16 +431,11 @@ function CreatorApp() {
         <div class="count-row">
           <article class="ability-card resource-card ${this.resources ? "is-rolled" : ""}">
             <small>Resources</small>
-            <button type="button" class="stat-die" data-action="roll-resources" title="Roll Resources"><i class="fa-solid fa-dice"></i></button>
-            <strong>${esc(resourceFace)}</strong>
+            ${resourceSelect}
           </article>
-          <div class="count-roll">
-            <button type="button" class="roll-btn big" data-action="roll-counts">Roll powers, talents, and contacts</button>
-            <p>${counts ? `Powers ${counts.powers[0]}/${counts.powers[1]} · Talents ${counts.talents[0]}/${counts.talents[1]} · Contacts ${counts.contacts[0]}/${counts.contacts[1]}` : "Rolled after the seven abilities."}</p>
-            ${this.useRom ? `<p class="creator-fine">Realms of Magic replaces that power number with workings on the Magic step. A power the origin itself grants is still chosen afterward. Talents and contacts still use this roll, unless the hero is a wielder.</p>` : ""}
-          </div>
+          ${countBlock}
         </div>
-        ${raise}
+        ${this.tailored ? "" : raise}
       </section>`;
     }
 
@@ -426,9 +477,11 @@ function CreatorApp() {
           const head = group.title ? `<div class="creator-block-head"><h3>${esc(group.title)}</h3>${group.roll}</div>` : "";
           return `${head}<div class="choice-grid">${group.rows.map(card).join("")}</div>`;
         }).join("");
-        const heading = this.useRom
-          ? (originSlots ? `Spells, then ${originTitle.toLowerCase()}` : "Choose a spell")
-          : "Roll a category, or choose one";
+        const heading = this.tailored
+          ? "Choose the signature powers"
+          : (this.useRom
+            ? (originSlots ? `Spells, then ${originTitle.toLowerCase()}` : "Choose a spell")
+            : "Roll a category, or choose one");
         return `<section class="creator-block"><div class="creator-block-head"><div><p class="creator-kicker">${esc(kicker)}</p><h2>${esc(heading)}</h2>${energyLine}${romNote ? `<p class="creator-fine">${esc(romNote)}</p>` : ""}${originNote ? `<p class="creator-fine">${esc(originNote)}</p>` : ""}</div>${this.useRom ? "" : groups[0].roll}</div>${tray}${this.useRom ? grids : `<div class="choice-grid">${table.map(card).join("")}</div>`}</section>`;
       }
       const cat = this.powerCategory;
@@ -443,16 +496,25 @@ function CreatorApp() {
         return `<button type="button" class="name-card ${on} ${locked}" data-action="open-power" data-name="${esc(row.name)}" data-title="${esc(row.name)}" data-blurb="${esc(blurb)}"><strong>${esc(row.name)}</strong></button>`;
       }).join("");
       const open = list.find((row) => row.name === this.openPower);
-      const rankLine = magicView
-        ? "Rank is Good through Amazing."
-        : (open?.slots > 1 ? "This power spends two of your slots." : "This power spends one slot.") + ` Rank rolls on column ${this.result?.origin?.column || 1} when you take it.`;
+      const tier = TAILOR_TIERS[this.tier] || TAILOR_TIERS.superhuman;
+      const powerCap = this.tailored && tailorCapOn() ? tier.powerCap : "";
+      const powerRank = this.tailorPowerRank || (this.tailored ? tier.power : "");
+      const rankPick = this.tailored
+        ? `<label>Rank<select name="tailorPowerRank">${tailorRankChoices(powerCap).map((id) => `<option value="${esc(id)}" ${id === powerRank ? "selected" : ""}>${esc(rankLabel(id))}</option>`).join("")}</select></label>`
+        : "";
+      const rankLine = this.tailored
+        ? "Choose the rank that matches the concept, then take the power."
+        : (magicView
+          ? "Rank is Good through Amazing."
+          : (open?.slots > 1 ? "This power spends two of your slots." : "This power spends one slot.") + ` Rank rolls on column ${this.result?.origin?.column || 1} when you take it.`);
       const detail = open ? `<aside class="power-detail">
         <p class="creator-kicker">${esc(open.grade)}</p>
         <h3>${esc(open.name)}</h3>
         <p>${esc(open.definition)}</p>
         <p class="play">${esc(open.play)}</p>
+        ${rankPick}
         <p class="creator-fine">${esc(rankLine)}</p>
-        <button type="button" class="roll-btn" data-action="take-power" data-name="${esc(open.name)}">Take this power</button>
+        <button type="button" class="roll-btn" data-action="take-power" data-name="${esc(open.name)}">${this.tailored ? "Take this power" : "Take this power"}</button>
       </aside>` : `<aside class="power-detail empty"><p>Choose a power to read what it does.</p></aside>`;
       const band = cat.roll ? `Rolled ${cat.roll}` : "Chosen";
       const poolLabel = magicView ? "workings" : (this.useRom ? "origin powers" : "slots");
@@ -504,7 +566,10 @@ function CreatorApp() {
         ? `<p class="creator-fine">${esc([this.rom.school?.label, this.rom.energy?.label, this.rom.type?.label].filter(Boolean).join(" · "))}</p>`
         : "";
       const coatWeak = this.archetype === "symbiote" ? `<p class="creator-fine">${esc(symbioteWeakness())}</p>` : "";
-      return `<section class="creator-block"><p class="creator-kicker">Ready</p><h2>${esc(this.name)}</h2><p class="creator-lead">${esc(this.result?.origin?.label || "")}${this.publicId ? ` · ${esc(this.publicId)}` : ""}</p>${magicLine}${coatWeak}<div class="review-cols"><div><h3>Powers</h3><ul>${powers || "<li>None</li>"}</ul></div><div><h3>Talents</h3><ul>${talents || "<li>None</li>"}</ul></div><div><h3>Contacts</h3><ul>${contacts || "<li>None</li>"}</ul></div></div><label>Weakness<select name="weakness">${weak}</select></label><label>Notes<input name="weaknessNotes" type="text" value="${esc(this.weaknessNotes)}" /></label></section>`;
+      const conceptLine = this.tailored && this.concept
+        ? `<p class="creator-lead">${esc(this.#tierRow().label)}. ${esc(this.concept)}</p>`
+        : "";
+      return `<section class="creator-block"><p class="creator-kicker">Ready</p><h2>${esc(this.name)}</h2><p class="creator-lead">${esc(this.result?.origin?.label || "")}${this.publicId ? ` · ${esc(this.publicId)}` : ""}</p>${conceptLine}${magicLine}${coatWeak}<div class="review-cols"><div><h3>Powers</h3><ul>${powers || "<li>None</li>"}</ul></div><div><h3>Talents</h3><ul>${talents || "<li>None</li>"}</ul></div><div><h3>Contacts</h3><ul>${contacts || "<li>None</li>"}</ul></div></div><label>Weakness<select name="weakness">${weak}</select></label><label>Notes<input name="weaknessNotes" type="text" value="${esc(this.weaknessNotes)}" /></label></section>`;
     }
 
     #tray(list, kind) {
@@ -528,6 +593,19 @@ function CreatorApp() {
       if (!el?.name) return;
       if (el.type === "checkbox") this[el.name] = !!el.checked;
       else this[el.name] = el.value;
+      if (el.name === "tier") {
+        this.tier = el.value;
+        if (this.tailored) this.#applyTierRanks(true);
+        return this.render();
+      }
+      if (el.name === "tailorPowerRank") {
+        this.tailorPowerRank = el.value;
+        return;
+      }
+      if (String(el.name).startsWith("tailor-")) {
+        this.#setTailoredRank(el.name.slice(7), el.value);
+        return this.render();
+      }
       if (el.name === "useUpb" || el.name === "useRom" || el.name === "useHitech" || el.name === "archetype") {
         if (el.name === "archetype") {
           this.#reapplyOriginAbilities();
@@ -545,6 +623,16 @@ function CreatorApp() {
       if (action === "goto") return this.#go(button.dataset.step);
       if (action === "back") return this.#go(this.steps[Math.max(0, this.#stepIndex() - 1)].id);
       if (action === "next") return this.#next();
+      if (action === "surprise-me") {
+        this.tailored = false;
+        this.result = null;
+        this.abilities = {};
+        this.numbers = {};
+        this.abilityRolls = {};
+        this.resources = null;
+        this.notice = "Surprise me. Roll each step the usual way.";
+        return this.render();
+      }
       if (action === "roll-origin") return this.#guard(() => this.#rollOrigin());
       if (action === "roll-rom-type") return this.#guard(() => this.#rollRomType());
       if (action === "pick-rom-type") return this.#pickRomType(button.dataset.id);
@@ -647,6 +735,14 @@ function CreatorApp() {
           this.notice = "Give the hero a name.";
           return this.render();
         }
+        if (this.tailored && !String(this.concept || "").trim()) {
+          this.notice = "State the concept.";
+          return this.render();
+        }
+        if (this.tailored && !tailorSignatures(this.signatures).length) {
+          this.notice = "Name 1 to 3 signature powers or themes.";
+          return this.render();
+        }
         await this.#ensureActor();
         return this.#go("origin", true);
       }
@@ -658,6 +754,7 @@ function CreatorApp() {
         return this.#go("abilities", true);
       }
       if (this.step === "abilities") {
+        if (this.tailored) this.#ensureTailored();
         const missing = ABILITIES.filter((key) => !this.abilities[key]);
         if (missing.length) {
           this.notice = `Still to roll: ${missing.map((key) => ABILITY_LABEL[key]).join(", ")}.`;
@@ -669,6 +766,11 @@ function CreatorApp() {
         }
         if (!this.result) {
           this.notice = "Roll how many powers, talents, and contacts.";
+          return this.render();
+        }
+        const budget = this.#budgetBlock();
+        if (budget) {
+          this.notice = budget;
           return this.render();
         }
         if (this.special && !this.#extraPath()) return this.#guard(() => this.#handOff());
@@ -696,6 +798,11 @@ function CreatorApp() {
         if (openOrigin > 0) {
           const label = this.#mutantSource() ? "mutant power" : "origin power";
           this.notice = `Pick the ${label}${openOrigin === 1 ? "" : "s"} (${openOrigin} left). They sit beside the spells.`;
+          return this.render();
+        }
+        const budget = this.#budgetBlock();
+        if (budget) {
+          this.notice = budget;
           return this.render();
         }
         return this.#go("talents", true);
@@ -770,6 +877,118 @@ function CreatorApp() {
       }
       if (this.archetype === "elder" && ["endurance", "intuition", "psyche"].includes(key)) rank = shiftRank(rank, 2);
       return rank;
+    }
+
+    #tierRow() {
+      return TAILOR_TIERS[this.tier] || TAILOR_TIERS.superhuman;
+    }
+
+    #clampTailorRank(rank, capId) {
+      const choices = tailorRankChoices(tailorCapOn() ? capId : "");
+      if (choices.includes(rank)) return rank;
+      return choices[choices.length - 1] || rank || "typical";
+    }
+
+    #applyTierRanks(overwrite = false) {
+      const tier = this.#tierRow();
+      for (const key of ABILITIES) {
+        if (overwrite || !this.abilities[key]) this.#setTailoredRank(key, tier.ability, false);
+        else if (tailorCapOn()) this.#setTailoredRank(key, this.#clampTailorRank(this.abilities[key], tier.abilityCap), false);
+      }
+      if (overwrite || !this.resources) this.#setTailoredRank("resources", tier.resources, false);
+      else if (tailorCapOn()) this.#setTailoredRank("resources", this.#clampTailorRank(this.resources, tier.abilityCap), false);
+      this.tailorPowerRank = overwrite || !this.tailorPowerRank
+        ? tier.power
+        : this.#clampTailorRank(this.tailorPowerRank, tier.powerCap);
+      this.#ensureTailored();
+    }
+
+    #setTailoredRank(key, rank, refreshResult = true) {
+      const id = rank || "typical";
+      if (key === "resources") {
+        this.resources = id;
+        if (this.result) this.result.resources = id;
+        return;
+      }
+      if (!ABILITIES.includes(key)) return;
+      this.abilities[key] = id;
+      this.numbers[key] = rankMin(id);
+      this.abilityRolls[key] = 0;
+      if (refreshResult && this.result) {
+        this.result.abilities[key] = id;
+        this.result.numbers[key] = this.numbers[key];
+        this.result.abilityRolls[key] = 0;
+      }
+    }
+
+    #ensureTailored() {
+      if (!this.tailored) return;
+      const tier = this.#tierRow();
+      for (const key of ABILITIES) {
+        if (!this.abilities[key]) this.#setTailoredRank(key, tier.ability, false);
+        else if (tailorCapOn()) this.#setTailoredRank(key, this.#clampTailorRank(this.abilities[key], tier.abilityCap), false);
+      }
+      if (!this.resources) this.resources = tier.resources;
+      if (!this.tailorPowerRank) this.tailorPowerRank = tier.power;
+      const sigs = Math.max(1, Math.min(3, tailorSignatures(this.signatures).length || 1));
+      const { setup, origin, column } = this.#generationContext();
+      if (!this.result) {
+        this.result = {
+          origin: { ...origin, column, notes: origin.notes, label: setup?.originLabel || origin.label },
+          originRoll: this.originRoll,
+          abilities: { ...this.abilities },
+          numbers: { ...this.numbers },
+          abilityRolls: { ...this.abilityRolls },
+          resources: this.resources,
+          counts: { powers: [sigs, sigs], talents: [0, 0], contacts: [0, 0] },
+          popularity: 10,
+          useUpb: !!this.useUpb,
+          column,
+          countRolls: { powers: 0, talents: 0, contacts: 0 },
+          useUltimateTalents: !!this.useUltimateTalents,
+          tailored: true,
+          tier: tier.label,
+          concept: this.concept
+        };
+        if (this.archetype) {
+          tuneArchetypeResult(this.result, this.archetype);
+          this.tuned = true;
+        }
+      } else {
+        this.result.abilities = { ...this.abilities };
+        this.result.numbers = { ...this.numbers };
+        this.result.resources = this.resources;
+        this.result.tailored = true;
+        this.result.tier = tier.label;
+        this.result.concept = this.concept;
+        this.result.origin = { ...origin, column, notes: this.result.origin?.notes || origin.notes, label: this.result.origin?.label || setup?.originLabel || origin.label };
+      }
+      const chosen = this.powers.filter((row) => row.cost !== 0 && row.source !== "symbiote" && row.source !== "archetype").length;
+      const slots = Math.max(sigs, chosen);
+      this.result.counts = this.result.counts || { powers: [slots, slots], talents: [0, 0], contacts: [0, 0] };
+      if (!chosen) this.result.counts.powers = [sigs, sigs];
+      this.result.counts.talents = this.result.counts.talents || [0, 0];
+      this.result.counts.contacts = this.result.counts.contacts || [0, 0];
+      this.#capSymbiotePowers(this.result.counts);
+    }
+
+    #tailorSpend() {
+      let total = 0;
+      for (const key of ABILITIES) total += Math.max(0, rankIndex(this.abilities[key]));
+      if (this.resources) total += Math.max(0, rankIndex(this.resources));
+      for (const row of this.powers) {
+        if (row.cost === 0 || row.source === "symbiote" || row.source === "archetype") continue;
+        total += Math.max(0, rankIndex(row.rank));
+      }
+      return total;
+    }
+
+    #budgetBlock() {
+      if (!this.tailored || !tailorBudgetOn()) return "";
+      const budget = this.#tierRow().budget;
+      const spent = this.#tailorSpend();
+      if (spent <= budget) return "";
+      return `That build spends ${spent}. This tier allows ${budget}. Lower a rank or drop a power.`;
     }
 
     async #rollStat(key) {
@@ -1215,8 +1434,10 @@ function CreatorApp() {
         this.openPower = row.name;
         return;
       }
-      const rankRoll = await rollD100({ flavor: `${this.actor.name} — ${row.name} rank`, actor: this.actor });
-      const rank = magic ? lookupBand(ROM_SPELL_RANK, rankRoll).id : rollOnColumn(this.result.origin.column || this.result.column || 1, rankRoll);
+      const rankRoll = this.tailored ? 0 : await rollD100({ flavor: `${this.actor.name} — ${row.name} rank`, actor: this.actor });
+      let rank = this.tailored
+        ? this.#clampTailorRank(this.tailorPowerRank || this.#tierRow().power, this.#tierRow().powerCap)
+        : (magic ? lookupBand(ROM_SPELL_RANK, rankRoll).id : rollOnColumn(this.result.origin.column || this.result.column || 1, rankRoll));
       let item = null;
       if (magic && this.rom?.type?.id === "items") item = await this.#rollRomItem();
       this.powers.push({
@@ -1750,6 +1971,17 @@ function CreatorApp() {
         this.notice = `Pick the remaining ${label} (${openOrigin} left) before finishing.`;
         return this.render();
       }
+      if (this.tailored && tailorWeaknessOn() && (!this.weakness || this.weakness === "None")) {
+        this.step = "review";
+        this.notice = "This table requires a weakness or limitation.";
+        return this.render();
+      }
+      const budget = this.#budgetBlock();
+      if (budget) {
+        this.step = "powers";
+        this.notice = budget;
+        return this.render();
+      }
       await this.#ensureActor();
       const actor = this.actor;
       const weakness = !this.weakness || this.weakness === "None"
@@ -1790,6 +2022,11 @@ function CreatorApp() {
         "system.identity.secret": this.secretName,
         "system.identity.archetype": ARCHETYPE_CHOICES.find((row) => row.id === this.archetype)?.label || ""
       });
+      if (this.tailored) {
+        const sigs = tailorSignatures(this.signatures);
+        const note = `<p><strong>Concept:</strong> ${esc(this.concept)}</p><p><strong>Tier:</strong> ${esc(this.#tierRow().label)}</p>${sigs.length ? `<p><strong>Signatures:</strong> ${esc(sigs.join(", "))}</p>` : ""}`;
+        await actor.update({ "system.notes": note + (actor.system.notes || "") });
+      }
       try {
         await this.#writeLife(actor);
       } catch (err) {

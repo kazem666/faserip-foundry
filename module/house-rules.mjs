@@ -2,7 +2,7 @@
  * Optional house rules. Each one is off until the Judge turns it on.
  */
 
-import { ABILITIES, rankValue } from "./config.mjs";
+import { ABILITIES, rankIndex, rankValue } from "./config.mjs";
 import { formValue, promptForm } from "./foundry-api.mjs";
 
 const COLOR_RANK = { white: 0, green: 1, yellow: 2, red: 3 };
@@ -12,6 +12,67 @@ function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[ch]));
+}
+
+export const TAILOR_TIERS = {
+  street: {
+    label: "Street",
+    note: "Training or one edge. Abilities Typical to Excellent. Powers Good to Excellent.",
+    ability: "good",
+    abilityCap: "excellent",
+    power: "good",
+    powerCap: "excellent",
+    resources: "typical",
+    budget: 40
+  },
+  enhanced: {
+    label: "Enhanced",
+    note: "Clearly past a trained person. Abilities Good to Remarkable. Powers Excellent to Remarkable.",
+    ability: "excellent",
+    abilityCap: "remarkable",
+    power: "excellent",
+    powerCap: "remarkable",
+    resources: "good",
+    budget: 50
+  },
+  superhuman: {
+    label: "Superhuman",
+    note: "A full comic hero. Abilities Excellent to Incredible. Powers Remarkable to Amazing.",
+    ability: "remarkable",
+    abilityCap: "incredible",
+    power: "remarkable",
+    powerCap: "amazing",
+    resources: "excellent",
+    budget: 62
+  },
+  cosmic: {
+    label: "Cosmic",
+    note: "A power that changes the battlefield. Abilities Remarkable to Unearthly. Powers Incredible to Monstrous.",
+    ability: "incredible",
+    abilityCap: "unearthly",
+    power: "incredible",
+    powerCap: "monstrous",
+    resources: "remarkable",
+    budget: 74
+  }
+};
+
+const TAILOR_RANKS = ["feeble", "poor", "typical", "good", "excellent", "remarkable", "incredible", "amazing", "monstrous", "unearthly", "shiftx"];
+
+export function tailorOn() { return houseOn("houseTailored"); }
+export function tailorCapOn() { return tailorOn() && houseOn("houseTailoredCap"); }
+export function tailorWeaknessOn() { return tailorOn() && houseOn("houseTailoredWeakness"); }
+export function tailorBudgetOn() { return tailorOn() && houseOn("houseTailoredBudget"); }
+
+export function tailorSignatures(text) {
+  return String(text || "").split(/\n|,/).map((part) => part.trim()).filter(Boolean).slice(0, 3);
+}
+
+export function tailorRankChoices(capId) {
+  if (!capId) return TAILOR_RANKS.slice();
+  const cap = rankIndex(capId);
+  if (cap < 0) return TAILOR_RANKS.slice();
+  return TAILOR_RANKS.filter((id) => rankIndex(id) >= 0 && rankIndex(id) <= cap);
 }
 
 export function houseOn(key) {
@@ -342,6 +403,34 @@ export function registerHouseRules() {
     type: String,
     choices: { psyche: "Psyche", reason: "Reason" },
     default: "psyche"
+  });
+  settings.register("faserip", "houseTailored", {
+    name: "House rule: Tailored characters",
+    hint: "Judge only. The player states a concept, an origin, and 1–3 signature powers or themes. You agree a tier (street, enhanced, superhuman, or cosmic) and assign ranks and powers to match. Surprise me still rolls the old random generation.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
+  settings.register("faserip", "houseTailoredCap", {
+    name: "Tailored: cap ranks to the tier",
+    hint: "Used when Tailored characters is on. Ability and power ranks cannot go above that tier.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
+  settings.register("faserip", "houseTailoredWeakness", {
+    name: "Tailored: require a weakness",
+    hint: "Used when Tailored characters is on. The hero cannot finish without a weakness or limitation.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
+  settings.register("faserip", "houseTailoredBudget", {
+    name: "Tailored: point budget",
+    hint: "Used when Tailored characters is on. Ability ranks and chosen powers spend a light budget for that tier. A higher rank costs more.",
+    ...judge,
+    type: Boolean,
+    default: false
   });
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;
