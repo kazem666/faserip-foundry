@@ -34,6 +34,7 @@ import { poolBlocked } from "../power-pool.mjs";
 import { fearDenial, spendFear } from "../fear.mjs";
 import { pulledKill } from "../lethal.mjs";
 import { inhibitorHolds, readInhibitor } from "../inhibitor.mjs";
+import { boneDenial, breakQualifies } from "../break-bone.mjs";
 import {
   applyVariable, autoCombatAdjust, combatFeatFields, combatOn, dodgeAndAttack, downgradeColor,
   edgedCut, grappleEffect, noteSecondAction, readCombatFeat, resolveCalled, variableBonus, variableKind
@@ -96,7 +97,9 @@ export async function rollFeat({
   dodgeAttack = false,
   cover = "",
   called = "",
-  fearCheck = false
+  fearCheck = false,
+  abilityId = "",
+  boneCheck = false
 } = {}) {
   const columnIdEarly = resolveBattleColumn(effectsColumn);
   if (item?.getFlag?.("faserip", "dropped") || item?.flags?.faserip?.dropped) {
@@ -119,7 +122,14 @@ export async function rollFeat({
       return null;
     }
   }
-  if (combatOn("combatCalled") && actor?.getFlag?.("faserip", "lostAction") && !isCheckColumn(columnIdEarly)) {
+  if (!boneCheck) {
+    const broken = boneDenial(actor, columnIdEarly, abilityId, isCheckColumn(columnIdEarly));
+    if (broken) {
+      ui.notifications?.warn(broken);
+      return null;
+    }
+  }
+  if (!boneCheck && combatOn("combatCalled") && actor?.getFlag?.("faserip", "lostAction") && !isCheckColumn(columnIdEarly)) {
     await actor.unsetFlag("faserip", "lostAction");
     if (actor.getFlag?.("faserip", "noRun") === "next") await actor.unsetFlag("faserip", "noRun");
     ui.notifications?.warn(`${actor.name} loses this action to a called shot.`);
@@ -143,7 +153,7 @@ export async function rollFeat({
     columnShift += paired.cs;
     shiftNotes = [shiftNotes, paired.note].filter(Boolean).join(". ");
   }
-  const second = await noteSecondAction(actor, earlyColumn, isCheckColumn(earlyColumn));
+  const second = boneCheck ? "" : await noteSecondAction(actor, earlyColumn, isCheckColumn(earlyColumn));
   if (second) shiftNotes = [shiftNotes, second].filter(Boolean).join(". ");
   if (focusPush && actor && await spendFocus(actor)) {
     baseRank = shiftRank(baseRank, 1);
@@ -439,6 +449,7 @@ export async function rollFeat({
     houseFocus: houseOn("houseFocus"),
     rollWithBlow: combatOn("combatRollBlow") && ["blunt", "force", "throwBlunt"].includes(columnId) && color !== "white",
     enduranceSoak: combatOn("combatSoak") && (combat.damageAmount || 0) > 0 && color !== "white",
+    boneBreak: combatOn("combatBreak") && !!target && color !== "white" && breakQualifies(combat.damageAmount, target.system?.health?.max),
     showAdjusted: adjusted !== raw,
     combatFlat,
     colorLabel: fantastic ? "Fantastic" : game.i18n.localize(`FASERIP.Color.${color}`),
@@ -515,10 +526,10 @@ export async function rollFeat({
   if (!lineCheck && color === "white" && target) {
     await splashMiss({ actor, target, columnId, rankId: effectiveId, label, item });
   }
-  if (actor && !isCheckColumn(columnId) && actor.getFlag?.("faserip", "noRun") === "next") {
+  if (!boneCheck && actor && !isCheckColumn(columnId) && actor.getFlag?.("faserip", "noRun") === "next") {
     await actor.unsetFlag("faserip", "noRun");
   }
-  if (actor && !fearCheck && !isCheckColumn(columnId)) await spendFear(actor, columnId);
+  if (actor && !fearCheck && !boneCheck && !isCheckColumn(columnId)) await spendFear(actor, columnId);
   return message;
 }
 
@@ -578,6 +589,10 @@ export async function promptFeatRoll({
   }
   if (!fearCheck && actor && fearDenial(actor, defaultColumn, isCheckColumn(defaultColumn))) {
     ui.notifications?.warn(fearDenial(actor, defaultColumn, isCheckColumn(defaultColumn)));
+    return null;
+  }
+  if (actor && boneDenial(actor, defaultColumn, ability, isCheckColumn(defaultColumn))) {
+    ui.notifications?.warn(boneDenial(actor, defaultColumn, ability, isCheckColumn(defaultColumn)));
     return null;
   }
   if (actor && !isCheckColumn(defaultColumn) && conditionBlock(actor)) {
@@ -801,6 +816,7 @@ export async function promptFeatRoll({
     cover: strike.cover,
     called: strike.called,
     fearCheck,
+    abilityId: ability,
     resultOf,
     whisperGM
   });

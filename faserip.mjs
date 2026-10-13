@@ -11,6 +11,7 @@ import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.m
 import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./module/workflow.mjs";
 import { registerHouseRules } from "./module/house-rules.mjs";
 import { registerCombatRules } from "./module/combat-rules.mjs";
+import { registerBoneBreak } from "./module/break-bone.mjs";
 import { makeSettingsApp } from "./module/apps/settings-app.mjs";
 import { registerComicSocket } from "./module/comic-hit.mjs";
 import { registerMovement } from "./module/movement.mjs";
@@ -47,7 +48,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.59";
+const VERSION = "1.18.60";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -504,6 +505,7 @@ Hooks.once("init", () => {
     registerWorkflowSettings();
     registerHouseRules();
     registerCombatRules();
+    registerBoneBreak();
     try {
       game.settings.registerMenu("faserip", "faseripSettings", {
         name: "FASERIP Settings",

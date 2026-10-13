@@ -233,6 +233,7 @@ export class FaseripActor extends Actor {
       karma,
       intensityId,
       effectsColumn,
+      abilityId: ability,
       label: label ?? game.i18n.localize(`FASERIP.Ability.${ability}`)
     });
   }

@@ -36,7 +36,7 @@ export const COMBAT_PAGES = [
   },
   {
     title: "Damage",
-    keys: ["combatVariable", "combatPiercing", "combatEdge", "combatSubdual", "combatSoak"]
+    keys: ["combatVariable", "combatPiercing", "combatEdge", "combatSubdual", "combatSoak", "combatBreak"]
   },
   {
     title: "Strikes",
@@ -63,6 +63,7 @@ const SETTINGS = [
   ["combatEdge", "Edged weapons and armor", "An edged attack rolls the weapon's material against Body Armor. Success ignores that armor. There is no automatic success."],
   ["combatSubdual", "Subdual", "A subdual hit still costs Health, but dropping to 0 does not start dying."],
   ["combatSoak", "Endurance soak", "After a hit, the target may roll Endurance to soak some of it. Soaking a heavy hit can wind Endurance. Health's maximum does not change."],
+  ["combatBreak", "Bone breaking", "One hit, not a running total, whose damage is at least half the target's full Health forces an Endurance FEAT. White breaks an arm, a leg, the torso, or the head. Any other color is soreness. The part stays useless until a First Aid or Medicine talent sets it. It then mends in 50 days minus the Endurance rank number. Endurance of 50 or higher mends once that much Health is regained."],
   ["combatCritical", "Critical attack", "Voluntary −2, −4, or −6 to hit for +1, +2, or +3 damage."],
   ["combatDevastating", "Devastating blow", "−4 to hit and +2 damage."],
   ["combatFlail", "Flailing attack", "+1 to hit and −2 damage."],

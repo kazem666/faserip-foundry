@@ -294,6 +294,10 @@ export function bindFeatChat(message, html) {
     event.preventDefault();
     import("./combat-rules.mjs").then((mod) => mod.promptSoak(message)).catch((err) => console.warn("FASERIP | soak", err));
   });
+  root.querySelector("[data-faserip-bone]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    import("./break-bone.mjs").then((mod) => mod.promptBoneBreak(message)).catch((err) => console.warn("FASERIP | bone break", err));
+  });
 }
 
 export function combatFlags({ actor, item, target, columnId, effect }) {

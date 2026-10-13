@@ -350,6 +350,15 @@ export async function fillActorSheetContext(sheet, context) {
       } catch {
         context.fearText = "";
       }
+      try {
+        const bone = await import("../break-bone.mjs");
+        await bone.clearIfMended(actor);
+        context.breakText = bone.breakNote(actor);
+        context.breakSet = bone.breakIsSet(actor);
+      } catch {
+        context.breakText = "";
+        context.breakSet = false;
+      }
   return context;
 }
 
@@ -685,6 +694,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     event.preventDefault();
     const { promptFear } = await import("../fear.mjs");
     return promptFear(this.actor);
+  }
+
+  async _onSetBone(event) {
+    event.preventDefault();
+    const { promptSetBone } = await import("../break-bone.mjs");
+    return promptSetBone(this.actor);
   }
 
   async _onBreakInhibitor(event) {

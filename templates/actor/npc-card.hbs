@@ -21,6 +21,10 @@
 
   {{#if poisoned}}<p class="condition-banner">{{poisonText}}</p>{{/if}}
   {{#if fearText}}<p class="condition-banner">{{fearText}}</p>{{/if}}
+  {{#if breakText}}
+  <p class="condition-banner">{{breakText}}</p>
+  {{#unless breakSet}}<button type="button" data-action="setBone">Set the bone</button>{{/unless}}
+  {{/if}}
   {{#if speedAction}}<p class="hint">{{speedAction}}</p>{{/if}}
   {{#if conditionText}}<p class="condition-banner">{{conditionText}}</p>{{/if}}
 
