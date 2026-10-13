@@ -48,7 +48,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.62";
+const VERSION = "1.18.63";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -566,18 +566,13 @@ Hooks.on("renderSidebarTab", (app, html) => {
   attachAwardButton(html ?? app?.element ?? app);
 });
 Hooks.on("renderApplicationV2", (app, element) => {
-  if (isSettingsApp(app)) attachSettingsButtons(element, app);
+  const name = String(app?.constructor?.name || "");
+  if (name === "Settings") attachSettingsButtons(element, app);
+  if (name === "SettingsConfig") attachGameSettingsEntry(element, app);
   if (!isActorDirectory(app, element)) return;
   attachGenerateButton(element ?? app?.element ?? app);
   attachAwardButton(element ?? app?.element ?? app);
 });
-function settingsElement(html, app) {
-  if (html instanceof HTMLElement) return html;
-  if (html?.[0] instanceof HTMLElement) return html[0];
-  if (app?.element instanceof HTMLElement) return app.element;
-  return null;
-}
-
 function openFaseripSettings(event) {
   event?.preventDefault?.();
   const App = makeSettingsApp();
@@ -586,75 +581,77 @@ function openFaseripSettings(event) {
   return app.render({ force: true });
 }
 
-function settingsSidebarRoots(html, app) {
-  const roots = [];
-  const add = (node) => {
-    if (node instanceof HTMLElement && !roots.includes(node)) roots.push(node);
-  };
-  add(settingsElement(html, app));
-  add(globalThis.ui?.settings?.element);
-  document.querySelectorAll(".settings-sidebar").forEach(add);
-  return roots;
+function settingsRoot(html, app) {
+  const candidates = [
+    html instanceof HTMLElement ? html : null,
+    html?.[0] instanceof HTMLElement ? html[0] : null,
+    app?.element instanceof HTMLElement ? app.element : null,
+    globalThis.ui?.settings?.element instanceof HTMLElement ? globalThis.ui.settings.element : null
+  ];
+  document.querySelectorAll("#settings, .settings-sidebar").forEach((node) => candidates.push(node));
+  return candidates.find((el) => el?.querySelector?.(".info")) ?? null;
 }
 
-function placeSidebarButton(host, selector, className, html, onClick, after) {
-  let button = host.querySelector(`:scope > ${selector}`);
-  if (!button) {
-    button = document.createElement("button");
-    button.type = "button";
-    button.className = className;
-    button.innerHTML = html;
-    button.addEventListener("click", onClick);
-  }
-  if (after?.parentElement === host) after.after(button);
-  else if (button.parentElement !== host) host.appendChild(button);
-  return button;
+function sidebarAction(section, className, markup, onClick) {
+  const token = className.split(" ").pop();
+  if (section.querySelector(`button.${token}`)) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.innerHTML = markup;
+  button.addEventListener("click", onClick);
+  section.appendChild(button);
 }
 
 function attachSettingsButtons(html, app) {
   try {
-    for (const root of settingsSidebarRoots(html, app)) {
-      const host = root.matches?.("section.settings") ? root : root.querySelector("section.settings");
-      if (!host) continue;
-      root.querySelectorAll(".faserip-settings-launch, .faserip-generate-settings, .faserip-import-pdf").forEach((node) => {
-        if (!host.contains(node)) node.remove();
-      });
-      const configure = host.querySelector('[data-app="configure"]');
-      const settings = placeSidebarButton(
-        host,
-        ".faserip-settings-launch",
-        "faserip-settings-launch",
-        '<i class="fa-solid fa-sliders"></i> FASERIP Settings',
-        openFaseripSettings,
-        configure
-      );
-      const generate = placeSidebarButton(
-        host,
-        ".faserip-generate-settings",
-        "faserip-generate faserip-generate-settings",
-        '<i class="fa-solid fa-dice"></i> Generate Hero',
-        (event) => launchWizard(event),
-        settings
-      );
-      placeSidebarButton(
-        host,
-        ".faserip-import-pdf",
-        "faserip-import-pdf",
-        '<i class="fa-solid fa-file-pdf"></i> Import PDF',
-        (event) => launchPdfImport(event),
-        generate
-      );
+    const root = settingsRoot(html, app);
+    if (!root) return;
+    root.querySelectorAll("section.settings .faserip-settings-launch, section.settings .faserip-generate-settings, section.settings .faserip-import-pdf").forEach((node) => node.remove());
+    let section = root.querySelector(":scope > section.faserip-sidebar-settings");
+    if (!section) {
+      section = document.createElement("section");
+      section.className = "faserip-sidebar-settings flexcol";
+      const heading = document.createElement("h4");
+      heading.className = "divider";
+      heading.textContent = "FASERIP";
+      section.appendChild(heading);
+      const info = root.querySelector(":scope > section.info, :scope > .info");
+      if (info) info.insertAdjacentElement("afterend", section);
+      else root.prepend(section);
     }
+    sidebarAction(section, "faserip-settings-launch", '<i class="fa-solid fa-sliders"></i> FASERIP Settings', openFaseripSettings);
+    sidebarAction(section, "faserip-generate faserip-generate-settings", '<i class="fa-solid fa-dice"></i> Generate Hero', launchWizard);
+    sidebarAction(section, "faserip-import-pdf", '<i class="fa-solid fa-file-pdf"></i> Import PDF', launchPdfImport);
   } catch (err) {
     console.warn("FASERIP | settings buttons", err);
   }
 }
 
-function isSettingsApp(app) {
-  return String(app?.constructor?.name || "") === "Settings";
+function attachGameSettingsEntry(html, app) {
+  try {
+    const root = html instanceof HTMLElement ? html : html?.[0] ?? app?.element;
+    const nav = root?.querySelector?.("nav.tabs");
+    if (!nav || nav.querySelector(".faserip-settings-nav")) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "plain faserip-settings-nav";
+    button.innerHTML = "<span>FASERIP Settings</span>";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const systemTab = nav.querySelector('[data-tab="system"]');
+      if (systemTab) systemTab.click();
+      else openFaseripSettings(event);
+    });
+    nav.prepend(button);
+  } catch (err) {
+    console.warn("FASERIP | game settings entry", err);
+  }
 }
 
 Hooks.on("renderSettings", (app, html) => attachSettingsButtons(html, app));
+Hooks.on("renderSettingsConfig", (app, html) => attachGameSettingsEntry(html, app));
 Hooks.on("renderJournalDirectory", (app, html) => attachJournalDirectoryButton(html ?? app?.element));
 Hooks.on("renderJournalEntrySheet", (app, html) => attachJournalImport(app, html ?? app?.element));
 Hooks.on("renderJournalEntryPagePDFSheet", (app, html) => attachJournalImport(app, html ?? app?.element));
@@ -800,7 +797,7 @@ Hooks.once("ready", () => {
       if (n) ui.notifications.info(`FASERIP filled descriptions on ${n} existing Power/Talent item(s).`);
     })
     .catch((err) => console.warn("FASERIP | catalog seed", err));
-  ui.notifications.info(`FASERIP ${VERSION} loaded. Generate Hero: Create Actor, Actors tab button, or Game Settings.`);
+  ui.notifications.info(`FASERIP ${VERSION} loaded. Settings tab: the FASERIP heading under the version. Game Settings: FASERIP Settings at the top of the list.`);
 });
 
 function protectRecentHealth(actor, changes) {

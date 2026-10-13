@@ -815,11 +815,16 @@ button.faserip-import-pdf,
   border: 2px solid var(--gold);
   cursor: pointer;
 }
-.settings-sidebar section.settings > button.faserip-settings-launch,
-.settings-sidebar section.settings > button.faserip-generate-settings,
-.settings-sidebar section.settings > button.faserip-import-pdf {
+.settings-sidebar > section.faserip-sidebar-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.settings-sidebar > section.faserip-sidebar-settings > button,
+#settings-config nav.tabs > button.faserip-settings-nav {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem;
   width: 100%;
   margin: 0;
