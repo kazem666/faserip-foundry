@@ -3,6 +3,7 @@
  */
 
 import { SITUATIONS } from "../situation.mjs";
+import { COMBAT_PAGES } from "../combat-rules.mjs";
 
 const PAGES = [
   {
@@ -33,6 +34,11 @@ const PAGES = [
         keys: ["autoApplyDamage", "preferForceField", "autoEnduranceCheck", "autoBattleResults", "autoDyingClock", "autoSlamDirection", "autoLineOfFire", "autoKarmaOnKill", "strictInitiative"]
       }
     ]
+  },
+  {
+    id: "combatrules",
+    label: "Combat rules",
+    groups: COMBAT_PAGES
   },
   {
     id: "table",

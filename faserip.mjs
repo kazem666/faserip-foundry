@@ -10,6 +10,7 @@ import { showRollOnTable, toggleUniversalTable } from "./module/apps/universal-t
 import { bindFeatChat, openCombatChain, promptJudgeAward } from "./module/play.mjs";
 import { registerWorkflowSettings, registerWorkflowSocket, workflowOn } from "./module/workflow.mjs";
 import { registerHouseRules } from "./module/house-rules.mjs";
+import { registerCombatRules } from "./module/combat-rules.mjs";
 import { makeSettingsApp } from "./module/apps/settings-app.mjs";
 import { registerComicSocket } from "./module/comic-hit.mjs";
 import { registerMovement } from "./module/movement.mjs";
@@ -46,7 +47,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.48";
+const VERSION = "1.18.49";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -502,11 +503,12 @@ Hooks.once("init", () => {
     });
     registerWorkflowSettings();
     registerHouseRules();
+    registerCombatRules();
     try {
       game.settings.registerMenu("faserip", "faseripSettings", {
         name: "FASERIP Settings",
         label: "Open Settings",
-        hint: "Appearance, books, combat, the table, and house rules.",
+        hint: "Appearance, books, combat, optional combat rules, the table, and house rules.",
         icon: "fas fa-sliders",
         type: makeSettingsApp(),
         restricted: false

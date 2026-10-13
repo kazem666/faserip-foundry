@@ -30,6 +30,10 @@ import {
 } from "../battle-results.mjs";
 import { shiftDamageAmount, situationProblem, splashMiss } from "../situation.mjs";
 import { fantasticOutcome, houseFeatFields, houseOn, percentileHits, readHouseFeat, spendFocus } from "../house-rules.mjs";
+import {
+  applyVariable, autoCombatAdjust, combatFeatFields, combatOn, dodgeAndAttack, downgradeColor,
+  edgedCut, grappleEffect, noteSecondAction, readCombatFeat, variableBonus, variableKind
+} from "../combat-rules.mjs";
 
 const COLOR_HEX = {
   white: "#f4f0e6",
@@ -82,7 +86,11 @@ export async function rollFeat({
   whisperGM = false,
   magic = false,
   focusPush = false,
-  fantasticKarma = 0
+  fantasticKarma = 0,
+  piercing = false,
+  subdual = false,
+  dodgeAttack = false,
+  cover = ""
 } = {}) {
   const columnIdEarly = resolveBattleColumn(effectsColumn);
   if (!skipCondition && actor && !isCheckColumn(columnIdEarly) && conditionBlock(actor)) {
@@ -93,6 +101,18 @@ export async function rollFeat({
   if (lure) columnShift += 2;
   if (shieldRank) columnShift -= 2;
   let baseRank = rankId;
+  const earlyColumn = resolveBattleColumn(effectsColumn);
+  if (combatOn("combatGrappleFight") && earlyColumn === "grappling" && actor?.getAbilityRank) {
+    baseRank = actor.getAbilityRank("fighting") || baseRank;
+    shiftNotes = [shiftNotes, "The grab is a Fighting FEAT."].filter(Boolean).join(". ");
+  }
+  if (dodgeAttack && actor) {
+    const paired = await dodgeAndAttack(actor);
+    columnShift += paired.cs;
+    shiftNotes = [shiftNotes, paired.note].filter(Boolean).join(". ");
+  }
+  const second = await noteSecondAction(actor, earlyColumn, isCheckColumn(earlyColumn));
+  if (second) shiftNotes = [shiftNotes, second].filter(Boolean).join(". ");
   if (focusPush && actor && await spendFocus(actor)) {
     baseRank = shiftRank(baseRank, 1);
     shiftNotes = [shiftNotes, "Focus pushes the power one rank."].filter(Boolean).join(". ");
@@ -102,13 +122,21 @@ export async function rollFeat({
     baseRank = adjusted.rankId;
     columnShift = adjusted.cs;
   }
+  const aimed = actorFromRef(targetUuid || targetId);
+  const auto = autoCombatAdjust({
+    actor, target: aimed, rankId: baseRank, cs: columnShift, columnId: earlyColumn, blindside
+  });
+  columnShift = auto.cs;
+  const colorSteps = auto.colorSteps;
+  const combatFlat = auto.flat;
+  if (auto.notes.length) shiftNotes = [shiftNotes, auto.notes.join(". ")].filter(Boolean).join(". ");
   const effectiveId = columnShiftRank(baseRank, columnShift);
   let spend = allowKarma ? (Number(karma) || 0) : 0;
   if (spend > 0 && spend < 10) {
     ui.notifications.warn("Karma spent to modify a roll must be at least 10.");
     spend = 10;
   }
-  const earlyTarget = actorFromRef(targetUuid || targetId);
+  const earlyTarget = aimed;
   if (blindside && spoilBlindside(earlyTarget)) {
     ui.notifications?.info(`${earlyTarget.name} senses the approach, so the blindside does not count.`);
     blindside = false;
@@ -130,8 +158,8 @@ export async function rollFeat({
 
   const roll = await new Roll("1d100").evaluate({ allowInteractive: false });
   const raw = Number(roll.total);
-  const adjusted = Math.min(100, Math.max(1, raw + spend));
-  const color = colorForRoll(effectiveId, adjusted);
+  const adjusted = Math.min(100, Math.max(1, raw + spend + combatFlat));
+  let color = downgradeColor(colorForRoll(effectiveId, adjusted), colorSteps);
   const fantasticPlan = fantasticOutcome({ color, raw, paid: fantasticKarma });
   let fantastic = fantasticPlan.fantastic;
   if (fantasticPlan.spend > 0 && actor?.system?.karma) {
@@ -156,6 +184,7 @@ export async function rollFeat({
   }
   const columnId = resolveBattleColumn(effectsColumn);
   let effect = columnId ? battleResult(columnId, color) : "";
+  effect = grappleEffect(columnId, color, effect);
   let effectLabel = columnId ? (BATTLE_EFFECTS[columnId]?.label ?? columnId) : "";
   let effectColor = color;
   if (magic && takeMagic(item)?.pullColor) {
@@ -214,6 +243,18 @@ export async function rollFeat({
     shiftNotes = [shiftNotes, "Fantastic Success. Intensity or duration is doubled."].filter(Boolean).join(" ");
   }
   if (blindside) combat.checkColumn = "";
+  if (cover && color === "white" && adjusted >= 15) {
+    shiftNotes = [shiftNotes, "The roll missed the target and can hit the cover."].filter(Boolean).join(". ");
+  }
+  if (combatOn("combatVariable") && combat.damageAmount) {
+    const kind = variableKind(effectiveId, adjusted);
+    const extra = await variableBonus(kind);
+    const varied = applyVariable(combat.damageAmount, kind, extra.bonus);
+    if (varied.note || extra.note) {
+      combat.damageAmount = varied.amount;
+      shiftNotes = [shiftNotes, varied.note, extra.note].filter(Boolean).join(". ");
+    }
+  }
   const shieldValue = shieldRank ? rankValue(shieldRank) : 0;
   let healthNote = "";
   let damageApplied = false;
@@ -281,11 +322,17 @@ export async function rollFeat({
     if (target.isOwner || game.user?.isGM) {
       const before = Number(target.system?.health?.value ?? 0);
       const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;
-      const protection = soakAmount(target, {
+      let protection = soakAmount(target, {
         energy: !!combat.damageEnergy,
         useForceField,
         bonusArmor: useForceField ? 0 : shieldValue
       });
+      if (piercing) protection = Math.max(0, protection - 20);
+      if (combat.damageAmount && (columnId === "edged" || columnId === "throwEdged")) {
+        const cut = await edgedCut(item, actor, target);
+        if (cut?.note) shiftNotes = [shiftNotes, cut.note].filter(Boolean).join(". ");
+        if (cut?.ok) protection = 0;
+      }
       try {
         taken = await target.applyDamage(Number(combat.damageAmount) || 0, {
           energy: !!combat.damageEnergy,
@@ -309,9 +356,10 @@ export async function rollFeat({
         } else if (combat.checkColumn && through && taken <= 0) {
           healthNote += " The hit matches the protection, so the effect still applies.";
         }
+        if (after === 0 && subdual) healthNote += " Subdual. This does not start dying.";
         ui.notifications?.info(healthNote);
         const deferred = combat.checkColumn === "stunCheck" || combat.checkColumn === "killCheck";
-        if (after === 0 && !deferred) await collapseAtZero(target);
+        if (after === 0 && !deferred && !subdual) await collapseAtZero(target);
       } catch (err) {
         console.warn("FASERIP | apply damage", err);
       }
@@ -348,6 +396,10 @@ export async function rollFeat({
     color,
     fantastic,
     houseFocus: houseOn("houseFocus"),
+    rollWithBlow: combatOn("combatRollBlow") && ["blunt", "force", "throwBlunt"].includes(columnId) && color !== "white",
+    enduranceSoak: combatOn("combatSoak") && (combat.damageAmount || 0) > 0 && color !== "white",
+    showAdjusted: adjusted !== raw,
+    combatFlat,
     colorLabel: fantastic ? "Fantastic" : game.i18n.localize(`FASERIP.Color.${color}`),
     colorHint: game.i18n.localize(`FASERIP.ColorHint.${color}`),
     baseRank: rankLabel(rankId),
@@ -395,6 +447,7 @@ export async function rollFeat({
         damageAmount: combat.damageAmount ?? null,
         damageEnergy: !!combat.damageEnergy,
         damageApplied,
+        damageTaken: taken,
         checkColumn: combat.checkColumn || null,
         attackerId: actor?.id || null,
         strengthRank: actor?.getAbilityRank?.("strength") || null,
@@ -509,6 +562,7 @@ export async function promptFeatRoll({
         <input type="number" name="karma" value="0" min="0" step="1" />
       </div>`}
       ${houseFeatFields(actor, item)}
+      ${combatFeatFields()}
       ${karmaMode === "normal" ? `<details>
         <summary>Maneuvers</summary>
         <label class="check"><input type="checkbox" name="blindside" /> Blindside (no Karma, and no Slam, Stun, or Kill check)</label>
@@ -651,12 +705,23 @@ export async function promptFeatRoll({
   const using = (id) => active.some((part) => part.id === id);
   const house = await readHouseFeat(actor, form);
   if (house.notes.length) notes.push(...house.notes);
+  const strike = await readCombatFeat(actor, form);
+  if (strike.notes.length) notes.push(...strike.notes);
+  let damageCs = using("situation") ? (plan.damageCs || 0) : 0;
+  if (combatOn("combatDodgeCut")) {
+    const dodge = active.find((part) => part.cs < 0 && /dodge/i.test(part.note || ""));
+    if (dodge) {
+      damageCs += dodge.cs;
+      notes.push("The dodge also cuts the damage.");
+    }
+  }
+  damageCs += strike.damageCs;
   return rollFeat({
     actor,
     item,
     rankId,
     label,
-    cs: cs + house.cs,
+    cs: cs + house.cs + strike.cs,
     karma,
     focusPush: house.focusPush,
     fantasticKarma: house.fantasticKarma,
@@ -670,12 +735,16 @@ export async function promptFeatRoll({
     consumeIncoming: plan.consumeIncoming && using("incoming"),
     consumeStrike: plan.consumeStrike && using("strike"),
     consumeMagicResist: plan.consumeMagicResist && using("psyche"),
-    damageCs: using("situation") ? (plan.damageCs || 0) : 0,
+    damageCs,
     holdPending,
     allowKarma: karmaMode !== "none" && (karmaMode !== "resources" || invention),
     blindside: !!form.querySelector('[name="blindside"]')?.checked,
     lure: !!form.querySelector('[name="lure"]')?.checked,
     shieldRank: form.querySelector('[name="shield"]')?.value || "",
+    piercing: strike.piercing,
+    subdual: strike.subdual,
+    dodgeAttack: strike.dodgeAttack,
+    cover: strike.cover,
     resultOf,
     whisperGM
   });

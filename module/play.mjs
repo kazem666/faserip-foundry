@@ -284,6 +284,14 @@ export function bindFeatChat(message, html) {
     event.preventDefault();
     rerollWithFocus(message);
   });
+  root.querySelector("[data-faserip-rollblow]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    import("./combat-rules.mjs").then((mod) => mod.promptRollWithBlow(message)).catch((err) => console.warn("FASERIP | roll with the blow", err));
+  });
+  root.querySelector("[data-faserip-soak]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    import("./combat-rules.mjs").then((mod) => mod.promptSoak(message)).catch((err) => console.warn("FASERIP | soak", err));
+  });
 }
 
 export function combatFlags({ actor, item, target, columnId, effect }) {

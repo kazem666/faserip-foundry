@@ -15,7 +15,7 @@
   </p>
   {{/if}}
   <div class="feat-facts">
-    <span>d100 {{raw}}{{#if karma}} +{{karma}} = {{adjusted}}{{/if}}</span>
+    <span>d100 {{raw}}{{#if showAdjusted}}{{#if karma}} +{{karma}}{{/if}}{{#if combatFlat}}{{#if (gt combatFlat 0)}} +{{else}} {{/if}}{{combatFlat}}{{/if}} = {{adjusted}}{{/if}}</span>
     <span>{{baseRank}}{{#if cs}} {{#if (gt cs 0)}}+{{/if}}{{cs}} CS → {{effectiveRank}}{{/if}}</span>
     {{#if targetName}}<button type="button" class="target-pill" data-faserip-pan title="Pan to {{targetName}}">{{targetName}}</button>{{/if}}
   </div>
@@ -32,5 +32,7 @@
     <button type="button" data-faserip-free-stunt>Free Power Stunt</button>
     {{/if}}
     {{#if houseFocus}}<button type="button" data-faserip-focus-reroll>Reroll (1 Focus)</button>{{/if}}
+    {{#if rollWithBlow}}<button type="button" data-faserip-rollblow>Roll with the blow</button>{{/if}}
+    {{#if enduranceSoak}}<button type="button" data-faserip-soak>Soak with Endurance</button>{{/if}}
   </div>
 </div>
