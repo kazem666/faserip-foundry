@@ -489,6 +489,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseLethal", {
+    name: "House rule: Lethal methods",
+    hint: "Judge only. A character flag. With it, a Kill result stands. Without it, Kill counts as Stun. Killing still clears current Karma when that workflow is on. There is no Karma award for maiming.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   bindKarmaCeiling();
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;

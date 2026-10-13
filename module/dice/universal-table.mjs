@@ -32,6 +32,7 @@ import { shiftDamageAmount, situationProblem, splashMiss } from "../situation.mj
 import { fantasticOutcome, houseFeatFields, houseOn, percentileHits, readHouseFeat, spendFocus } from "../house-rules.mjs";
 import { poolBlocked } from "../power-pool.mjs";
 import { fearDenial, spendFear } from "../fear.mjs";
+import { pulledKill } from "../lethal.mjs";
 import {
   applyVariable, autoCombatAdjust, combatFeatFields, combatOn, dodgeAndAttack, downgradeColor,
   edgedCut, grappleEffect, noteSecondAction, readCombatFeat, resolveCalled, variableBonus, variableKind
@@ -226,6 +227,11 @@ export async function rollFeat({
       effect = rewritten;
       effectLabel = "Magic Effects";
     }
+  }
+  const pulled = pulledKill(effect, { ruleOn: houseOn("houseLethal"), lethal: !!actor?.system?.identity?.lethal });
+  if (pulled.note) {
+    effect = pulled.effect;
+    shiftNotes = [shiftNotes, pulled.note].filter(Boolean).join(" ");
   }
 
   const target = actorFromRef(targetUuid || targetId);

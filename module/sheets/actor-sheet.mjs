@@ -145,6 +145,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseFear = house.houseOn("houseFear");
         context.houseKarmaCeiling = house.houseOn("houseKarmaCeiling");
         context.houseSpeed = house.houseOn("houseSpeed");
+        context.houseLethal = house.houseOn("houseLethal");
         context.speedAction = "";
         if (context.houseSpeed) {
           const speed = await import("../speed-actions.mjs");
@@ -176,6 +177,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseFear = false;
         context.houseKarmaCeiling = false;
         context.houseSpeed = false;
+        context.houseLethal = false;
         context.speedAction = "";
         context.fearText = "";
         context.coverBlown = false;

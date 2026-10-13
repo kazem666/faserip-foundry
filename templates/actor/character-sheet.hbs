@@ -154,6 +154,7 @@
         <div>Field {{forceField}}</div>
         <div>Power slots {{powerSlotsUsed}}{{#if generation}} / {{generation.powerNeed}}{{/if}}</div>
         {{#if speedAction}}<div>{{speedAction}}</div>{{/if}}
+        {{#if houseLethal}}{{#if system.identity.lethal}}<div>Lethal methods</div>{{/if}}{{/if}}
       </section>
 
       <p class="hint">1 area = {{feetPerArea}} ft ({{squaresPerArea}} squares). Each square is {{gridFeet}} ft.</p>
@@ -246,6 +247,10 @@
         <label>Calling <input name="system.identity.calling" type="text" value="{{system.identity.calling}}" /></label>
         <label>Orientation <input name="system.identity.orientation" type="text" value="{{system.identity.orientation}}" /></label>
       </div>
+      {{#if houseLethal}}
+      <label class="check"><input type="checkbox" name="system.identity.lethal" {{#if system.identity.lethal}}checked{{/if}} /> Lethal methods</label>
+      <p class="hint">With this on, a Kill result stands. Without it, Kill counts as Stun. A kill that drops Endurance to Shift 0 still clears current Karma when that workflow is on.</p>
+      {{/if}}
       {{#if houseSecrecy}}
       {{#if system.identity.secretId}}
       <section class="panel">

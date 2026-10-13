@@ -6,6 +6,7 @@
       <label>Occupation
         <input name="system.identity.occupation" type="text" value="{{system.identity.occupation}}" placeholder="Civilian, guard, bystander" />
       </label>
+      {{#if houseLethal}}<label class="check"><input type="checkbox" name="system.identity.lethal" {{#if system.identity.lethal}}checked{{/if}} /> Lethal methods</label>{{/if}}
     </div>
   </header>
 

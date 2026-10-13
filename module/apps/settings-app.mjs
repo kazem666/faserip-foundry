@@ -64,7 +64,8 @@ const PAGES = [
       { title: "Weekly purse", keys: ["housePurse"] },
       { title: "Fear", keys: ["houseFear"] },
       { title: "Karma ceiling", keys: ["houseKarmaCeiling"] },
-      { title: "Speed", keys: ["houseSpeed"] }
+      { title: "Speed", keys: ["houseSpeed"] },
+      { title: "Lethal methods", keys: ["houseLethal"] }
     ]
   }
 ];

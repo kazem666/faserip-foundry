@@ -55,6 +55,7 @@ export class HeroData extends foundry.abstract.TypeDataModel {
         form: new StringField({ initial: "" }),
         originOfPower: new StringField({ initial: "" }),
         secretId: new BooleanField({ initial: false }),
+        lethal: new BooleanField({ initial: false }),
         occupation: new StringField({ initial: "" }),
         legalStatus: new StringField({ initial: "" }),
         age: new StringField({ initial: "" }),
