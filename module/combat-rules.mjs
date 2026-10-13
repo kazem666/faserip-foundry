@@ -519,7 +519,7 @@ export async function pickUpItem(item) {
 export function registerCombatRules() {
   const settings = globalThis.game?.settings;
   if (!settings) return;
-  const judge = { scope: "world", config: false, restricted: true, type: Boolean, default: false };
+  const judge = { scope: "world", config: true, restricted: true, type: Boolean, default: false };
   for (const [key, name, hint] of SETTINGS) {
     settings.register("faserip", key, { name, hint, ...judge });
   }

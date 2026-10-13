@@ -787,7 +787,10 @@ button.faserip-award {
 button.faserip-generate,
 button.faserip-settings-launch,
 .directory-header button.faserip-generate,
-.header-actions button.faserip-generate {
+.header-actions button.faserip-generate,
+.settings-sidebar section.settings > button.faserip-settings-launch,
+.settings-sidebar section.settings > button.faserip-generate-settings,
+.settings-sidebar section.settings > button.faserip-import-pdf {
   flex: 0 0 auto;
   margin: 4px;
   font-weight: 700;
@@ -811,6 +814,16 @@ button.faserip-import-pdf,
   color: var(--gold);
   border: 2px solid var(--gold);
   cursor: pointer;
+}
+.settings-sidebar section.settings > button.faserip-settings-launch,
+.settings-sidebar section.settings > button.faserip-generate-settings,
+.settings-sidebar section.settings > button.faserip-import-pdf {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  text-align: left;
 }
 .faserip-journal-import-bar { display: flex; justify-content: flex-end; }
 .faserip-page-pick { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; color: var(--ink); }

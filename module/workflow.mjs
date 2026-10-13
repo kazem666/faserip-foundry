@@ -144,7 +144,7 @@ export function registerWorkflowSettings() {
       name: setting.name,
       hint: setting.hint,
       scope: "world",
-      config: false,
+      config: true,
       type: Boolean,
       default: setting.default,
       restricted: true
@@ -154,7 +154,7 @@ export function registerWorkflowSettings() {
     name: "Current situation",
     hint: "Blank, dark, fog, rain, heavyRain, heat, cold, or underwater. The character sheet control sets this.",
     scope: "world",
-    config: false,
+    config: true,
     type: String,
     default: "",
     restricted: true
@@ -163,7 +163,7 @@ export function registerWorkflowSettings() {
     name: "Group Karma pool",
     hint: "Shared Karma for a team. A member who reduces someone to Shift 0 Endurance drops this pool to 0 along with their own current Karma.",
     scope: "world",
-    config: false,
+    config: true,
     type: Number,
     default: 0,
     restricted: true

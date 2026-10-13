@@ -48,7 +48,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.61";
+const VERSION = "1.18.62";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -487,12 +487,12 @@ Hooks.once("init", () => {
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls.",
-      scope: "world", config: false, type: Boolean, default: false, restricted: true
+      scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "useUltimateTalents", {
       name: "Use Ultimate Talents list",
       hint: "Judge only. When on, Generate Hero rolls talent categories and specialties from the Ultimate Talents list instead of the short Advanced Set list.",
-      scope: "world", config: false, type: Boolean, default: false, restricted: true
+      scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "partyStash", {
       scope: "world", config: false, type: String, default: "[]", restricted: true
@@ -500,7 +500,7 @@ Hooks.once("init", () => {
     game.settings.register("faserip", "useRealmsOfMagic", {
       name: "Use Realms of Magic (MHAC-9)",
       hint: "Judge only. When on, Generate Hero can use the magical-character path. Packs seed even if this is off.",
-      scope: "world", config: false, type: Boolean, default: false, restricted: true
+      scope: "world", config: true, type: Boolean, default: false, restricted: true
     });
     registerWorkflowSettings();
     registerHouseRules();
@@ -586,48 +586,75 @@ function openFaseripSettings(event) {
   return app.render({ force: true });
 }
 
+function settingsSidebarRoots(html, app) {
+  const roots = [];
+  const add = (node) => {
+    if (node instanceof HTMLElement && !roots.includes(node)) roots.push(node);
+  };
+  add(settingsElement(html, app));
+  add(globalThis.ui?.settings?.element);
+  document.querySelectorAll(".settings-sidebar").forEach(add);
+  return roots;
+}
+
+function placeSidebarButton(host, selector, className, html, onClick, after) {
+  let button = host.querySelector(`:scope > ${selector}`);
+  if (!button) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.innerHTML = html;
+    button.addEventListener("click", onClick);
+  }
+  if (after?.parentElement === host) after.after(button);
+  else if (button.parentElement !== host) host.appendChild(button);
+  return button;
+}
+
 function attachSettingsButtons(html, app) {
   try {
-    const el = settingsElement(html, app);
-    if (!el?.querySelector || el.querySelector(".faserip-settings-launch")) return;
-    const host = el.querySelector("menu")
-      || el.querySelector(".settings-list")
-      || el.querySelector('section[data-category="faserip"]')
-      || el.querySelector(".window-content")
-      || el.querySelector("form")
-      || el;
-    const settings = document.createElement("button");
-    settings.type = "button";
-    settings.className = "faserip-settings-launch";
-    settings.innerHTML = '<i class="fa-solid fa-sliders"></i> FASERIP Settings';
-    settings.addEventListener("click", openFaseripSettings);
-    if (host.prepend) host.prepend(settings);
-    else host.appendChild(settings);
-    if (el.querySelector(".faserip-generate-settings")) return;
-    const generate = document.createElement("button");
-    generate.type = "button";
-    generate.className = "faserip-generate faserip-generate-settings";
-    generate.innerHTML = '<i class="fa-solid fa-dice"></i> Generate Hero';
-    generate.addEventListener("click", launchWizard);
-    settings.after(generate);
-    const pdf = document.createElement("button");
-    pdf.type = "button";
-    pdf.className = "faserip-import-pdf";
-    pdf.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Import PDF';
-    pdf.addEventListener("click", launchPdfImport);
-    generate.after(pdf);
+    for (const root of settingsSidebarRoots(html, app)) {
+      const host = root.matches?.("section.settings") ? root : root.querySelector("section.settings");
+      if (!host) continue;
+      root.querySelectorAll(".faserip-settings-launch, .faserip-generate-settings, .faserip-import-pdf").forEach((node) => {
+        if (!host.contains(node)) node.remove();
+      });
+      const configure = host.querySelector('[data-app="configure"]');
+      const settings = placeSidebarButton(
+        host,
+        ".faserip-settings-launch",
+        "faserip-settings-launch",
+        '<i class="fa-solid fa-sliders"></i> FASERIP Settings',
+        openFaseripSettings,
+        configure
+      );
+      const generate = placeSidebarButton(
+        host,
+        ".faserip-generate-settings",
+        "faserip-generate faserip-generate-settings",
+        '<i class="fa-solid fa-dice"></i> Generate Hero',
+        (event) => launchWizard(event),
+        settings
+      );
+      placeSidebarButton(
+        host,
+        ".faserip-import-pdf",
+        "faserip-import-pdf",
+        '<i class="fa-solid fa-file-pdf"></i> Import PDF',
+        (event) => launchPdfImport(event),
+        generate
+      );
+    }
   } catch (err) {
     console.warn("FASERIP | settings buttons", err);
   }
 }
 
 function isSettingsApp(app) {
-  const name = String(app?.constructor?.name || "");
-  return name === "Settings" || name === "SettingsConfig";
+  return String(app?.constructor?.name || "") === "Settings";
 }
 
 Hooks.on("renderSettings", (app, html) => attachSettingsButtons(html, app));
-Hooks.on("renderSettingsConfig", (app, html) => attachSettingsButtons(html, app));
 Hooks.on("renderJournalDirectory", (app, html) => attachJournalDirectoryButton(html ?? app?.element));
 Hooks.on("renderJournalEntrySheet", (app, html) => attachJournalImport(app, html ?? app?.element));
 Hooks.on("renderJournalEntryPagePDFSheet", (app, html) => attachJournalImport(app, html ?? app?.element));
@@ -760,6 +787,7 @@ Hooks.once("ready", () => {
   registerComicSocket();
   injectScrollableWindowStyles();
   attachUniversalTableButton();
+  attachSettingsButtons();
   attachGenerateButton(ui.actors?.element);
   attachAwardButton(ui.actors?.element);
   document.querySelectorAll("#actors, .actors-sidebar, [id='actors']").forEach(attachGenerateButton);
