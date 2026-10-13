@@ -496,6 +496,13 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseInhibitor", {
+    name: "House rule: Inhibitor",
+    hint: "Judge only. Fit a restraint of a chosen rank. Powers at that rank or lower do not work. A Strength FEAT against the inhibitor's rank breaks it. Abilities still roll.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
   bindKarmaCeiling();
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;

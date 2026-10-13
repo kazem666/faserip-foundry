@@ -33,6 +33,7 @@ import { fantasticOutcome, houseFeatFields, houseOn, percentileHits, readHouseFe
 import { poolBlocked } from "../power-pool.mjs";
 import { fearDenial, spendFear } from "../fear.mjs";
 import { pulledKill } from "../lethal.mjs";
+import { inhibitorHolds, readInhibitor } from "../inhibitor.mjs";
 import {
   applyVariable, autoCombatAdjust, combatFeatFields, combatOn, dodgeAndAttack, downgradeColor,
   edgedCut, grappleEffect, noteSecondAction, readCombatFeat, resolveCalled, variableBonus, variableKind
@@ -104,6 +105,10 @@ export async function rollFeat({
   }
   if (poolBlocked(item)) {
     ui.notifications?.warn(`${item.name} is set aside. Make it ready first.`);
+    return null;
+  }
+  if (item?.type === "power" && inhibitorHolds(item.system?.rank, readInhibitor(actor), houseOn("houseInhibitor"))) {
+    ui.notifications?.warn(`${item.name} is held by an inhibitor (${rankLabel(readInhibitor(actor))}).`);
     return null;
   }
   if (!fearCheck) {
@@ -567,6 +572,10 @@ export async function promptFeatRoll({
   magic = false,
   fearCheck = false
 } = {}) {
+  if (item?.type === "power" && inhibitorHolds(item.system?.rank, readInhibitor(actor), houseOn("houseInhibitor"))) {
+    ui.notifications?.warn(`${item.name} is held by an inhibitor (${rankLabel(readInhibitor(actor))}).`);
+    return null;
+  }
   if (!fearCheck && actor && fearDenial(actor, defaultColumn, isCheckColumn(defaultColumn))) {
     ui.notifications?.warn(fearDenial(actor, defaultColumn, isCheckColumn(defaultColumn)));
     return null;

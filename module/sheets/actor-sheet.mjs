@@ -146,6 +146,9 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseKarmaCeiling = house.houseOn("houseKarmaCeiling");
         context.houseSpeed = house.houseOn("houseSpeed");
         context.houseLethal = house.houseOn("houseLethal");
+        context.houseInhibitor = house.houseOn("houseInhibitor");
+        context.inhibitorRank = context.houseInhibitor ? String(actor.getFlag?.("faserip", "inhibitor") || "") : "";
+        context.inhibitorLabel = context.inhibitorRank ? rankLabel(context.inhibitorRank) : "";
         context.speedAction = "";
         if (context.houseSpeed) {
           const speed = await import("../speed-actions.mjs");
@@ -178,6 +181,9 @@ export async function fillActorSheetContext(sheet, context) {
         context.houseKarmaCeiling = false;
         context.houseSpeed = false;
         context.houseLethal = false;
+        context.houseInhibitor = false;
+        context.inhibitorRank = "";
+        context.inhibitorLabel = "";
         context.speedAction = "";
         context.fearText = "";
         context.coverBlown = false;
@@ -679,6 +685,12 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     event.preventDefault();
     const { promptFear } = await import("../fear.mjs");
     return promptFear(this.actor);
+  }
+
+  async _onBreakInhibitor(event) {
+    event.preventDefault();
+    const { promptBreakInhibitor } = await import("../inhibitor.mjs");
+    return promptBreakInhibitor(this.actor);
   }
 
   _formEl(name) {

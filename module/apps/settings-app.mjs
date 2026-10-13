@@ -65,7 +65,8 @@ const PAGES = [
       { title: "Fear", keys: ["houseFear"] },
       { title: "Karma ceiling", keys: ["houseKarmaCeiling"] },
       { title: "Speed", keys: ["houseSpeed"] },
-      { title: "Lethal methods", keys: ["houseLethal"] }
+      { title: "Lethal methods", keys: ["houseLethal"] },
+      { title: "Inhibitor", keys: ["houseInhibitor"] }
     ]
   }
 ];

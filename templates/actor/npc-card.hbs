@@ -7,6 +7,15 @@
         <input name="system.identity.occupation" type="text" value="{{system.identity.occupation}}" placeholder="Civilian, guard, bystander" />
       </label>
       {{#if houseLethal}}<label class="check"><input type="checkbox" name="system.identity.lethal" {{#if system.identity.lethal}}checked{{/if}} /> Lethal methods</label>{{/if}}
+      {{#if houseInhibitor}}
+      <label>Inhibitor
+        <select name="flags.faserip.inhibitor">
+          <option value="">— none —</option>
+          {{#each ranks as |r|}}<option value="{{r.id}}" {{#if (eq r.id ../inhibitorRank)}}selected{{/if}}>{{r.label}}</option>{{/each}}
+        </select>
+      </label>
+      {{#if inhibitorRank}}<button type="button" data-action="breakInhibitor">Break it</button>{{/if}}
+      {{/if}}
     </div>
   </header>
 
