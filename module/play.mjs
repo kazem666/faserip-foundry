@@ -1,6 +1,7 @@
 import { BATTLE_EFFECTS } from "./config.mjs";
 import { describeFantasticPanel, grantFreeStunt, houseOn, rerollWithFocus } from "./house-rules.mjs";
 import { privateKarmaBlocked } from "./secrecy.mjs";
+import { capKarma } from "./karma-ceiling.mjs";
 import { promptForm, formValue } from "./foundry-api.mjs";
 import { actorFromRef, attackDamageNumber, checkForEffect, effectDealsDamage, pendingFromDefense, readPending, writePending } from "./play-rules.mjs";
 import { powerDamage } from "./item-actions.mjs";
@@ -406,6 +407,8 @@ export async function promptJudgeAward(preselect = []) {
   }
   const names = [];
   const blocked = [];
+  const trimmed = [];
+  const ceiling = houseOn("houseKarmaCeiling");
   for (const id of ids) {
     const actor = game.actors.get(id);
     if (!actor) continue;
@@ -416,7 +419,12 @@ export async function promptJudgeAward(preselect = []) {
       fromPrivateLife: fromPrivate,
       stored: actor.system?.identity?.secrecy
     });
-    if (karma && !holdKarma) update["system.karma.value"] = Math.max(0, Number(actor.system.karma?.value || 0) + karma);
+    if (karma && !holdKarma) {
+      const sum = Math.max(0, Number(actor.system.karma?.value || 0) + karma);
+      const capped = capKarma(sum, actor.system?.karma?.max, ceiling && karma > 0);
+      update["system.karma.value"] = capped.value;
+      if (capped.lost) trimmed.push(`${actor.name} (${capped.lost})`);
+    }
     if (popularity) update["system.popularity.value"] = Number(actor.system.popularity?.value || 0) + popularity;
     if (secret) update["system.popularity.secret"] = Number(actor.system.popularity?.secret || 0) + secret;
     if (Object.keys(update).length) await actor.update(update);
@@ -429,7 +437,7 @@ export async function promptJudgeAward(preselect = []) {
   if (secret) parts.push(`${secret > 0 ? "+" : ""}${secret} Secret Popularity`);
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker(),
-    content: `<div class="faserip-chat"><header><span class="feat-label">Judge award</span></header><p>${esc(parts.join(", ") || "No change")} — ${esc(names.join(", ") || "no one")}${blocked.length ? `. No private-life Karma for ${esc(blocked.join(", "))}: the cover is below Typical.` : ""}</p></div>`
+    content: `<div class="faserip-chat"><header><span class="feat-label">Judge award</span></header><p>${esc(parts.join(", ") || "No change")} — ${esc(names.join(", ") || "no one")}${blocked.length ? `. No private-life Karma for ${esc(blocked.join(", "))}: the cover is below Typical.` : ""}${trimmed.length ? `. The Karma ceiling kept the rest for ${esc(trimmed.join(", "))}.` : ""}</p></div>`
   });
   ui.notifications.info(`Awarded ${names.length} character${names.length === 1 ? "" : "s"}.`);
   return names;

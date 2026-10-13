@@ -4,6 +4,7 @@
 
 import { ABILITIES, rankIndex, rankValue } from "./config.mjs";
 import { formValue, promptForm } from "./foundry-api.mjs";
+import { bindKarmaCeiling } from "./karma-ceiling.mjs";
 
 const COLOR_RANK = { white: 0, green: 1, yellow: 2, red: 3 };
 const COLOR_NAME = ["white", "green", "yellow", "red"];
@@ -474,6 +475,14 @@ export function registerHouseRules() {
     type: Boolean,
     default: false
   });
+  settings.register("faserip", "houseKarmaCeiling", {
+    name: "House rule: Karma ceiling",
+    hint: "Judge only. Current Karma cannot sit above Reason + Intuition + Psyche. Karma gained above that is lost. Negative Karma still reduces it. While this is off, Karma can rise past that total.",
+    ...judge,
+    type: Boolean,
+    default: false
+  });
+  bindKarmaCeiling();
   const Hooks = globalThis.Hooks;
   if (!Hooks || Hooks._faseripHouse) return;
   Hooks._faseripHouse = true;

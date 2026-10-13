@@ -1,4 +1,5 @@
 import { ABILITIES, PHYSICAL, MENTAL, abilityNumber, abilityRankId, MOVEMENT_AREAS } from "../config.mjs";
+import { capKarma } from "./karma-ceiling.mjs";
 
 const { NumberField, StringField, SchemaField, HTMLField, BooleanField } = foundry.data.fields;
 
@@ -154,7 +155,11 @@ export class HeroData extends foundry.abstract.TypeDataModel {
     if (healthFull) this.health.value = phys;
     else if (this.health.value > phys) this.health.value = phys;
     if (karmaFull) this.karma.value = ment;
-    else if (this.karma.value > ment) this.karma.value = ment;
+    else {
+      let ruleOn = false;
+      try { ruleOn = !!globalThis.game?.settings?.get("faserip", "houseKarmaCeiling"); } catch { ruleOn = false; }
+      this.karma.value = capKarma(this.karma.value, ment, ruleOn).value;
+    }
 
     const endRank = abilityRankId(this.abilities.endurance, rolled.abilities?.endurance || "");
     this.movement = MOVEMENT_AREAS[endRank] ?? 2;

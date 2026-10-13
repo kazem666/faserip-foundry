@@ -143,6 +143,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.housePowerPool = house.houseOn("housePowerPool");
         context.housePurse = house.houseOn("housePurse");
         context.houseFear = house.houseOn("houseFear");
+        context.houseKarmaCeiling = house.houseOn("houseKarmaCeiling");
         if (context.housePurse) {
           const purse = await import("../purse.mjs");
           const state = purse.purseState(actor);
@@ -164,6 +165,7 @@ export async function fillActorSheetContext(sheet, context) {
         context.housePowerPool = false;
         context.housePurse = false;
         context.houseFear = false;
+        context.houseKarmaCeiling = false;
         context.fearText = "";
         context.coverBlown = false;
         context.secrecyChoices = [];
@@ -194,7 +196,7 @@ export async function fillActorSheetContext(sheet, context) {
         : 0;
       context.coatHealth = symbioteCoatHealth(actor);
       context.karmaPct = actor.system.karma.max
-        ? Math.round((actor.system.karma.value / actor.system.karma.max) * 100)
+        ? Math.min(100, Math.round((actor.system.karma.value / actor.system.karma.max) * 100))
         : 0;
       const items = actor.items.contents;
       const pips = (n = 0) => Array.from({ length: 10 }, (_, i) => ({ n: i + 1, on: i < Number(n || 0) }));

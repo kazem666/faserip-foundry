@@ -105,6 +105,7 @@
               </div>
               <div class="bar"><span style="width: {{karmaPct}}%"></span></div>
               <label class="mini">Pool <input type="number" name="system.karmaBank.pool" value="{{system.karmaBank.pool}}" min="0" /></label>
+              {{#if houseKarmaCeiling}}<p class="hint">Karma cannot sit above Reason + Intuition + Psyche. The rest is lost.</p>{{/if}}
               <button type="button" data-action="resetKarma">Reset</button>
             </div>
             <div class="stat-box resources">
