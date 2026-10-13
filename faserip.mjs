@@ -48,7 +48,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.60";
+const VERSION = "1.18.61";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -464,9 +464,9 @@ Hooks.once("init", () => {
     }
     game.settings.register("faserip", "uiTheme", {
       name: "Interface theme",
-      hint: "Colors for sheets, chat cards, dialogs, and the character builder. Each player chooses their own.",
+      hint: "Colors for sheets, chat cards, dialogs, and the character builder. Each player chooses their own. The rest of the rules are under FASERIP Settings.",
       scope: "client",
-      config: false,
+      config: true,
       type: String,
       choices: {
         classic: "Classic",
@@ -566,29 +566,68 @@ Hooks.on("renderSidebarTab", (app, html) => {
   attachAwardButton(html ?? app?.element ?? app);
 });
 Hooks.on("renderApplicationV2", (app, element) => {
+  if (isSettingsApp(app)) attachSettingsButtons(element, app);
   if (!isActorDirectory(app, element)) return;
   attachGenerateButton(element ?? app?.element ?? app);
   attachAwardButton(element ?? app?.element ?? app);
 });
-Hooks.on("renderSettings", (_app, html) => {
+function settingsElement(html, app) {
+  if (html instanceof HTMLElement) return html;
+  if (html?.[0] instanceof HTMLElement) return html[0];
+  if (app?.element instanceof HTMLElement) return app.element;
+  return null;
+}
+
+function openFaseripSettings(event) {
+  event?.preventDefault?.();
+  const App = makeSettingsApp();
+  const open = foundry.applications?.instances?.get?.("faserip-settings");
+  const app = open ?? new App();
+  return app.render({ force: true });
+}
+
+function attachSettingsButtons(html, app) {
   try {
-    const el = html instanceof HTMLElement ? html : html?.[0] ?? _app?.element;
-    if (!el?.querySelector || el.querySelector(".faserip-generate-settings")) return;
-    const section = el.querySelector('section[data-category="faserip"]') || el.querySelector(".settings-list") || el;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "faserip-generate faserip-generate-settings";
-    btn.innerHTML = '<i class="fa-solid fa-dice"></i> Generate Hero';
-    btn.addEventListener("click", launchWizard);
-    section.prepend(btn);
+    const el = settingsElement(html, app);
+    if (!el?.querySelector || el.querySelector(".faserip-settings-launch")) return;
+    const host = el.querySelector("menu")
+      || el.querySelector(".settings-list")
+      || el.querySelector('section[data-category="faserip"]')
+      || el.querySelector(".window-content")
+      || el.querySelector("form")
+      || el;
+    const settings = document.createElement("button");
+    settings.type = "button";
+    settings.className = "faserip-settings-launch";
+    settings.innerHTML = '<i class="fa-solid fa-sliders"></i> FASERIP Settings';
+    settings.addEventListener("click", openFaseripSettings);
+    if (host.prepend) host.prepend(settings);
+    else host.appendChild(settings);
+    if (el.querySelector(".faserip-generate-settings")) return;
+    const generate = document.createElement("button");
+    generate.type = "button";
+    generate.className = "faserip-generate faserip-generate-settings";
+    generate.innerHTML = '<i class="fa-solid fa-dice"></i> Generate Hero';
+    generate.addEventListener("click", launchWizard);
+    settings.after(generate);
     const pdf = document.createElement("button");
     pdf.type = "button";
     pdf.className = "faserip-import-pdf";
     pdf.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Import PDF';
     pdf.addEventListener("click", launchPdfImport);
-    btn.after(pdf);
-  } catch {}
-});
+    generate.after(pdf);
+  } catch (err) {
+    console.warn("FASERIP | settings buttons", err);
+  }
+}
+
+function isSettingsApp(app) {
+  const name = String(app?.constructor?.name || "");
+  return name === "Settings" || name === "SettingsConfig";
+}
+
+Hooks.on("renderSettings", (app, html) => attachSettingsButtons(html, app));
+Hooks.on("renderSettingsConfig", (app, html) => attachSettingsButtons(html, app));
 Hooks.on("renderJournalDirectory", (app, html) => attachJournalDirectoryButton(html ?? app?.element));
 Hooks.on("renderJournalEntrySheet", (app, html) => attachJournalImport(app, html ?? app?.element));
 Hooks.on("renderJournalEntryPagePDFSheet", (app, html) => attachJournalImport(app, html ?? app?.element));

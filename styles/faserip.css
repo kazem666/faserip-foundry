@@ -785,6 +785,7 @@ button.faserip-award {
 .faserip-sheet .mini-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
 .faserip-sheet .stunt-row { border-top: 1px dashed var(--dash); padding-top: 6px; margin-top: 6px; }
 button.faserip-generate,
+button.faserip-settings-launch,
 .directory-header button.faserip-generate,
 .header-actions button.faserip-generate {
   flex: 0 0 auto;
