@@ -48,7 +48,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.64";
+const VERSION = "1.18.65";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -487,12 +487,12 @@ Hooks.once("init", () => {
     game.settings.register("faserip", "useUltimatePowersBook", {
       name: "Use Ultimate Powers Book (MA3)",
       hint: "Judge only. When on, Generate Hero uses MA3 physical form, origin of power, power-class tables, the expanded power list, the UPB count table, and UPB weakness rolls.",
-      scope: "world", config: true, type: Boolean, default: false, restricted: true
+      scope: "world", config: false, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "useUltimateTalents", {
       name: "Use Ultimate Talents list",
       hint: "Judge only. When on, Generate Hero rolls talent categories and specialties from the Ultimate Talents list instead of the short Advanced Set list.",
-      scope: "world", config: true, type: Boolean, default: false, restricted: true
+      scope: "world", config: false, type: Boolean, default: false, restricted: true
     });
     game.settings.register("faserip", "partyStash", {
       scope: "world", config: false, type: String, default: "[]", restricted: true
@@ -500,7 +500,7 @@ Hooks.once("init", () => {
     game.settings.register("faserip", "useRealmsOfMagic", {
       name: "Use Realms of Magic (MHAC-9)",
       hint: "Judge only. When on, Generate Hero can use the magical-character path. Packs seed even if this is off.",
-      scope: "world", config: true, type: Boolean, default: false, restricted: true
+      scope: "world", config: false, type: Boolean, default: false, restricted: true
     });
     registerWorkflowSettings();
     registerHouseRules();
@@ -640,9 +640,7 @@ function attachGameSettingsEntry(html, app) {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const systemTab = nav.querySelector('[data-tab="system"]');
-      if (systemTab) systemTab.click();
-      else openFaseripSettings(event);
+      openFaseripSettings(event);
     });
     nav.prepend(button);
   } catch (err) {
@@ -797,7 +795,7 @@ Hooks.once("ready", () => {
       if (n) ui.notifications.info(`FASERIP filled descriptions on ${n} existing Power/Talent item(s).`);
     })
     .catch((err) => console.warn("FASERIP | catalog seed", err));
-  ui.notifications.info(`FASERIP ${VERSION} loaded. Settings tab: the FASERIP heading under the version. Game Settings: FASERIP Settings at the top of the list.`);
+  ui.notifications.info(`FASERIP ${VERSION} loaded. FASERIP Settings opens the tabbed rules window.`);
 });
 
 function protectRecentHealth(actor, changes) {
