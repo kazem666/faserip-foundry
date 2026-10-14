@@ -224,14 +224,29 @@ function TableApp() {
       if (content && !this._wheelBound) {
         this._wheelBound = (event) => this.#onWheel(event);
         content.addEventListener("wheel", this._wheelBound, { passive: false });
+        this._panDown = (event) => this.#onPanDown(event);
+        this._panMove = (event) => this.#onPanMove(event);
+        this._panUp = (event) => this.#onPanUp(event);
+        this._panMenu = (event) => {
+          if (event.target?.closest?.(".utable-fit")) event.preventDefault();
+        };
+        content.addEventListener("pointerdown", this._panDown);
+        content.addEventListener("pointermove", this._panMove);
+        content.addEventListener("pointerup", this._panUp);
+        content.addEventListener("pointercancel", this._panUp);
+        content.addEventListener("contextmenu", this._panMenu);
       }
       this.#fitTable();
     }
 
     async _replaceHTML(result, content) {
+      const locked = this.#liveFrame();
       if (content && result) content.replaceChildren(result);
       this._natural = null;
       this.#fitTable();
+      if (locked) {
+        try { this.setPosition(locked); } catch { /* size is restored after render */ }
+      }
     }
 
     async close(options) {
@@ -241,8 +256,28 @@ function TableApp() {
       this._fitWatched = null;
       const content = this.element?.querySelector?.(".window-content") ?? this.element;
       if (content && this._wheelBound) content.removeEventListener("wheel", this._wheelBound);
+      if (content && this._panDown) {
+        content.removeEventListener("pointerdown", this._panDown);
+        content.removeEventListener("pointermove", this._panMove);
+        content.removeEventListener("pointerup", this._panUp);
+        content.removeEventListener("pointercancel", this._panUp);
+        content.removeEventListener("contextmenu", this._panMenu);
+      }
       this._wheelBound = null;
+      this._panDown = null;
+      this._pan = null;
       return super.close(options);
+    }
+
+    #liveFrame() {
+      const el = this.element;
+      if (!el || this.minimized) return null;
+      const width = parseFloat(el.style.width);
+      const height = parseFloat(el.style.height);
+      const left = parseFloat(el.style.left);
+      const top = parseFloat(el.style.top);
+      if (!width || !height || !Number.isFinite(left) || !Number.isFinite(top)) return null;
+      return { left, top, width, height };
     }
 
     #sheetParts() {
@@ -306,6 +341,55 @@ function TableApp() {
       host.scrollLeft = contentX * next + (parseFloat(sheet.style.marginLeft) || 0) - offsetX;
       host.scrollTop = contentY * next + (parseFloat(sheet.style.marginTop) || 0) - offsetY;
     }
+
+    #onPanDown(event) {
+      if (event.button !== 2) return;
+      const { host } = this.#sheetParts();
+      if (!host || !host.contains(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._pan = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        left: host.scrollLeft,
+        top: host.scrollTop
+      };
+      host.classList.add("is-panning");
+      host.setPointerCapture?.(event.pointerId);
+    }
+
+    #onPanMove(event) {
+      if (!this._pan || event.pointerId !== this._pan.id) return;
+      const { host } = this.#sheetParts();
+      if (!host) return;
+      host.scrollLeft = this._pan.left - (event.clientX - this._pan.x);
+      host.scrollTop = this._pan.top - (event.clientY - this._pan.y);
+    }
+
+    #onPanUp(event) {
+      if (!this._pan || event.pointerId !== this._pan.id) return;
+      this.#sheetParts().host?.classList.remove("is-panning");
+      this._pan = null;
+    }
+
+    focusResult() {
+      const { host, sheet } = this.#sheetParts();
+      const cell = sheet?.querySelector?.("td.hit");
+      if (!host || !sheet || !cell || !this._fitScale) return;
+      const regionW = 64 + 48 * 9;
+      const regionH = 32 + 20 * 11;
+      const zoom = Math.min(
+        this._fitScale * 8,
+        Math.max(this._fitScale, Math.min(host.clientWidth / regionW, host.clientHeight / regionH))
+      );
+      this._userFactor = zoom / this._fitScale;
+      this.#place(zoom);
+      const hostRect = host.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      host.scrollLeft += (cellRect.left + cellRect.width / 2) - (hostRect.left + hostRect.width / 2);
+      host.scrollTop += (cellRect.top + cellRect.height / 2) - (hostRect.top + hostRect.height / 2);
+    }
   };
 }
 
@@ -313,13 +397,24 @@ export async function openUniversalTable(highlight = null) {
   const App = TableApp();
   if (!App) return null;
   if (!tableApp) tableApp = new App();
-  applyTableFrame(tableApp);
+  const live = tableApp.rendered ? {
+    left: tableApp.position.left,
+    top: tableApp.position.top,
+    width: tableApp.position.width,
+    height: tableApp.position.height
+  } : null;
+  if (!live) applyTableFrame(tableApp);
   if (highlight) tableApp.highlight = highlight;
-  const rendered = await tableApp.render(true);
-  const frame = readTableFrame();
-  if (frame && typeof tableApp.setPosition === "function") {
-    try { tableApp.setPosition(frame); } catch { /* position applies on the next open */ }
+  const rendered = await tableApp.render(live ? {} : true);
+  if (live?.width && live?.height && !tableApp.minimized) {
+    try { tableApp.setPosition(live); } catch { /* keep the size already on screen */ }
+  } else if (!live) {
+    const frame = readTableFrame();
+    if (frame && typeof tableApp.setPosition === "function") {
+      try { tableApp.setPosition(frame); } catch { /* position applies on the next open */ }
+    }
   }
+  if (highlight) requestAnimationFrame(() => tableApp?.focusResult?.());
   return rendered;
 }
 

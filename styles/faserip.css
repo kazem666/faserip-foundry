@@ -885,6 +885,9 @@ button.faserip-import-pdf,
   scrollbar-gutter: stable;
   cursor: zoom-in;
 }
+.faserip-utable .utable-fit.is-panning {
+  cursor: grabbing;
+}
 .faserip-utable .utable-sheet {
   flex: none;
   width: 928px;
@@ -926,10 +929,22 @@ button.faserip-import-pdf,
 }
 .faserip-utable th.corner,
 .faserip-utable th.dice {
+  position: sticky;
+  left: 0;
+  z-index: 2;
   width: 64px;
   font-size: 11px;
   font-weight: 900;
   background: #fff;
+}
+.faserip-utable tr.ranks th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.faserip-utable tr.ranks th.corner {
+  left: 0;
+  z-index: 4;
 }
 .faserip-utable th.effect {
   height: 72px;
