@@ -213,9 +213,13 @@ function TableApp() {
     _onRender(context, options) {
       super._onRender?.(context, options);
       const content = this.element?.querySelector?.(".window-content") ?? this.element;
-      if (content && !this._fitObserver) {
-        this._fitObserver = new ResizeObserver(() => this.#fitTable());
-        this._fitObserver.observe(content);
+      if (!this._fitObserver) this._fitObserver = new ResizeObserver(() => this.#fitTable());
+      this._fitWatched ??= new Set();
+      for (const node of [this.element, content]) {
+        if (node && !this._fitWatched.has(node)) {
+          this._fitWatched.add(node);
+          this._fitObserver.observe(node);
+        }
       }
       if (content && !this._wheelBound) {
         this._wheelBound = (event) => this.#onWheel(event);
@@ -234,6 +238,7 @@ function TableApp() {
       rememberTableFrame(this.position);
       this._fitObserver?.disconnect();
       this._fitObserver = null;
+      this._fitWatched = null;
       const content = this.element?.querySelector?.(".window-content") ?? this.element;
       if (content && this._wheelBound) content.removeEventListener("wheel", this._wheelBound);
       this._wheelBound = null;
@@ -250,17 +255,19 @@ function TableApp() {
       const { host, sheet } = this.#sheetParts();
       if (!host || !sheet || this._fitting) return;
       this._fitting = true;
-      if (!this._natural) {
+      if (!this._natural?.w || !this._natural?.h) {
         const previous = sheet.style.zoom;
         sheet.style.zoom = "1";
-        this._natural = { w: sheet.offsetWidth, h: sheet.offsetHeight };
+        const w = sheet.offsetWidth;
+        const h = sheet.offsetHeight;
         sheet.style.zoom = previous;
+        if (w && h) this._natural = { w, h };
       }
       const availW = host.clientWidth;
       const availH = host.clientHeight;
-      if (this._natural.w && this._natural.h && availW && availH) {
+      if (this._natural?.w && this._natural?.h && availW && availH) {
         this._fitScale = Math.max(0.15, Math.min(availW / this._natural.w, availH / this._natural.h));
-        const factor = this._userFactor || 1;
+        const factor = Math.max(1, this._userFactor || 1);
         this.#place(Math.min(this._fitScale * 8, this._fitScale * factor));
       }
       this._fitting = false;
