@@ -881,10 +881,9 @@ button.faserip-import-pdf,
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  cursor: zoom-in;
 }
 .faserip-utable .utable-sheet {
   flex: none;

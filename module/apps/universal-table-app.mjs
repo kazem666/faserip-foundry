@@ -217,11 +217,16 @@ function TableApp() {
         this._fitObserver = new ResizeObserver(() => this.#fitTable());
         this._fitObserver.observe(content);
       }
+      if (content && !this._wheelBound) {
+        this._wheelBound = (event) => this.#onWheel(event);
+        content.addEventListener("wheel", this._wheelBound, { passive: false });
+      }
       this.#fitTable();
     }
 
     async _replaceHTML(result, content) {
       if (content && result) content.replaceChildren(result);
+      this._natural = null;
       this.#fitTable();
     }
 
@@ -229,24 +234,70 @@ function TableApp() {
       rememberTableFrame(this.position);
       this._fitObserver?.disconnect();
       this._fitObserver = null;
+      const content = this.element?.querySelector?.(".window-content") ?? this.element;
+      if (content && this._wheelBound) content.removeEventListener("wheel", this._wheelBound);
+      this._wheelBound = null;
       return super.close(options);
     }
 
-    #fitTable() {
+    #sheetParts() {
       const host = this.element?.querySelector?.(".utable-fit");
       const sheet = host?.querySelector?.(".utable-sheet");
+      return { host, sheet };
+    }
+
+    #fitTable() {
+      const { host, sheet } = this.#sheetParts();
       if (!host || !sheet || this._fitting) return;
       this._fitting = true;
-      sheet.style.zoom = "1";
-      const naturalW = sheet.offsetWidth;
-      const naturalH = sheet.offsetHeight;
+      if (!this._natural) {
+        const previous = sheet.style.zoom;
+        sheet.style.zoom = "1";
+        this._natural = { w: sheet.offsetWidth, h: sheet.offsetHeight };
+        sheet.style.zoom = previous;
+      }
       const availW = host.clientWidth;
       const availH = host.clientHeight;
-      if (naturalW && naturalH && availW && availH) {
-        const scale = Math.min(availW / naturalW, availH / naturalH);
-        sheet.style.zoom = String(Math.max(0.15, scale));
+      if (this._natural.w && this._natural.h && availW && availH) {
+        this._fitScale = Math.max(0.15, Math.min(availW / this._natural.w, availH / this._natural.h));
+        const factor = this._userFactor || 1;
+        this.#place(Math.min(this._fitScale * 8, this._fitScale * factor));
       }
       this._fitting = false;
+    }
+
+    #place(zoom) {
+      const { host, sheet } = this.#sheetParts();
+      if (!host || !sheet) return;
+      sheet.style.zoom = String(zoom);
+      const slackX = Math.max(0, host.clientWidth - sheet.offsetWidth);
+      const slackY = Math.max(0, host.clientHeight - sheet.offsetHeight);
+      sheet.style.marginLeft = `${slackX / 2}px`;
+      sheet.style.marginTop = `${slackY / 2}px`;
+    }
+
+    #onWheel(event) {
+      const { host, sheet } = this.#sheetParts();
+      if (!host || !sheet || !host.contains(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const oldZoom = Number(sheet.style.zoom) || this._fitScale || 1;
+      const fit = this._fitScale || oldZoom;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? host.clientHeight : 1;
+      const factor = Math.exp(-event.deltaY * unit * 0.0015);
+      const next = Math.min(fit * 8, Math.max(fit, oldZoom * factor));
+      if (Math.abs(next - oldZoom) < 0.001) return;
+      this._userFactor = next / fit;
+      const rect = host.getBoundingClientRect();
+      const marginL = parseFloat(sheet.style.marginLeft) || 0;
+      const marginT = parseFloat(sheet.style.marginTop) || 0;
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+      const contentX = (host.scrollLeft + offsetX - marginL) / oldZoom;
+      const contentY = (host.scrollTop + offsetY - marginT) / oldZoom;
+      this.#place(next);
+      host.scrollLeft = contentX * next + (parseFloat(sheet.style.marginLeft) || 0) - offsetX;
+      host.scrollTop = contentY * next + (parseFloat(sheet.style.marginTop) || 0) - offsetY;
     }
   };
 }
