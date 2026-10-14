@@ -162,15 +162,19 @@ export function buildTable(highlight, history = [], currentId = "") {
     return "";
   };
 
+  const effectIndex = Object.keys(BATTLE_EFFECTS).indexOf(highlight?.columnId || "");
+  const hitColor = highlight?.color || "";
   const effectHead = RANKS.map((rank, i) => {
     const lines = EFFECT_LINES[i] || [effects[i]?.label || ""];
-    return `<th class="effect${marked(rank)}" title="${esc(effects[i]?.label || "")}">${lines.map(esc).join("<br>")}</th>`;
+    const picked = i === effectIndex ? " effect-hit" : "";
+    return `<th class="effect${picked}" title="${esc(effects[i]?.label || "")}">${lines.map(esc).join("<br>")}</th>`;
   }).join("");
 
   const resultRow = (color, label) => {
     const cells = RANKS.map((rank, i) => {
       const word = effects[i]?.[color] || "";
-      return `<td class="${color}${marked(rank)}" title="${esc(word)}">${esc(chartWord(word))}</td>`;
+      const picked = i === effectIndex && color === hitColor ? " effect-hit" : "";
+      return `<td class="${color}${picked}" title="${esc(word)}">${esc(chartWord(word))}</td>`;
     }).join("");
     return `<tr class="result"><th class="${color}">${label}</th>${cells}</tr>`;
   };
@@ -186,9 +190,9 @@ export function buildTable(highlight, history = [], currentId = "") {
     const cells = RANKS.map((rank) => {
       const color = colorForRoll(rank.id, band.lo);
       const hit = hitBand && band.lo === hitBand.lo && rank.id === hitRank;
-      const ghost = rank.id === fromRank ? " from-col" : "";
+      const lane = rank.id === hitRank ? " hit-col" : rank.id === fromRank ? " from-col" : "";
       const text = hit ? esc(hitRoll) : "";
-      return `<td class="${color}${ghost}${hit ? " hit" : ""}" data-rank="${rank.id}" data-lo="${band.lo}" title="${esc(rank.label)} ${band.label} ${color}">${text}</td>`;
+      return `<td class="${color}${lane}${hit ? " hit" : ""}" data-rank="${rank.id}" data-lo="${band.lo}" title="${esc(rank.label)} ${band.label} ${color}">${text}</td>`;
     }).join("");
     return `<tr class="${markedRow.trim()}"><th class="dice${markedRow}">${band.label}</th>${cells}</tr>`;
   }).join("");
@@ -197,6 +201,7 @@ export function buildTable(highlight, history = [], currentId = "") {
     <div class="faserip-utable">
       ${plaqueHtml(highlight)}
       <div class="utable-fit">
+        <div class="utable-align">
         <div class="utable-sheet">
           <table>
           <thead>
@@ -209,6 +214,7 @@ export function buildTable(highlight, history = [], currentId = "") {
           </thead>
           <tbody>${body}</tbody>
           </table>
+        </div>
         </div>
       </div>
       ${historyHtml(history, currentId)}
@@ -390,8 +396,9 @@ function TableApp() {
 
     #sheetParts() {
       const host = this.element?.querySelector?.(".utable-fit");
+      const align = host?.querySelector?.(".utable-align");
       const sheet = host?.querySelector?.(".utable-sheet");
-      return { host, sheet };
+      return { host, align, sheet };
     }
 
     #fitTable() {
@@ -412,25 +419,39 @@ function TableApp() {
         this._fitScale = Math.max(0.15, Math.min(availW / this._natural.w, availH / this._natural.h));
         const factor = Math.max(1, this._userFactor || 1);
         this.#place(Math.min(this._fitScale * 8, this._fitScale * factor));
+        if (this.highlight && !this._userPanned) this.#centerOnHit();
       }
       this._fitting = false;
     }
 
     #place(zoom) {
+      const { host, align, sheet } = this.#sheetParts();
+      if (!host || !sheet || !this._natural?.w || !this._natural?.h) return;
+      const z = Number(zoom) || 1;
+      sheet.style.zoom = String(z);
+      const box = align || sheet;
+      const slackX = Math.max(0, host.clientWidth - this._natural.w * z);
+      const slackY = Math.max(0, host.clientHeight - this._natural.h * z);
+      box.style.marginLeft = `${slackX / 2}px`;
+      box.style.marginTop = `${slackY / 2}px`;
+    }
+
+    #centerOnHit() {
       const { host, sheet } = this.#sheetParts();
-      if (!host || !sheet) return;
-      sheet.style.zoom = String(zoom);
-      const slackX = Math.max(0, host.clientWidth - sheet.offsetWidth);
-      const slackY = Math.max(0, host.clientHeight - sheet.offsetHeight);
-      sheet.style.marginLeft = `${slackX / 2}px`;
-      sheet.style.marginTop = `${slackY / 2}px`;
+      const cell = sheet?.querySelector?.("td.hit");
+      if (!host || !cell) return;
+      const hostRect = host.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      host.scrollLeft += (cellRect.left + cellRect.width / 2) - (hostRect.left + hostRect.width / 2);
+      host.scrollTop += (cellRect.top + cellRect.height / 2) - (hostRect.top + hostRect.height / 2);
     }
 
     #onWheel(event) {
-      const { host, sheet } = this.#sheetParts();
+      const { host, align, sheet } = this.#sheetParts();
       if (!host || !sheet || !host.contains(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
+      this._userPanned = true;
       const oldZoom = Number(sheet.style.zoom) || this._fitScale || 1;
       const fit = this._fitScale || oldZoom;
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? host.clientHeight : 1;
@@ -438,16 +459,18 @@ function TableApp() {
       const next = Math.min(fit * 8, Math.max(fit, oldZoom * factor));
       if (Math.abs(next - oldZoom) < 0.001) return;
       this._userFactor = next / fit;
+      const box = align || sheet;
       const rect = host.getBoundingClientRect();
-      const marginL = parseFloat(sheet.style.marginLeft) || 0;
-      const marginT = parseFloat(sheet.style.marginTop) || 0;
+      const marginL = parseFloat(box.style.marginLeft) || 0;
+      const marginT = parseFloat(box.style.marginTop) || 0;
       const offsetX = event.clientX - rect.left;
       const offsetY = event.clientY - rect.top;
       const contentX = (host.scrollLeft + offsetX - marginL) / oldZoom;
       const contentY = (host.scrollTop + offsetY - marginT) / oldZoom;
       this.#place(next);
-      host.scrollLeft = contentX * next + (parseFloat(sheet.style.marginLeft) || 0) - offsetX;
-      host.scrollTop = contentY * next + (parseFloat(sheet.style.marginTop) || 0) - offsetY;
+      const placed = this.#sheetParts().align || box;
+      host.scrollLeft = contentX * next + (parseFloat(placed.style.marginLeft) || 0) - offsetX;
+      host.scrollTop = contentY * next + (parseFloat(placed.style.marginTop) || 0) - offsetY;
     }
 
     #onPanDown(event) {
@@ -463,6 +486,7 @@ function TableApp() {
         left: host.scrollLeft,
         top: host.scrollTop
       };
+      this._userPanned = true;
       host.classList.add("is-panning");
       host.setPointerCapture?.(event.pointerId);
     }
@@ -491,19 +515,19 @@ function TableApp() {
         this._fitScale * 8,
         Math.max(this._fitScale, Math.min(host.clientWidth / regionW, host.clientHeight / regionH))
       );
+      this._userPanned = false;
       this._userFactor = zoom / this._fitScale;
       this.#place(zoom);
-      const hostRect = host.getBoundingClientRect();
-      const cellRect = cell.getBoundingClientRect();
-      host.scrollLeft += (cellRect.left + cellRect.width / 2) - (hostRect.left + hostRect.width / 2);
-      host.scrollTop += (cellRect.top + cellRect.height / 2) - (hostRect.top + hostRect.height / 2);
+      this.#centerOnHit();
       cell.classList.add("is-landed");
+      sheet.querySelector("td.effect-hit")?.classList.add("is-landed");
       sheet.querySelector("th.rank.hit-col")?.classList.add("is-landed");
       sheet.querySelector("th.dice.hit-row")?.classList.add("is-landed");
     }
 
     #fitAll() {
       this._userFactor = 1;
+      this._userPanned = true;
       this.#fitTable();
       const { host } = this.#sheetParts();
       if (!host) return;

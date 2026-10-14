@@ -889,6 +889,10 @@ button.faserip-import-pdf,
 .faserip-utable .utable-fit.is-panning {
   cursor: grabbing;
 }
+.faserip-utable .utable-align {
+  width: max-content;
+  height: max-content;
+}
 .faserip-utable .utable-sheet {
   flex: none;
   width: 928px;
@@ -1055,7 +1059,14 @@ button.faserip-import-pdf,
   font-weight: 900;
   box-shadow: inset 0 0 0 3px #ffe14a;
 }
-.faserip-utable td.hit.is-landed {
+.faserip-utable th.effect.effect-hit,
+.faserip-utable td.effect-hit {
+  background: #111 !important;
+  color: #ffe14a;
+  box-shadow: inset 0 0 0 3px #ffe14a;
+}
+.faserip-utable td.hit.is-landed,
+.faserip-utable td.effect-hit.is-landed {
   animation: utable-land 700ms ease-out;
 }
 .faserip-utable th.rank.hit-col.is-landed,
@@ -1072,6 +1083,7 @@ button.faserip-import-pdf,
 }
 @media (prefers-reduced-motion: reduce) {
   .faserip-utable td.hit.is-landed,
+  .faserip-utable td.effect-hit.is-landed,
   .faserip-utable th.rank.hit-col.is-landed,
   .faserip-utable th.dice.hit-row.is-landed { animation: none; }
 }
