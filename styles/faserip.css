@@ -871,6 +871,7 @@ button.faserip-import-pdf,
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   min-height: 0;
   min-width: 0;
   background: #c41212;
@@ -893,18 +894,66 @@ button.faserip-import-pdf,
   width: 928px;
   background: #c41212;
 }
-.faserip-utable .utable-callout {
-  margin: 0 0 4px;
-  padding: 2px 6px;
+.faserip-utable .utable-plaque,
+.faserip-utable .utable-history {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: #111;
   color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-family: "Segoe UI", Arial, sans-serif;
 }
-.faserip-utable .utable-callout.green { background: #1f8f1f; }
-.faserip-utable .utable-callout.yellow { color: #ffe14a; }
-.faserip-utable .utable-callout.red { background: #7f1010; }
+.faserip-utable .utable-plaque {
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.faserip-utable .utable-plaque .roll-num,
+.faserip-utable .utable-plaque .effect {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffe14a;
+}
+.faserip-utable .utable-plaque .shift {
+  margin-left: auto;
+  color: #ffe14a;
+  font-weight: 800;
+}
+.faserip-utable .swatch {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #fff;
+  background: #fff;
+}
+.faserip-utable .swatch.green { background: #3dcc3d; }
+.faserip-utable .swatch.yellow { background: #ffe14a; }
+.faserip-utable .swatch.red { background: #ff2a2a; }
+.faserip-utable .utable-history {
+  gap: 4px;
+  padding: 4px;
+  overflow-x: auto;
+}
+.faserip-utable .utable-past {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid #444;
+  background: #1c1c1c;
+  color: #fff;
+  font: 700 12px "Segoe UI", Arial, sans-serif;
+  cursor: pointer;
+}
+.faserip-utable .utable-past.is-current {
+  border-color: #ffe14a;
+  color: #ffe14a;
+}
 .faserip-utable table {
   border-collapse: collapse;
   table-layout: fixed;
@@ -980,6 +1029,18 @@ button.faserip-import-pdf,
 .faserip-utable th.effect.hit-col {
   box-shadow: inset 5px 0 0 #111, inset -5px 0 0 #111;
 }
+.faserip-utable td.from-col,
+.faserip-utable th.effect.from-col,
+.faserip-utable th.rank.from-col,
+.faserip-utable th.dice.from-col {
+  box-shadow: inset 3px 0 0 #6d6d6d, inset -3px 0 0 #6d6d6d;
+}
+.faserip-utable th.rank.from-col,
+.faserip-utable th.rank.from-col .face,
+.faserip-utable th.rank.from-col .num {
+  background: #2a2a2a;
+  color: #fff;
+}
 .faserip-utable th.rank.hit-col,
 .faserip-utable th.dice.hit-row,
 .faserip-utable th.rank.hit-col .face,
@@ -993,6 +1054,26 @@ button.faserip-import-pdf,
   font-size: 16px;
   font-weight: 900;
   box-shadow: inset 0 0 0 3px #ffe14a;
+}
+.faserip-utable td.hit.is-landed {
+  animation: utable-land 700ms ease-out;
+}
+.faserip-utable th.rank.hit-col.is-landed,
+.faserip-utable th.dice.hit-row.is-landed {
+  animation: utable-land-head 700ms ease-out;
+}
+@keyframes utable-land {
+  0% { box-shadow: inset 0 0 0 3px #fff, 0 0 16px 4px #ffe14a; }
+  100% { box-shadow: inset 0 0 0 3px #ffe14a; }
+}
+@keyframes utable-land-head {
+  0% { filter: brightness(1.85); }
+  100% { filter: brightness(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .faserip-utable td.hit.is-landed,
+  .faserip-utable th.rank.hit-col.is-landed,
+  .faserip-utable th.dice.hit-row.is-landed { animation: none; }
 }
 
 .faserip-comic {

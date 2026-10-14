@@ -485,6 +485,7 @@ export async function rollFeat({
         fantastic,
         baseRankId: rankId,
         rankId: effectiveId,
+        cs: columnShift,
         roll: adjusted,
         label,
         actorName: actor?.name ?? "",

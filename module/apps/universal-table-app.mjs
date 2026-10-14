@@ -1,4 +1,4 @@
-import { BATTLE_EFFECTS, RANKS, colorForRoll, rankLabel } from "../config.mjs";
+import { BATTLE_EFFECTS, RANKS, colorForRoll, rankIndex, rankLabel } from "../config.mjs";
 
 const CUTS = [1, 2, 4, 7, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56, 61, 66, 71, 76, 81, 86, 91, 95, 98, 100];
 
@@ -74,18 +74,93 @@ function chartWord(text) {
     .replace(" armor", "");
 }
 
-export function buildTable(highlight) {
+function shortRank(id) {
+  return RANKS.find((rank) => rank.id === id)?.label || "";
+}
+
+function columnName(highlight) {
+  const label = BATTLE_EFFECTS[highlight?.columnId]?.label || "";
+  return label.replace(/\s*\([^)]*\)\s*$/, "");
+}
+
+function resultWord(highlight) {
+  if (highlight?.effect) return String(highlight.effect);
+  const column = BATTLE_EFFECTS[highlight?.columnId];
+  return column?.[highlight?.color] || "";
+}
+
+function shiftCaption(highlight) {
+  const from = highlight?.fromRankId || "";
+  const to = highlight?.rankId || "";
+  const cs = Number(highlight?.cs) || 0;
+  if (from && to && from !== to) {
+    const delta = rankIndex(to) - rankIndex(from);
+    const csText = cs && delta === cs ? ` (${cs > 0 ? `+${cs}` : cs} CS)` : "";
+    return `${shortRank(from)} → ${shortRank(to)}${csText}`;
+  }
+  if (!cs) return "";
+  return `${cs > 0 ? `+${cs}` : cs} CS`;
+}
+
+function plaqueHtml(highlight) {
+  if (!highlight?.rankId && highlight?.roll == null) return "";
+  const color = ["white", "green", "yellow", "red"].includes(highlight.color) ? highlight.color : "";
+  const colorName = color ? color.charAt(0).toUpperCase() + color.slice(1) : "";
+  const column = columnName(highlight);
+  const action = highlight.label || "";
+  const lead = [highlight.actorName || "", action, column && column !== action ? column : ""].filter(Boolean).join(" · ");
+  const word = resultWord(highlight);
+  const shift = shiftCaption(highlight);
+  const roll = Number.isFinite(Number(highlight.roll)) ? esc(highlight.roll) : "";
+  return `<div class="utable-plaque">
+    ${color ? `<i class="swatch ${esc(color)}"></i>` : ""}
+    ${lead ? `<span class="lead">${esc(lead)}</span>` : ""}
+    <span class="rank">${esc(shortRank(highlight.rankId) || rankLabel(highlight.rankId))}</span>
+    ${roll ? `<span class="roll-num">${roll}</span>` : ""}
+    ${colorName ? `<span class="color-name">${esc(colorName)}</span>` : ""}
+    ${word ? `<strong class="effect">${esc(word)}</strong>` : ""}
+    ${shift ? `<span class="shift">${esc(shift)}</span>` : ""}
+  </div>`;
+}
+
+function historyHtml(history, currentId) {
+  if (!history?.length) return "";
+  const buttons = history.map((entry) => {
+    const color = ["white", "green", "yellow", "red"].includes(entry.color) ? entry.color : "";
+    const who = entry.actorName || entry.label || "FEAT";
+    const current = entry.id === currentId ? " is-current" : "";
+    const title = [who, entry.label, columnName(entry), entry.roll, color].filter(Boolean).join(" · ");
+    return `<button type="button" class="utable-past${current}" data-roll-id="${esc(entry.id)}" title="${esc(title)}"><i class="swatch ${esc(color)}"></i><span>${esc(who)} ${esc(entry.roll ?? "")}</span></button>`;
+  }).join("");
+  return `<div class="utable-history">${buttons}</div>`;
+}
+
+function rollEntry(highlight) {
+  return {
+    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    rankId: highlight?.rankId || "",
+    fromRankId: highlight?.fromRankId || "",
+    roll: highlight?.roll,
+    color: highlight?.color || "",
+    label: highlight?.label || "FEAT",
+    actorName: highlight?.actorName || "",
+    columnId: highlight?.columnId || "",
+    effect: highlight?.effect || "",
+    cs: Number(highlight?.cs) || 0
+  };
+}
+
+export function buildTable(highlight, history = [], currentId = "") {
   const effects = Object.values(BATTLE_EFFECTS);
   const hitRank = highlight?.rankId || "";
+  const fromRank = highlight?.fromRankId && highlight.fromRankId !== hitRank ? highlight.fromRankId : "";
   const hitRoll = Number(highlight?.roll);
   const hitBand = Number.isFinite(hitRoll) ? bandForRoll(hitRoll) : null;
-  const colorName = highlight?.color
-    ? highlight.color.charAt(0).toUpperCase() + highlight.color.slice(1)
-    : "";
-  const caption = highlight
-    ? `${highlight.actorName ? `${highlight.actorName} · ` : ""}${highlight.label || "FEAT"} · ${rankLabel(hitRank)} · ${hitRoll} · ${colorName}`
-    : "";
-  const marked = (rank) => rank.id === hitRank ? " hit-col" : "";
+  const marked = (rank) => {
+    if (rank.id === hitRank) return " hit-col";
+    if (rank.id === fromRank) return " from-col";
+    return "";
+  };
 
   const effectHead = RANKS.map((rank, i) => {
     const lines = EFFECT_LINES[i] || [effects[i]?.label || ""];
@@ -102,7 +177,8 @@ export function buildTable(highlight) {
 
   const rankHead = RANKS.map((rank) => {
     const [face, number] = RANK_FACE[rank.id] || [rank.abbr, String(rank.value)];
-    return `<th class="rank${marked(rank)}" title="${esc(rank.label)}"><span class="face">${esc(face)}</span>${number ? `<span class="num">${esc(number)}</span>` : ""}</th>`;
+    const started = rank.id === fromRank ? ", started here" : "";
+    return `<th class="rank${marked(rank)}" title="${esc(rank.label + started)}"><span class="face">${esc(face)}</span>${number ? `<span class="num">${esc(number)}</span>` : ""}</th>`;
   }).join("");
 
   const body = TABLE_BANDS.map((band) => {
@@ -110,21 +186,18 @@ export function buildTable(highlight) {
     const cells = RANKS.map((rank) => {
       const color = colorForRoll(rank.id, band.lo);
       const hit = hitBand && band.lo === hitBand.lo && rank.id === hitRank;
+      const ghost = rank.id === fromRank ? " from-col" : "";
       const text = hit ? esc(hitRoll) : "";
-      return `<td class="${color}${hit ? " hit" : ""}" data-rank="${rank.id}" data-lo="${band.lo}" title="${esc(rank.label)} ${band.label} ${color}">${text}</td>`;
+      return `<td class="${color}${ghost}${hit ? " hit" : ""}" data-rank="${rank.id}" data-lo="${band.lo}" title="${esc(rank.label)} ${band.label} ${color}">${text}</td>`;
     }).join("");
     return `<tr class="${markedRow.trim()}"><th class="dice${markedRow}">${band.label}</th>${cells}</tr>`;
   }).join("");
 
-  const callout = caption
-    ? `<p class="utable-callout ${esc(highlight?.color || "")}">${esc(caption)}</p>`
-    : "";
-
   return `
     <div class="faserip-utable">
+      ${plaqueHtml(highlight)}
       <div class="utable-fit">
         <div class="utable-sheet">
-          ${callout}
           <table>
           <thead>
             <tr class="effects"><th class="corner">Column</th>${effectHead}</tr>
@@ -138,6 +211,7 @@ export function buildTable(highlight) {
           </table>
         </div>
       </div>
+      ${historyHtml(history, currentId)}
     </div>
   `;
 }
@@ -206,7 +280,7 @@ function TableApp() {
 
     async _renderHTML() {
       const root = document.createElement("div");
-      root.innerHTML = buildTable(this.highlight);
+      root.innerHTML = buildTable(this.highlight, this._history || [], this._currentId || "");
       return root.firstElementChild;
     }
 
@@ -235,8 +309,40 @@ function TableApp() {
         content.addEventListener("pointerup", this._panUp);
         content.addEventListener("pointercancel", this._panUp);
         content.addEventListener("contextmenu", this._panMenu);
+        this._historyClick = (event) => {
+          const button = event.target?.closest?.("[data-roll-id]");
+          if (!button) return;
+          const entry = (this._history || []).find((item) => item.id === button.dataset.rollId);
+          if (!entry) return;
+          event.preventDefault();
+          this.highlight = entry;
+          this._currentId = entry.id;
+          this._pendingFocus = true;
+          this.render({});
+        };
+        content.addEventListener("click", this._historyClick);
+      }
+      if (!this.element.querySelector(".utable-fit-btn")) {
+        const close = this.element.querySelector('.window-header button[data-action="close"]');
+        if (close) {
+          const fit = document.createElement("button");
+          fit.type = "button";
+          fit.className = "header-control icon fa-solid fa-compress utable-fit-btn";
+          fit.dataset.tooltip = "Fit the whole chart";
+          fit.setAttribute("aria-label", "Fit the whole chart");
+          fit.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.#fitAll();
+          });
+          close.before(fit);
+        }
       }
       this.#fitTable();
+      if (this._pendingFocus) {
+        this._pendingFocus = false;
+        requestAnimationFrame(() => this.focusResult());
+      }
     }
 
     async _replaceHTML(result, content) {
@@ -262,9 +368,11 @@ function TableApp() {
         content.removeEventListener("pointerup", this._panUp);
         content.removeEventListener("pointercancel", this._panUp);
         content.removeEventListener("contextmenu", this._panMenu);
+        content.removeEventListener("click", this._historyClick);
       }
       this._wheelBound = null;
       this._panDown = null;
+      this._historyClick = null;
       this._pan = null;
       return super.close(options);
     }
@@ -389,11 +497,23 @@ function TableApp() {
       const cellRect = cell.getBoundingClientRect();
       host.scrollLeft += (cellRect.left + cellRect.width / 2) - (hostRect.left + hostRect.width / 2);
       host.scrollTop += (cellRect.top + cellRect.height / 2) - (hostRect.top + hostRect.height / 2);
+      cell.classList.add("is-landed");
+      sheet.querySelector("th.rank.hit-col")?.classList.add("is-landed");
+      sheet.querySelector("th.dice.hit-row")?.classList.add("is-landed");
+    }
+
+    #fitAll() {
+      this._userFactor = 1;
+      this.#fitTable();
+      const { host } = this.#sheetParts();
+      if (!host) return;
+      host.scrollLeft = 0;
+      host.scrollTop = 0;
     }
   };
 }
 
-export async function openUniversalTable(highlight = null) {
+export async function openUniversalTable(highlight = null, { record = false } = {}) {
   const App = TableApp();
   if (!App) return null;
   if (!tableApp) tableApp = new App();
@@ -404,7 +524,15 @@ export async function openUniversalTable(highlight = null) {
     height: tableApp.position.height
   } : null;
   if (!live) applyTableFrame(tableApp);
-  if (highlight) tableApp.highlight = highlight;
+  if (highlight) {
+    const entry = record ? rollEntry(highlight) : highlight;
+    if (record) {
+      tableApp._history = [entry, ...(tableApp._history || [])].slice(0, 6);
+      tableApp._currentId = entry.id;
+    } else if (entry.id) tableApp._currentId = entry.id;
+    tableApp.highlight = entry;
+    tableApp._pendingFocus = true;
+  }
   const rendered = await tableApp.render(live ? {} : true);
   if (live?.width && live?.height && !tableApp.minimized) {
     try { tableApp.setPosition(live); } catch { /* keep the size already on screen */ }
@@ -414,7 +542,6 @@ export async function openUniversalTable(highlight = null) {
       try { tableApp.setPosition(frame); } catch { /* position applies on the next open */ }
     }
   }
-  if (highlight) requestAnimationFrame(() => tableApp?.focusResult?.());
   return rendered;
 }
 
@@ -424,5 +551,5 @@ export function toggleUniversalTable() {
 }
 
 export function showRollOnTable(highlight) {
-  return openUniversalTable(highlight);
+  return openUniversalTable(highlight, { record: true });
 }

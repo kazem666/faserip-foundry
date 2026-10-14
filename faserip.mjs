@@ -48,7 +48,7 @@ import { getActorsCollection, getItemsCollection, getDocumentSheetConfig, getAct
 import { ensureCatalogPacks, fillWorldDefinitions } from "./module/compendium.mjs";
 import { buildCatalogItemData, describeCatalogItem } from "./module/data/descriptions.mjs";
 
-const VERSION = "1.18.70";
+const VERSION = "1.18.71";
 const UI_THEMES = ["classic", "fourcolor", "pulp", "dark"];
 
 function applyUiTheme(value) {
@@ -723,8 +723,12 @@ Hooks.on("createChatMessage", (message) => {
   if (!rankId || roll == null || !color) return;
   const label = message.getFlag?.("faserip", "label") ?? message.flags?.faserip?.label ?? "FEAT";
   const actorName = message.getFlag?.("faserip", "actorName") ?? message.flags?.faserip?.actorName ?? message.speaker?.alias ?? "";
+  const fromRankId = message.getFlag?.("faserip", "baseRankId") ?? message.flags?.faserip?.baseRankId ?? "";
+  const columnId = message.getFlag?.("faserip", "effectsColumn") ?? message.flags?.faserip?.effectsColumn ?? "";
+  const effect = message.getFlag?.("faserip", "effect") ?? message.flags?.faserip?.effect ?? "";
+  const cs = message.getFlag?.("faserip", "cs") ?? message.flags?.faserip?.cs ?? 0;
   if (workflowOn("showUniversalTable")) {
-    showRollOnTable({ rankId, roll, color, label, actorName }).catch((err) => {
+    showRollOnTable({ rankId, fromRankId, roll, color, label, actorName, columnId, effect, cs }).catch((err) => {
       console.warn("FASERIP | universal table", err);
     });
   }
