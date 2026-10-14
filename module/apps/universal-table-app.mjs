@@ -1,4 +1,4 @@
-import { RANKS, colorForRoll, rankLabel } from "../config.mjs";
+import { BATTLE_EFFECTS, RANKS, colorForRoll, rankLabel } from "../config.mjs";
 
 const CUTS = [1, 2, 4, 7, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56, 61, 66, 71, 76, 81, 86, 91, 95, 98, 100];
 
@@ -21,7 +21,61 @@ export function bandForRoll(roll) {
   return TABLE_BANDS.find((band) => n >= band.lo && n <= band.hi) ?? TABLE_BANDS[0];
 }
 
+const EFFECT_LINES = [
+  ["Blunt", "Attack"],
+  ["Edged", "Attack"],
+  ["Shooting"],
+  ["Thrown", "Edged"],
+  ["Thrown", "Blunt"],
+  ["Energy"],
+  ["Force"],
+  ["Grappling"],
+  ["Grabbing"],
+  ["Escaping"],
+  ["Charging"],
+  ["Dodging"],
+  ["Evading"],
+  ["Blocking"],
+  ["Catching"],
+  ["Slam", "Check"],
+  ["Stun", "Check"],
+  ["Kill", "Check"]
+];
+
+const RANK_FACE = {
+  shift0: ["0", "0"],
+  feeble: ["Fe", "2"],
+  poor: ["Pr", "4"],
+  typical: ["Ty", "6"],
+  good: ["Gd", "10"],
+  excellent: ["Ex", "20"],
+  remarkable: ["Rm", "30"],
+  incredible: ["In", "40"],
+  amazing: ["Am", "50"],
+  monstrous: ["Mn", "75"],
+  unearthly: ["Un", "100"],
+  shiftx: ["X", "150"],
+  shifty: ["Y", "200"],
+  shiftz: ["Z", "500"],
+  cl1000: ["1000", "1000"],
+  cl3000: ["3000", "3000"],
+  cl5000: ["5000", "5000"],
+  beyond: ["B", ""]
+};
+
+function chartWord(text) {
+  return String(text ?? "")
+    .replace("Unconscious 1d10 turns", "1d10 turns")
+    .replace("E/S (edged/shooting only)", "Edge/Shot")
+    .replace("Endurance Loss", "Loss")
+    .replace("No Effect", "No")
+    .replace("Auto-Hit", "Auto")
+    .replace("No Shift", "0")
+    .replace(" armor", "");
+}
+
 export function buildTable(highlight) {
+  const effects = Object.values(BATTLE_EFFECTS);
   const hitRank = highlight?.rankId || "";
   const hitRoll = Number(highlight?.roll);
   const hitBand = Number.isFinite(hitRoll) ? bandForRoll(hitRoll) : null;
@@ -30,11 +84,25 @@ export function buildTable(highlight) {
     : "";
   const caption = highlight
     ? `${highlight.actorName ? `${highlight.actorName} · ` : ""}${highlight.label || "FEAT"} · ${rankLabel(hitRank)} · ${hitRoll} · ${colorName}`
-    : "Column is the rank. Row is the d100. White, green, yellow, and red match the chat card.";
+    : "";
+  const marked = (rank) => rank.id === hitRank ? " hit-col" : "";
 
-  const head = RANKS.map((rank) => {
-    const marked = rank.id === hitRank ? " hit-col" : "";
-    return `<th class="rank${marked}" title="${esc(rank.label)}">${esc(rank.abbr)}</th>`;
+  const effectHead = RANKS.map((rank, i) => {
+    const lines = EFFECT_LINES[i] || [effects[i]?.label || ""];
+    return `<th class="effect${marked(rank)}" title="${esc(effects[i]?.label || "")}">${lines.map(esc).join("<br>")}</th>`;
+  }).join("");
+
+  const resultRow = (color, label) => {
+    const cells = RANKS.map((rank, i) => {
+      const word = effects[i]?.[color] || "";
+      return `<td class="${color}${marked(rank)}" title="${esc(word)}">${esc(chartWord(word))}</td>`;
+    }).join("");
+    return `<tr class="result"><th class="${color}">${label}</th>${cells}</tr>`;
+  };
+
+  const rankHead = RANKS.map((rank) => {
+    const [face, number] = RANK_FACE[rank.id] || [rank.abbr, String(rank.value)];
+    return `<th class="rank${marked(rank)}" title="${esc(rank.label)}"><span class="face">${esc(face)}</span>${number ? `<span class="num">${esc(number)}</span>` : ""}</th>`;
   }).join("");
 
   const body = TABLE_BANDS.map((band) => {
@@ -48,26 +116,75 @@ export function buildTable(highlight) {
     return `<tr class="${markedRow.trim()}"><th class="dice${markedRow}">${band.label}</th>${cells}</tr>`;
   }).join("");
 
+  const callout = caption
+    ? `<p class="utable-callout ${esc(highlight?.color || "")}">${esc(caption)}</p>`
+    : "";
+
   return `
     <div class="faserip-utable">
-      <p class="utable-caption ${esc(highlight?.color || "")}">${esc(caption)}</p>
-      <div class="utable-legend">
-        <span class="swatch white">White</span>
-        <span class="swatch green">Green</span>
-        <span class="swatch yellow">Yellow</span>
-        <span class="swatch red">Red</span>
-      </div>
-      <div class="utable-scroll">
-        <table>
-          <thead><tr><th class="corner">d100</th>${head}</tr></thead>
+      <div class="utable-fit">
+        <div class="utable-sheet">
+          ${callout}
+          <table>
+          <thead>
+            <tr class="effects"><th class="corner">Column</th>${effectHead}</tr>
+            ${resultRow("white", "White")}
+            ${resultRow("green", "Green")}
+            ${resultRow("yellow", "Yellow")}
+            ${resultRow("red", "Red")}
+            <tr class="ranks"><th class="corner">Rank</th>${rankHead}</tr>
+          </thead>
           <tbody>${body}</tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   `;
 }
 
 let tableApp = null;
+
+function readTableFrame() {
+  try {
+    const raw = globalThis.game?.settings?.get?.("faserip", "utableFrame");
+    const data = JSON.parse(raw || "");
+    const width = Number(data?.width);
+    const height = Number(data?.height);
+    const left = Number(data?.left);
+    const top = Number(data?.top);
+    if (!width || !height || !Number.isFinite(left) || !Number.isFinite(top)) return null;
+    const viewW = window.innerWidth || width;
+    const viewH = window.innerHeight || height;
+    return {
+      width: Math.min(Math.max(280, width), Math.max(280, viewW - 16)),
+      height: Math.min(Math.max(220, height), Math.max(220, viewH - 16)),
+      left: Math.min(Math.max(0, left), Math.max(0, viewW - 80)),
+      top: Math.min(Math.max(0, top), Math.max(0, viewH - 80))
+    };
+  } catch {
+    return null;
+  }
+}
+
+function rememberTableFrame(position) {
+  const width = Number(position?.width);
+  const height = Number(position?.height);
+  const left = Number(position?.left);
+  const top = Number(position?.top);
+  if (!width || !height || !Number.isFinite(left) || !Number.isFinite(top)) return;
+  const settings = globalThis.game?.settings;
+  if (!settings?.set) return;
+  settings.set("faserip", "utableFrame", JSON.stringify({ left, top, width, height })).catch(() => {});
+}
+
+function applyTableFrame(app) {
+  const frame = readTableFrame();
+  if (!frame || !app?.position) return;
+  app.position.left = frame.left;
+  app.position.top = frame.top;
+  app.position.width = frame.width;
+  app.position.height = frame.height;
+}
 
 function TableApp() {
   const Base = foundry.applications?.api?.ApplicationV2;
@@ -93,9 +210,43 @@ function TableApp() {
       return root.firstElementChild;
     }
 
+    _onRender(context, options) {
+      super._onRender?.(context, options);
+      const content = this.element?.querySelector?.(".window-content") ?? this.element;
+      if (content && !this._fitObserver) {
+        this._fitObserver = new ResizeObserver(() => this.#fitTable());
+        this._fitObserver.observe(content);
+      }
+      this.#fitTable();
+    }
+
     async _replaceHTML(result, content) {
       if (content && result) content.replaceChildren(result);
-      content?.querySelector?.(".hit")?.scrollIntoView({ block: "center", inline: "center" });
+      this.#fitTable();
+    }
+
+    async close(options) {
+      rememberTableFrame(this.position);
+      this._fitObserver?.disconnect();
+      this._fitObserver = null;
+      return super.close(options);
+    }
+
+    #fitTable() {
+      const host = this.element?.querySelector?.(".utable-fit");
+      const sheet = host?.querySelector?.(".utable-sheet");
+      if (!host || !sheet || this._fitting) return;
+      this._fitting = true;
+      sheet.style.zoom = "1";
+      const naturalW = sheet.offsetWidth;
+      const naturalH = sheet.offsetHeight;
+      const availW = host.clientWidth;
+      const availH = host.clientHeight;
+      if (naturalW && naturalH && availW && availH) {
+        const scale = Math.min(availW / naturalW, availH / naturalH);
+        sheet.style.zoom = String(Math.max(0.15, scale));
+      }
+      this._fitting = false;
     }
   };
 }
@@ -104,8 +255,14 @@ export async function openUniversalTable(highlight = null) {
   const App = TableApp();
   if (!App) return null;
   if (!tableApp) tableApp = new App();
+  applyTableFrame(tableApp);
   if (highlight) tableApp.highlight = highlight;
-  return tableApp.render(true);
+  const rendered = await tableApp.render(true);
+  const frame = readTableFrame();
+  if (frame && typeof tableApp.setPosition === "function") {
+    try { tableApp.setPosition(frame); } catch { /* position applies on the next open */ }
+  }
+  return rendered;
 }
 
 export function toggleUniversalTable() {

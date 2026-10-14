@@ -862,91 +862,109 @@ button.faserip-import-pdf,
 }
 .faserip-universal-table .window-content {
   overflow: hidden;
-  padding: 0;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: #c41212;
 }
 .faserip-utable {
+  flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
-  height: 100%;
   min-height: 0;
-  background: var(--panel);
-  color: var(--ink);
+  min-width: 0;
+  background: #c41212;
+  color: #111;
   font-family: "Source Sans 3", sans-serif;
 }
-.faserip-utable .utable-caption {
-  margin: 0;
-  padding: 6px 10px;
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border-bottom: 2px solid var(--rule);
-}
-.faserip-utable .utable-caption.white { background: #f4f0e6; }
-.faserip-utable .utable-caption.green { background: #22c55e; color: #052e16; }
-.faserip-utable .utable-caption.yellow { background: #facc15; }
-.faserip-utable .utable-caption.red { background: #dc2626; color: #fff; }
-.faserip-utable .utable-legend {
-  display: flex;
-  gap: 8px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.faserip-utable .swatch { padding: 0 6px; border: 1px solid var(--rule); }
-.faserip-utable .swatch.white { background: #f4f0e6; }
-.faserip-utable .swatch.green { background: #22c55e; color: #052e16; }
-.faserip-utable .swatch.yellow { background: #facc15; }
-.faserip-utable .swatch.red { background: #dc2626; color: #fff; }
-.faserip-utable .utable-scale {
+.faserip-utable .utable-fit {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
+.faserip-utable .utable-sheet {
+  flex: none;
+  width: 928px;
+  background: #c41212;
+}
+.faserip-utable .utable-callout {
+  margin: 0 0 4px;
+  padding: 2px 6px;
+  background: #111;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.faserip-utable .utable-callout.green { background: #1f8f1f; }
+.faserip-utable .utable-callout.yellow { color: #ffe14a; }
+.faserip-utable .utable-callout.red { background: #7f1010; }
 .faserip-utable table {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: max-content;
-  font-size: 11px;
-  transform-origin: top left;
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 928px;
+  background: #c41212;
 }
 .faserip-utable th,
 .faserip-utable td {
-  border: 1px solid var(--rule);
+  border: 1px solid #111;
   text-align: center;
-  min-width: 36px;
-  height: 22px;
-  padding: 0 2px;
+  width: 48px;
+  height: 16px;
+  padding: 0 1px;
+  font-size: 8px;
+  line-height: 1.05;
+  color: #111;
+  background: #fff;
+  overflow: hidden;
+  vertical-align: middle;
 }
 .faserip-utable th.corner,
-.faserip-utable th.dice,
-.faserip-utable th.rank {
-  position: sticky;
-  background: var(--banner);
-  color: var(--banner-ink);
-  font-family: "Oswald", sans-serif;
-  text-transform: uppercase;
-  z-index: 2;
+.faserip-utable th.dice {
+  width: 64px;
+  font-weight: 700;
+  background: #fff;
 }
-.faserip-utable thead th { top: 0; }
-.faserip-utable th.dice,
-.faserip-utable th.corner { left: 0; }
-.faserip-utable th.corner { z-index: 3; }
-.faserip-utable td.white { background: #f4f0e6; }
-.faserip-utable td.green { background: #22c55e; }
-.faserip-utable td.yellow { background: #facc15; }
-.faserip-utable td.red { background: #dc2626; color: #fff; }
-.faserip-utable th.hit-col,
-.faserip-utable th.hit-row { background: #1d4ed8; }
-.faserip-utable td.hit {
-  box-shadow: inset 0 0 0 3px var(--rule);
+.faserip-utable th.effect {
+  height: 68px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.05;
+  background: #fff;
+}
+.faserip-utable tr.result th,
+.faserip-utable tr.result td {
+  height: 24px;
+  font-size: 7px;
+  font-weight: 700;
+}
+.faserip-utable th.rank {
+  height: 28px;
+  background: #fff;
   font-weight: 800;
-  font-size: 12px;
-  z-index: 1;
+}
+.faserip-utable th.rank .face,
+.faserip-utable th.rank .num { display: block; line-height: 1.05; }
+.faserip-utable th.rank .num { font-size: 7px; font-weight: 600; }
+.faserip-utable th.white,
+.faserip-utable td.white { background: #fff; }
+.faserip-utable th.green,
+.faserip-utable td.green { background: #3dcc3d; }
+.faserip-utable th.yellow,
+.faserip-utable td.yellow { background: #ffe14a; }
+.faserip-utable th.red,
+.faserip-utable td.red { background: #ff2a2a; }
+.faserip-utable th.hit-col,
+.faserip-utable th.hit-row { outline: 2px solid #111; outline-offset: -2px; }
+.faserip-utable td.hit {
+  outline: 3px solid #111;
+  outline-offset: -3px;
+  font-weight: 800;
+  font-size: 10px;
 }
 
 .faserip-comic {
