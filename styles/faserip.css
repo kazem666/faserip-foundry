@@ -914,9 +914,11 @@ button.faserip-import-pdf,
   border: 1px solid #111;
   text-align: center;
   width: 48px;
-  height: 16px;
+  height: 20px;
   padding: 0 1px;
-  font-size: 8px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
   line-height: 1.05;
   color: #111;
   background: #fff;
@@ -926,30 +928,32 @@ button.faserip-import-pdf,
 .faserip-utable th.corner,
 .faserip-utable th.dice {
   width: 64px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 900;
   background: #fff;
 }
 .faserip-utable th.effect {
-  height: 68px;
-  font-size: 8px;
-  font-weight: 700;
+  height: 72px;
+  font-size: 11px;
+  font-weight: 900;
   line-height: 1.05;
   background: #fff;
 }
 .faserip-utable tr.result th,
 .faserip-utable tr.result td {
-  height: 24px;
-  font-size: 7px;
-  font-weight: 700;
+  height: 30px;
+  font-size: 11px;
+  font-weight: 900;
 }
 .faserip-utable th.rank {
-  height: 28px;
+  height: 32px;
   background: #fff;
-  font-weight: 800;
+  font-weight: 900;
 }
 .faserip-utable th.rank .face,
 .faserip-utable th.rank .num { display: block; line-height: 1.05; }
-.faserip-utable th.rank .num { font-size: 7px; font-weight: 600; }
+.faserip-utable th.rank .face { font-size: 13px; }
+.faserip-utable th.rank .num { font-size: 10px; font-weight: 800; }
 .faserip-utable th.white,
 .faserip-utable td.white { background: #fff; }
 .faserip-utable th.green,
@@ -958,13 +962,23 @@ button.faserip-import-pdf,
 .faserip-utable td.yellow { background: #ffe14a; }
 .faserip-utable th.red,
 .faserip-utable td.red { background: #ff2a2a; }
-.faserip-utable th.hit-col,
-.faserip-utable th.hit-row { outline: 2px solid #111; outline-offset: -2px; }
+.faserip-utable td.hit-col,
+.faserip-utable th.effect.hit-col {
+  box-shadow: inset 5px 0 0 #111, inset -5px 0 0 #111;
+}
+.faserip-utable th.rank.hit-col,
+.faserip-utable th.dice.hit-row,
+.faserip-utable th.rank.hit-col .face,
+.faserip-utable th.rank.hit-col .num {
+  background: #111;
+  color: #ffe14a;
+}
 .faserip-utable td.hit {
-  outline: 3px solid #111;
-  outline-offset: -3px;
-  font-weight: 800;
-  font-size: 10px;
+  background: #111 !important;
+  color: #ffe14a;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 3px #ffe14a;
 }
 
 .faserip-comic {
