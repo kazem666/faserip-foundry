@@ -1,26 +1,48 @@
-<div class="faserip-chat color-{{color}}">
+<div class="faserip-chat color-{{color}}{{#if fantastic}} is-fantastic{{/if}}">
   <header>
-    <span class="feat-label">{{label}}</span>
-    <span class="result-chip {{color}}{{#if fantastic}} fantastic{{/if}}">{{colorLabel}}</span>
-    {{#if actorName}}<span class="who">{{actorName}}</span>{{/if}}
+    <div class="combat-line">
+      {{#if actorName}}<span class="who">{{actorName}}</span>{{/if}}
+      {{#if targetName}}
+        {{#if actorName}}<span class="arrow" aria-hidden="true">→</span>{{/if}}
+        <button type="button" class="target-pill" data-faserip-pan title="Pan to {{targetName}}">{{targetName}}</button>
+      {{/if}}
+      {{#unless actorName}}{{#unless targetName}}<span class="who">{{label}}</span>{{/unless}}{{/unless}}
+    </div>
+    <div class="header-aside">
+      {{#if fantastic}}<span class="result-chip fantastic">Fantastic</span>{{/if}}
+      {{#if rollCaption}}<span class="roll-caption">{{rollCaption}}</span>{{/if}}
+    </div>
   </header>
-  {{#if effect}}
-  <div class="effect-banner">{{effectLabel}}: <strong>{{effect}}</strong></div>
-  {{/if}}
+  <div class="result-banner {{color}}">
+    <span class="result-word">{{headline}}</span>
+    {{#if actionName}}<span class="result-action">{{actionName}}</span>{{/if}}
+  </div>
+  {{#if effectSentence}}<p class="effect-sentence">{{effectSentence}}</p>{{/if}}
+  <p class="feat-face"><span class="face-roll">{{adjusted}}</span><span class="face-rank">{{faceRank}}</span></p>
   {{#if intensityId}}
   <p class="intensity {{#if intensityPass}}pass{{else}}fail{{/if}}">
     Intensity {{intensityLabel}} — {{intensityNeed}}
     {{#if intensityPass}} · SUCCESS{{else}} · FAIL{{/if}}
   </p>
   {{/if}}
-  {{#if damageLine}}
-  <section class="feat-damage{{#if damageApplied}} is-applied{{/if}}">{{damageLine}}</section>
+  {{#if damageMode}}
+  <section class="feat-damage{{#if damageApplied}} is-applied{{/if}}{{#if (eq damageMode "pending")}} is-pending{{/if}}">
+    {{#if (eq damageMode "delta")}}
+    <div class="feat-delta">
+      <span class="delta-kind">{{damageKind}}</span>
+      <span class="delta-change">{{healthBefore}} → {{healthAfter}}</span>
+      <span class="delta-taken">−{{damageTaken}}</span>
+    </div>
+    {{/if}}
+    {{#if (eq damageMode "pending")}}
+    <div class="feat-delta">
+      <span class="delta-kind">{{damageAmount}} {{damageKind}}</span>
+      <span class="delta-state">not applied</span>
+    </div>
+    {{/if}}
+    {{#if damageDetail}}<p class="delta-note">{{damageDetail}}</p>{{/if}}
+  </section>
   {{/if}}
-  <div class="feat-facts">
-    <span>d100 {{raw}}{{#if showAdjusted}}{{#if karma}} +{{karma}}{{/if}}{{#if combatFlat}}{{#if (gt combatFlat 0)}} +{{else}} {{/if}}{{combatFlat}}{{/if}} = {{adjusted}}{{/if}}</span>
-    <span>{{baseRank}}{{#if cs}} {{#if (gt cs 0)}}+{{/if}}{{cs}} CS → {{effectiveRank}}{{/if}}</span>
-    {{#if targetName}}<button type="button" class="target-pill" data-faserip-pan title="Pan to {{targetName}}">{{targetName}}</button>{{/if}}
-  </div>
   <details class="feat-explain">
     <summary>Why this is {{colorLabel}}</summary>
     <ul>
@@ -37,17 +59,18 @@
   {{/if}}
   <div class="feat-actions">
     {{#if showButtons}}
-    {{#if psycheGate}}<button type="button" data-faserip-psyche>Psyche FEAT</button>{{/if}}
-    {{#if canDamage}}<button type="button" data-faserip-apply>Apply {{damageAmount}}{{#if damageEnergy}} energy{{/if}}{{#if targetName}} to {{targetName}}{{/if}}</button>{{/if}}
-    {{#if checkColumn}}<button type="button" data-faserip-check>{{checkLabel}}</button>{{/if}}
+    {{#if psycheGate}}<button type="button" class="is-primary" data-faserip-psyche>Psyche FEAT</button>{{/if}}
+    {{#if canDamage}}<button type="button" class="{{#if applyPrimary}}is-primary{{/if}}" data-faserip-apply>Apply {{damageAmount}}{{#if damageEnergy}} energy{{/if}}{{#if targetName}} to {{targetName}}{{/if}}</button>{{/if}}
+    {{#if checkColumn}}<button type="button" class="{{#if checkPrimary}}is-primary{{/if}}" data-faserip-check {{#unless checkVisible}}hidden{{/unless}}>{{checkLabel}}</button>{{/if}}
     {{/if}}
     {{#if fantastic}}
-    <button type="button" data-faserip-panel>Describe the panel</button>
+    <button type="button" class="{{#if fantasticPrimary}}is-primary{{/if}}" data-faserip-panel>Describe the panel</button>
     <button type="button" data-faserip-free-stunt>Free Power Stunt</button>
     {{/if}}
     {{#if houseFocus}}<button type="button" data-faserip-focus-reroll>Reroll (1 Focus)</button>{{/if}}
     {{#if rollWithBlow}}<button type="button" data-faserip-rollblow>Roll with the blow</button>{{/if}}
     {{#if enduranceSoak}}<button type="button" data-faserip-soak>Soak with Endurance</button>{{/if}}
     {{#if boneBreak}}<button type="button" data-faserip-bone>Check for a break</button>{{/if}}
+    <button type="button" data-faserip-table>Show on table</button>
   </div>
 </div>

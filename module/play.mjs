@@ -20,21 +20,36 @@ function flagOf(message, key) {
   return message.getFlag?.("faserip", key) ?? message.flags?.faserip?.[key];
 }
 
-export function damageCardNote(flags = {}) {
-  if (flags.healthNote) return String(flags.healthNote);
+function sideNote(note, hasDelta) {
+  if (!note) return "";
+  if (!hasDelta) return String(note);
+  if (!/armor|force field|subdual|protection|reflect|lure|psi-screen|graze/i.test(note)) return "";
+  const stripped = String(note)
+    .replace(/\s*\S+ Health \d+ → \d+ \(−\d+\)\.?/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+\./g, ".")
+    .trim();
+  return stripped || String(note);
+}
+
+export function damageCardParts(flags = {}) {
   const amount = flags.damageAmount;
-  const name = flags.targetName || "";
-  const kind = flags.damageEnergy ? "energy" : "Health";
   const n = Number(amount);
-  if (flags.damageApplied && flags.healthBefore != null && flags.healthAfter != null) {
-    const taken = Number(flags.damageTaken) || 0;
-    const change = taken > 0
-      ? `Health ${flags.healthBefore} → ${flags.healthAfter} (−${taken})`
-      : `${name || "The target"} loses no Health`;
-    return n > 0 ? `${n} ${kind} damage applied to ${name || "the target"}. ${change}.` : `${change}.`;
-  }
-  if (amount == null || amount === "" || !n) return "";
-  return name ? `${n} ${kind} damage to ${name}.` : `${n} ${kind} damage.`;
+  const hasAmount = amount != null && amount !== "" && Number.isFinite(n) && n > 0;
+  const kind = flags.damageEnergy ? "energy" : "Health";
+  const note = flags.healthNote ? String(flags.healthNote) : "";
+  const applied = !!flags.damageApplied;
+  const before = flags.healthBefore;
+  const after = flags.healthAfter;
+  const taken = Number(flags.damageTaken) || 0;
+  const hasDelta = applied && before != null && before !== "" && after != null && after !== "" && taken > 0;
+  const detail = sideNote(note, hasDelta);
+  if (hasDelta) return { mode: "delta", kind: "Health", before, after, taken, applied: true, note: detail };
+  if (!hasAmount && !note) return null;
+  if (hasAmount && !applied) return { mode: "pending", kind, amount: n, applied: false, note: detail };
+  if (note) return { mode: "note", applied, note };
+  if (applied) return { mode: "note", applied: true, note: `${n} ${kind} damage applied to ${flags.targetName || "the target"}.` };
+  return null;
 }
 
 function featFlagBag(message) {
@@ -50,23 +65,72 @@ function featFlagBag(message) {
   };
 }
 
+function span(className, text) {
+  const node = document.createElement("span");
+  node.className = className;
+  node.textContent = text;
+  return node;
+}
+
 function paintDamageNote(root, message) {
-  const note = damageCardNote(featFlagBag(message));
+  const parts = damageCardParts(featFlagBag(message));
   const card = root.querySelector?.(".faserip-chat") || root;
   let box = card.querySelector?.(".feat-damage");
-  if (!note) {
+  if (!parts) {
     box?.remove();
     return;
   }
   if (!box) {
     box = document.createElement("section");
     box.className = "feat-damage";
-    const facts = card.querySelector(".feat-facts");
-    if (facts) facts.before(box);
+    const anchor = card.querySelector("details.feat-explain") || card.querySelector(".feat-actions");
+    if (anchor) anchor.before(box);
     else card.append(box);
   }
-  box.classList.toggle("is-applied", !!flagOf(message, "damageApplied"));
-  box.textContent = note;
+  box.classList.toggle("is-applied", !!parts.applied);
+  box.classList.toggle("is-pending", parts.mode === "pending");
+  box.replaceChildren();
+  if (parts.mode === "delta") {
+    const row = document.createElement("div");
+    row.className = "feat-delta";
+    row.append(
+      span("delta-kind", parts.kind),
+      span("delta-change", `${parts.before} → ${parts.after}`),
+      span("delta-taken", `−${parts.taken}`)
+    );
+    box.append(row);
+  } else if (parts.mode === "pending") {
+    const row = document.createElement("div");
+    row.className = "feat-delta";
+    row.append(span("delta-kind", `${parts.amount} ${parts.kind}`), span("delta-state", "not applied"));
+    box.append(row);
+  }
+  if (parts.note) {
+    const line = document.createElement("p");
+    line.className = "delta-note";
+    line.textContent = parts.note;
+    box.append(line);
+  }
+}
+
+function paintFeatActions(root, message) {
+  const psyche = root.querySelector("[data-faserip-psyche]");
+  const apply = root.querySelector("[data-faserip-apply]");
+  const check = root.querySelector("[data-faserip-check]");
+  const panel = root.querySelector("[data-faserip-panel]");
+  const applied = !!flagOf(message, "damageApplied");
+  const blocked = !!flagOf(message, "effectBlocked");
+  const amount = flagOf(message, "damageAmount");
+  const canDamage = amount != null && amount !== "";
+  const psychePending = !!flagOf(message, "psycheGate") && !flagOf(message, "psycheResolved");
+  for (const button of root.querySelectorAll(".feat-actions button")) button.classList.remove("is-primary");
+  if (applied && apply) markApplied(apply);
+  if (check) check.hidden = blocked || (canDamage && !applied);
+  const primary = (psychePending && psyche)
+    || (!applied && canDamage && apply)
+    || (check && !check.hidden && check)
+    || panel;
+  primary?.classList.add("is-primary");
 }
 
 async function resolvePsycheGate(message, target) {
@@ -310,6 +374,7 @@ export function bindFeatChat(message, html) {
   const root = html instanceof HTMLElement ? html : html?.[0];
   if (!root?.querySelectorAll) return;
   paintDamageNote(root, message);
+  paintFeatActions(root, message);
   const applyButton = root.querySelector("[data-faserip-apply]");
   const applied = !!(message.getFlag?.("faserip", "damageApplied") ?? message.flags?.faserip?.damageApplied);
   if (applied) markApplied(applyButton);
@@ -361,6 +426,25 @@ export function bindFeatChat(message, html) {
   root.querySelector("[data-faserip-bone]")?.addEventListener("click", (event) => {
     event.preventDefault();
     import("./break-bone.mjs").then((mod) => mod.promptBoneBreak(message)).catch((err) => console.warn("FASERIP | bone break", err));
+  });
+  root.querySelector("[data-faserip-table]")?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    const rankId = flagOf(message, "rankId");
+    const roll = flagOf(message, "roll");
+    const color = flagOf(message, "color");
+    if (!rankId || roll == null || !color) return;
+    const { openUniversalTable } = await import("./apps/universal-table-app.mjs");
+    await openUniversalTable({
+      rankId,
+      fromRankId: flagOf(message, "baseRankId") || "",
+      roll,
+      color,
+      label: flagOf(message, "label") || "FEAT",
+      actorName: flagOf(message, "actorName") || "",
+      columnId: flagOf(message, "effectsColumn") || "",
+      effect: flagOf(message, "effect") || "",
+      cs: flagOf(message, "cs") || 0
+    }, { record: false });
   });
 }
 

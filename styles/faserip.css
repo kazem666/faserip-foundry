@@ -564,16 +564,35 @@ html.faserip-theme-dark,
 .faserip-sheet .item-rank { font-family: "Oswald", sans-serif; text-transform: uppercase; font-size: 12px; }
 .faserip-item-sheet .sheet-header { display: flex; gap: 10px; margin-bottom: 10px; }
 .faserip-item-sheet img { width: 64px; height: 64px; border: 3px solid var(--rule); }
-.faserip-chat { font-family: "Source Sans 3", sans-serif; border: 3px solid var(--rule); background: var(--panel); color: var(--ink); }
+.faserip-chat {
+  font-family: "Source Sans 3", sans-serif;
+  border: 3px solid var(--rule);
+  border-left-width: 10px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.faserip-chat.color-white { border-left-color: #d6d0c4; }
+.faserip-chat.color-green { border-left-color: #22c55e; }
+.faserip-chat.color-yellow { border-left-color: #facc15; }
+.faserip-chat.color-red { border-left-color: #dc2626; }
 .faserip-chat header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   padding: 6px 8px;
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   background: var(--banner);
   color: var(--banner-ink);
 }
+.faserip-chat.color-white header { background: #f4f0e6; color: #111; }
+.faserip-chat.color-green header { background: #14532d; color: #ecfdf5; }
+.faserip-chat.color-yellow header { background: #713f12; color: #fef3c7; }
+.faserip-chat.color-red header { background: #7f1d1d; color: #fff; }
+.faserip-chat .combat-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.faserip-chat .header-aside { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.faserip-chat .roll-caption { font-size: 12px; letter-spacing: 0.5px; opacity: 0.85; }
 .faserip-chat .result-chip {
   font-family: "Bangers", Impact, sans-serif;
   letter-spacing: 1px;
@@ -581,8 +600,19 @@ html.faserip-theme-dark,
   border: 2px solid var(--rule);
   line-height: 1.2;
 }
+.faserip-chat .feat-face {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 8px 2px;
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  font-size: 18px;
+}
+.faserip-chat .effect-sentence { margin: 0; padding: 4px 8px 0; text-align: center; font-weight: 800; }
 .faserip-chat .feat-damage {
-  margin: 0 8px 6px;
+  margin: 6px 8px;
   padding: 6px 8px;
   border: 2px solid var(--rule);
   background: #1a120c;
@@ -590,10 +620,13 @@ html.faserip-theme-dark,
   font-weight: 800;
   line-height: 1.3;
 }
-.faserip-chat .feat-damage.is-applied {
-  background: #3f1515;
-  color: #ffe14a;
-}
+.faserip-chat .feat-damage.is-applied { background: #3f1515; color: #ffe14a; }
+.faserip-chat .feat-delta { display: flex; align-items: baseline; gap: 10px; }
+.faserip-chat .delta-kind { text-transform: uppercase; letter-spacing: 0.5px; font-family: "Oswald", sans-serif; }
+.faserip-chat .delta-change, .faserip-chat .delta-taken { font-variant-numeric: tabular-nums; font-size: 18px; }
+.faserip-chat .delta-taken, .faserip-chat .delta-state { margin-left: auto; }
+.faserip-chat .delta-state { text-transform: uppercase; letter-spacing: 0.5px; font-family: "Oswald", sans-serif; opacity: 0.85; }
+.faserip-chat .delta-note { margin: 4px 0 0; font-size: 13px; font-weight: 700; }
 .faserip-chat .feat-facts {
   display: flex;
   flex-wrap: wrap;
@@ -627,12 +660,21 @@ html.faserip-theme-dark,
   padding: 0 6px;
 }
 .faserip-chat .result-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   font-family: "Bangers", Impact, sans-serif;
-  font-size: 28px;
   letter-spacing: 2px;
   padding: 8px;
   border-bottom: 3px solid var(--rule);
+}
+.faserip-chat .result-word { font-size: 32px; line-height: 1; text-transform: uppercase; }
+.faserip-chat .result-action {
+  font-family: "Oswald", sans-serif;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 .faserip-chat .result-banner.white, .faserip-chat .result-chip.white { background: #f4f0e6; color: #111; }
 .faserip-chat .result-banner.green, .faserip-chat .result-chip.green { background: #22c55e; color: #052e16; }
@@ -645,10 +687,17 @@ html.faserip-theme-dark,
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;
   border: 2px solid var(--rule);
-  background: var(--gold);
-  color: var(--on-gold);
+  background: var(--field);
+  color: var(--ink);
   cursor: pointer;
 }
+.faserip-chat .feat-actions button.is-primary {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+.faserip-chat .feat-actions button[hidden] { display: none; }
+.faserip-chat .feat-actions button:disabled { opacity: 0.7; cursor: default; }
+.faserip-chat header .target-pill { background: transparent; color: inherit; border-color: currentColor; }
 button.faserip-award {
   flex: 0 0 auto;
   margin: 4px;

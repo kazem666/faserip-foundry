@@ -13,7 +13,7 @@ import {
 } from "../config.mjs";
 import { magicColumnShift, magicEnergy, magicHarm, magicResult, pulledResultColor, resistLine, takeMagic } from "../magic.mjs";
 import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, signed, writePending } from "../play-rules.mjs";
-import { damageCardNote } from "../play.mjs";
+import { damageCardParts } from "../play.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { playAttackSound } from "../psfx.mjs";
@@ -487,6 +487,24 @@ export async function rollFeat({
       magic: !!magic
     });
   }
+  const colorWord = fantastic ? "Fantastic" : game.i18n.localize(`FASERIP.Color.${color}`);
+  const shortEffect = effect && effect.length <= 18 && !/[.]/.test(effect) ? effect : "";
+  const actionName = String(effectLabel || label || "").replace(/\s*\([^)]*\)\s*$/, "");
+  const bareLabel = String(label || "").replace(/\s*\([^)]*\)\s*$/, "");
+  const damage = damageCardParts({
+    damageAmount: combat.damageAmount ?? null,
+    damageEnergy: !!combat.damageEnergy,
+    damageApplied,
+    damageTaken: taken,
+    healthBefore,
+    healthAfter,
+    healthNote,
+    targetName: combat.targetName || target?.name || ""
+  });
+  const canDamage = combat.damageAmount != null;
+  const psychePending = !!psycheGate;
+  const applyPrimary = !psychePending && canDamage && !damageApplied;
+  const checkVisible = !!combat.checkColumn && !effectBlocked && (!canDamage || damageApplied);
   const content = await foundry.applications.handlebars.renderTemplate("systems/faserip/templates/chat/feat-roll.hbs", {
     actorName: actor?.name ?? "",
     itemName: item?.name ?? "",
@@ -503,7 +521,12 @@ export async function rollFeat({
     boneBreak: combatOn("combatBreak") && !!target && color !== "white" && breakQualifies(combat.damageAmount, target.system?.health?.max),
     showAdjusted: adjusted !== raw,
     combatFlat,
-    colorLabel: fantastic ? "Fantastic" : game.i18n.localize(`FASERIP.Color.${color}`),
+    colorLabel: colorWord,
+    headline: [colorWord, shortEffect].filter(Boolean).join(" "),
+    actionName,
+    rollCaption: bareLabel && actionName && bareLabel !== actionName ? bareLabel : "",
+    effectSentence: shortEffect ? "" : (effect || ""),
+    faceRank: RANK_BY_ID[effectiveId]?.label || rankLabel(effectiveId),
     formulaLines: explainResult({
       rankId: effectiveId,
       roll: adjusted,
@@ -528,22 +551,22 @@ export async function rollFeat({
     effectLabel,
     shiftNotes,
     targetName: combat.targetName || target?.name || "",
-    healthNote,
-    damageLine: damageCardNote({
-      damageAmount: combat.damageAmount ?? null,
-      damageEnergy: !!combat.damageEnergy,
-      damageApplied,
-      damageTaken: taken,
-      healthBefore,
-      healthAfter,
-      healthNote,
-      targetName: combat.targetName || target?.name || ""
-    }),
+    damageMode: damage?.mode || "",
+    damageKind: damage?.kind || "",
+    damageDetail: damage?.note || "",
+    healthBefore: damage?.before ?? "",
+    healthAfter: damage?.after ?? "",
+    damageTaken: damage?.taken ?? "",
     damageAmount: combat.damageAmount ?? null,
-    canDamage: combat.damageAmount != null,
+    canDamage,
+    damageApplied,
     damageEnergy: !!combat.damageEnergy,
     checkColumn: combat.checkColumn || "",
     checkLabel: combat.checkColumn ? (BATTLE_EFFECTS[combat.checkColumn]?.label ?? "") : "",
+    checkVisible,
+    applyPrimary,
+    checkPrimary: checkVisible && !psychePending && !applyPrimary,
+    fantasticPrimary: !!fantastic && !psychePending && !applyPrimary && !checkVisible,
     psycheGate,
     showButtons: showCombatButtons()
   });
