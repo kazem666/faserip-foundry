@@ -385,7 +385,7 @@ function magicExtras(item) {
   return { cs: Number(magic.cs) || 0, note: magic.note || "", magic: true };
 }
 
-export async function rollAction(actor, spec, { dialog = false, item = null, label = "" } = {}) {
+export async function rollAction(actor, spec, { dialog = false, item = null, label = "", karma = 0 } = {}) {
   const { conditionBlock, isCheckColumn } = await import("./battle-results.mjs");
   if (actor && !isCheckColumn(spec?.column) && conditionBlock(actor)) {
     ui.notifications?.warn(conditionBlock(actor));
@@ -407,7 +407,8 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
   const magic = magicExtras(item);
   const { promptFeatRoll, rollFeat } = await import("./dice/universal-table.mjs");
   const fast = workflowActive("autoRollAttack") && (game.user?.isGM || workflowOn("playersFastForward"));
-  if (dialog || !fast) {
+  const declared = Math.max(0, Number(karma) || 0);
+  if (dialog || (!fast && !declared)) {
     const message = await promptFeatRoll({
       actor,
       item,
@@ -470,6 +471,7 @@ export async function rollAction(actor, spec, { dialog = false, item = null, lab
     targetUuid: target?.uuid || "",
     shiftNotes: [plan.note, magic.note].filter(Boolean).join(" "),
     magic: magic.magic,
+    karma: declared,
     damageCs: plan.damageCs || 0,
     skipCondition: true,
     consumeOutgoing: plan.consumeOutgoing,

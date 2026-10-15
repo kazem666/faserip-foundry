@@ -667,6 +667,72 @@ function writeShiftTotal(root, parts, skipped) {
   input.value = String(sum);
 }
 
+export async function promptKarmaAmount(actor) {
+  const pool = Number(actor?.system?.karma?.value ?? 0);
+  const name = actor?.name || "This hero";
+  if (pool < 10) {
+    ui.notifications?.warn(`${name} needs at least 10 Karma to change a roll.`);
+    return null;
+  }
+  const DialogV2 = foundry.applications.api.DialogV2;
+  const form = await DialogV2.wait({
+    classes: ["faserip-dialog"],
+    window: { title: `Karma — ${name}`, icon: "fa-solid fa-star" },
+    content: `
+      <form class="faserip-feat-dialog">
+        <p><strong>${esc(name)}</strong> has ${pool} Karma.</p>
+        <div class="karma-picks">
+          <label><input type="radio" name="pick" value="10" checked> 10</label>
+          <label><input type="radio" name="pick" value="20"> 20</label>
+          <label><input type="radio" name="pick" value="30"> 30</label>
+          <label><input type="radio" name="pick" value="other"> Other</label>
+        </div>
+        <div class="form-group">
+          <label>Other amount</label>
+          <input type="number" name="karma" min="10" step="1" value="10" />
+        </div>
+        <p class="hint">At least 10. It is spent before the d100 is rolled.</p>
+      </form>`,
+    buttons: [
+      { action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true, callback: (_event, button) => button.form },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+    ],
+    rejectClose: false
+  });
+  if (!form || form === "cancel") return null;
+  const pick = form.querySelector('[name="pick"]:checked')?.value || "10";
+  const typed = Number(form.querySelector('[name="karma"]')?.value || 0);
+  const amount = pick === "other" ? typed : Number(pick);
+  if (!Number.isFinite(amount) || amount < 10) {
+    ui.notifications?.warn("Karma spent to modify a roll must be at least 10.");
+    return null;
+  }
+  if (amount > pool) {
+    ui.notifications?.warn(`${name} does not have ${amount} Karma.`);
+    return null;
+  }
+  return amount;
+}
+
+export async function rollAbilityFeat(actor, ability, { karma = 0 } = {}) {
+  const { shiftPlan } = await import("../workflow.mjs");
+  const plan = shiftPlan(actor, { ability });
+  return rollFeat({
+    actor,
+    rankId: actor?.getAbilityRank?.(ability) || "typical",
+    label: game.i18n.localize(`FASERIP.Ability.${ability}`),
+    abilityId: ability,
+    cs: plan.cs || 0,
+    karma,
+    shiftNotes: plan.note || "",
+    damageCs: plan.damageCs || 0,
+    consumeOutgoing: !!plan.consumeOutgoing,
+    consumeIncoming: !!plan.consumeIncoming,
+    consumeStrike: !!plan.consumeStrike,
+    consumeMagicResist: !!plan.consumeMagicResist
+  });
+}
+
 export async function promptFeatRoll({
   actor,
   item = null,

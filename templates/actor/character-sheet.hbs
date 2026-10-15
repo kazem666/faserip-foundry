@@ -89,11 +89,12 @@
           <div class="ability-grid">
             {{#each abilities as |ab|}}
             <div class="ability-card">
-              <button type="button" class="ability-roll" data-action="rollAbility" data-ability="{{ab.key}}" title="Roll {{ab.label}} FEAT. Shift-click to spend Karma.">
+              <button type="button" class="ability-roll" data-action="rollAbility" data-ability="{{ab.key}}" title="Roll {{ab.label}}. Shift-click opens the full FEAT options.">
                 <span class="abbr">{{ab.abbr}}</span>
                 <span class="face-number">{{ab.number}}</span>
                 <span class="short-rank">{{ab.shortLabel}}</span>
               </button>
+              <button type="button" class="karma-roll" data-action="rollAbilityKarma" data-ability="{{ab.key}}" title="Declare Karma, then roll {{ab.label}}">Karma</button>
               <details class="ability-edit">
                 <summary>Edit</summary>
                 <select name="system.abilities.{{ab.key}}.rank" title="{{ab.rankLabel}}">
@@ -194,7 +195,7 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="actions">
-      <p class="hint">Click a button to roll. Shift-click to spend Karma or change the column. Target a token before a hit so Health is subtracted.</p>
+      <p class="hint">Click a button to roll. Karma asks for an amount, then rolls. Shift-click opens the full FEAT options. Target a token before a hit so Health is subtracted.</p>
       {{#each actionGroups as |group|}}
       <section class="action-group group-{{group.id}}">
         <h2>{{group.label}}</h2>
@@ -206,10 +207,13 @@
             <span class="action-detail">Identify this first</span>
           </button>
           {{else}}
-          <button type="button" class="action-card" data-action="rollSheetAction" data-standard="{{act.standard}}" data-item-id="{{act.itemId}}" title="{{act.title}}">
-            <span class="action-name">{{act.name}}</span>
-            <span class="action-detail">{{act.detail}}</span>
-          </button>
+          <div class="action-pair">
+            <button type="button" class="action-card" data-action="rollSheetAction" data-standard="{{act.standard}}" data-item-id="{{act.itemId}}" title="{{act.title}}">
+              <span class="action-name">{{act.name}}</span>
+              <span class="action-detail">{{act.detail}}</span>
+            </button>
+            <button type="button" class="karma-roll" data-action="rollSheetKarma" data-standard="{{act.standard}}" data-item-id="{{act.itemId}}" title="Declare Karma, then roll">Karma</button>
+          </div>
           {{/if}}
           {{/each}}
         </div>

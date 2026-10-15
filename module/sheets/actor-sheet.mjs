@@ -11,7 +11,7 @@ import {
   MOVEMENT_AREAS,
   THROW_RANGE
 } from "../config.mjs";
-import { promptFeatRoll } from "../dice/universal-table.mjs";
+import { promptFeatRoll, promptKarmaAmount, rollAbilityFeat } from "../dice/universal-table.mjs";
 import { featButtons } from "../feat-link.mjs";
 import { toggleUniversalTable } from "../apps/universal-table-app.mjs";
 import { promptJudgeAward } from "../play.mjs";
@@ -439,12 +439,14 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     on("award", this._onAward);
     if (!this.isEditable) return;
     on("rollAbility", this._onRollAbility);
+    on("rollAbilityKarma", this._onRollAbilityKarma);
     on("rollItem", this._onRollItem);
     on("reloadWeapon", this._onReloadWeapon);
     on("spendSupply", this._onSpendSupply);
     on("refillCharges", this._onRefillCharges);
     on("identifyItem", this._onIdentifyItem);
     on("rollSheetAction", this._onRollSheetAction);
+    on("rollSheetKarma", this._onRollSheetKarma);
     on("itemEdit", this._onItemEdit);
     on("itemDelete", this._onItemDelete);
     on("itemCreate", this._onItemCreate);
@@ -499,12 +501,22 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
   async _onRollAbility(event) {
     event.preventDefault();
     const ability = event.currentTarget.dataset.ability;
-    return promptFeatRoll({
-      actor: this.actor,
-      ability,
-      rankId: this.actor.getAbilityRank(ability),
-      label: game.i18n.localize(`FASERIP.Ability.${ability}`)
-    });
+    if (event.shiftKey) {
+      return promptFeatRoll({
+        actor: this.actor,
+        ability,
+        rankId: this.actor.getAbilityRank(ability),
+        label: game.i18n.localize(`FASERIP.Ability.${ability}`)
+      });
+    }
+    return rollAbilityFeat(this.actor, ability);
+  }
+
+  async _onRollAbilityKarma(event) {
+    event.preventDefault();
+    const karma = await promptKarmaAmount(this.actor);
+    if (!karma) return null;
+    return rollAbilityFeat(this.actor, event.currentTarget.dataset.ability, { karma });
   }
 
   async _onIdentifyItem(event) {
@@ -550,6 +562,17 @@ class FaseripActorSheetLegacy extends ActorSheetBase {
     const item = this.actor.items.get(itemIdFrom(event));
     if (!item) return;
     return rollItemAction(this.actor, item, { dialog: !!event.shiftKey });
+  }
+
+  async _onRollSheetKarma(event) {
+    event.preventDefault();
+    const karma = await promptKarmaAmount(this.actor);
+    if (!karma) return null;
+    const standard = event.currentTarget?.dataset?.standard;
+    if (standard) return rollStandardAction(this.actor, standard, { karma });
+    const item = this.actor.items.get(itemIdFrom(event));
+    if (!item) return null;
+    return rollItemAction(this.actor, item, { karma });
   }
 
   _onItemEdit(event) {

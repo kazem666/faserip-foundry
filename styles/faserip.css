@@ -477,6 +477,22 @@ html.faserip-theme-dark,
   line-height: 1.2;
 }
 .faserip-sheet .ability-roll:hover { background: var(--fill-red); color: #fff; }
+.faserip-sheet .karma-roll {
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  border: none;
+  border-top: 2px solid var(--rule);
+  background: var(--gold);
+  color: var(--on-gold);
+  cursor: pointer;
+  padding: 3px 4px;
+}
+.faserip-sheet .action-pair { display: flex; flex-direction: column; min-width: 0; }
+.faserip-sheet .action-pair .karma-roll { border: 3px solid var(--rule); border-top: none; }
+.faserip-dialog .karma-picks { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0; font-weight: 800; }
+.faserip-dialog .karma-picks label { flex-direction: row; align-items: center; gap: 4px; text-transform: none; }
 .faserip-sheet .toolbox {
   display: flex;
   flex-wrap: wrap;
