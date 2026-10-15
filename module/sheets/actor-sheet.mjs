@@ -207,6 +207,7 @@ export async function fillActorSheetContext(sheet, context) {
           rank,
           number: actor.getAbilityNumber(key),
           rankLabel: rankLabel(rank),
+          shortLabel: RANKS.find((row) => row.id === rank)?.label || rankLabel(rank),
           options: RANKS.map((r) => ({ ...r, selected: r.id === rank }))
         };
       });
@@ -285,6 +286,25 @@ export async function fillActorSheetContext(sheet, context) {
       context.cardWeapons = context.gear.filter((item) => item.type === "weapon");
       context.cardGear = context.gear.filter((item) => item.type !== "weapon");
       context.actionGroups = sheetActionGroups(items, actor);
+      const listed = new Set(context.actionGroups.flatMap((group) => group.actions.map((act) => act.itemId).filter(Boolean)));
+      const moreTalents = items.filter((item) => item.type === "talent" && !listed.has(item.id)).map((item) => {
+        const spec = describeItemAction(item);
+        const veiled = !!item.system?.unknown && !globalThis.game?.user?.isGM;
+        return {
+          name: veiled ? "Unknown" : item.name,
+          detail: veiled ? "Identify this first" : (spec.label || "FEAT"),
+          title: spec.title || "",
+          itemId: item.id,
+          standard: "",
+          veiled
+        };
+      });
+      if (moreTalents.length) {
+        const group = context.actionGroups.find((row) => row.id === "talents");
+        if (group) group.actions.push(...moreTalents);
+        else context.actionGroups.push({ id: "talents", label: "Talents", actions: moreTalents });
+      }
+      context.hasOpenStunts = items.some((item) => item.type === "power" && (item.system?.stunts ?? []).some((stunt) => !stunt.mastered));
       try {
         const TextEditor = getTextEditor();
         context.enrichedBiography = await TextEditor.enrichHTML(actor.system.biography ?? "", { secrets: actor.isOwner });

@@ -3,6 +3,238 @@
     <img class="profile" src="{{actor.img}}" data-action="editImage" title="{{actor.name}}" alt="{{actor.name}}" />
     <div class="header-fields">
       <h1 class="hero-name"><input name="name" type="text" value="{{actor.name}}" placeholder="Hero Name" /></h1>
+    </div>
+    <div class="vitals-strip">
+      <div class="strip-stat health">
+        <span class="strip-label">Health</span>
+        <input type="number" name="system.health.value" value="{{system.health.value}}" />
+        <span class="strip-max">/ {{system.health.max}}</span>
+        <button type="button" data-action="resetHealth">Reset</button>
+        <div class="bar"><span style="width: {{healthPct}}%"></span></div>
+        <label class="mini">Regen <input type="number" name="system.health.regen" value="{{system.health.regen}}" min="0" /></label>
+      </div>
+      {{#if coatHealth}}
+      <div class="strip-stat health coat">
+        <span class="strip-label" title="Equals Health. Heals the Regeneration rank each round. Attacks aimed at the coat are −4 CS.">Coat</span>
+        <input type="number" name="flags.faserip.coatHealth" value="{{coatHealth.value}}" min="0" />
+        <span class="strip-max">/ {{coatHealth.max}}</span>
+        <button type="button" data-action="resetCoat">Reset</button>
+        <div class="bar"><span style="width: {{coatHealth.pct}}%"></span></div>
+        <p class="coat-note">Heals {{coatHealth.regen}} each round</p>
+      </div>
+      {{/if}}
+      <div class="strip-stat karma">
+        <span class="strip-label">Karma</span>
+        <input type="number" name="system.karma.value" value="{{system.karma.value}}" />
+        <span class="strip-max">/ {{system.karma.max}}</span>
+        <button type="button" data-action="resetKarma">Reset</button>
+        <div class="bar"><span style="width: {{karmaPct}}%"></span></div>
+        {{#if houseKarmaCeiling}}<p class="hint">Karma cannot sit above Reason + Intuition + Psyche. The rest is lost.</p>{{/if}}
+      </div>
+      {{#if houseFocus}}
+      <div class="strip-stat">
+        <span class="strip-label" title="Short-term pool. New scene or the start of a fight refills it.">Focus</span>
+        <span class="strip-max">{{focus.value}} / {{focus.max}}</span>
+        <button type="button" data-action="refreshFocus">New scene</button>
+      </div>
+      {{/if}}
+      <label class="strip-defense">Armor {{bodyArmor}}
+        <input type="number" name="system.defense.bodyArmor" value="{{system.defense.bodyArmor}}" min="0" title="Manual body armor" />
+      </label>
+      <label class="strip-defense">Field {{forceField}}
+        <input type="number" name="system.defense.forceField" value="{{system.defense.forceField}}" min="0" title="Manual force field" />
+      </label>
+    </div>
+    {{#if poisoned}}<p class="condition-banner">{{poisonText}}</p>{{/if}}
+    {{#if fearText}}<p class="condition-banner">{{fearText}}</p>{{/if}}
+    {{#if breakText}}
+    <p class="condition-banner">{{breakText}}</p>
+    {{#unless breakSet}}<button type="button" data-action="setBone">Set the bone</button>{{/unless}}
+    {{/if}}
+    {{#if conditionText}}
+    <p class="condition-banner">{{conditionText}}</p>
+    <div class="advancement-actions">
+      {{#if conditionDying}}
+      <button type="button" data-action="holdOn">Hold on (50 Karma)</button>
+      <button type="button" data-action="dyingFeat">Endurance FEAT (200 Karma)</button>
+      <button type="button" data-action="aidDying">Aid received</button>
+      {{/if}}
+      {{#if conditionHours}}
+      <button type="button" data-action="hourPasses">An hour passes</button>
+      {{/if}}
+      <button type="button" data-action="tickCondition">Count one round</button>
+      <button type="button" data-action="clearCondition">Clear condition</button>
+    </div>
+    {{/if}}
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-action="sheetTab" data-tab="record">Record</a>
+    <a class="item" data-action="sheetTab" data-tab="actions">Actions</a>
+    <a class="item" data-action="sheetTab" data-tab="powers">Powers</a>
+    <a class="item" data-action="sheetTab" data-tab="talents">Talents</a>
+    <a class="item" data-action="sheetTab" data-tab="gear">Gear</a>
+    <a class="item" data-action="sheetTab" data-tab="identity">Identity</a>
+    <a class="item" data-action="sheetTab" data-tab="contacts">Contacts</a>
+    <a class="item" data-action="sheetTab" data-tab="stunts">Stunts</a>
+    <a class="item" data-action="sheetTab" data-tab="karma">Karma Bank</a>
+    <a class="item" data-action="sheetTab" data-tab="bio">Notes</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab active" data-group="primary" data-tab="record">
+      <div class="panel-grid two">
+        <section class="panel characteristics">
+          <h2>Characteristics</h2>
+          <div class="ability-grid">
+            {{#each abilities as |ab|}}
+            <div class="ability-card">
+              <button type="button" class="ability-roll" data-action="rollAbility" data-ability="{{ab.key}}" title="Roll {{ab.label}} FEAT. Shift-click to spend Karma.">
+                <span class="abbr">{{ab.abbr}}</span>
+                <span class="face-number">{{ab.number}}</span>
+                <span class="short-rank">{{ab.shortLabel}}</span>
+              </button>
+              <details class="ability-edit">
+                <summary>Edit</summary>
+                <select name="system.abilities.{{ab.key}}.rank" title="{{ab.rankLabel}}">
+                  {{#each ab.options as |r|}}
+                  <option value="{{r.id}}" {{#if r.selected}}selected{{/if}}>{{r.abbr}} {{r.min}}-{{r.max}}</option>
+                  {{/each}}
+                </select>
+                <input type="number" name="system.abilities.{{ab.key}}.number" value="{{ab.number}}" min="0" title="Rank number (0 = use standard)" />
+              </details>
+            </div>
+            {{/each}}
+          </div>
+          {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
+        </section>
+
+        <section class="panel vitals">
+          <h2>Standing</h2>
+          <div class="resource-row">
+            <div class="stat-box resources">
+              <header>Resources</header>
+              <select name="system.resources.rank" title="Resources rank">
+                {{#each ranks as |r|}}
+                <option value="{{r.id}}" {{#if (eq ../system.resources.rank r.id)}}selected{{/if}}>{{r.label}} {{r.value}}</option>
+                {{/each}}
+              </select>
+              <button type="button" data-action="rollResources">FEAT</button>
+              <details class="ability-edit">
+                <summary>This week</summary>
+                <div class="mini-grid">
+                  <label>Used<input name="system.resources.usedThisWeek" type="text" value="{{system.resources.usedThisWeek}}" /></label>
+                  <label>Loan<input name="system.resources.loan" type="text" value="{{system.resources.loan}}" /></label>
+                  <label>Pay<input name="system.resources.payment" type="text" value="{{system.resources.payment}}" /></label>
+                </div>
+              </details>
+              {{#if housePurse}}<p class="hint">Purse {{purseLeft}} / {{purseMax}} this week. Spending it leaves the Resources FEAT free.</p><button type="button" data-action="spendPurse">Spend purse</button>{{/if}}
+            </div>
+            <div class="stat-box popularity">
+              <header>Popularity</header>
+              <div class="stat-values twin">
+                <label>Hero <input type="number" name="system.popularity.value" value="{{system.popularity.value}}" /></label>
+                <label>Secret <input type="number" name="system.popularity.secret" value="{{system.popularity.secret}}" /></label>
+              </div>
+              <button type="button" data-action="rollPopularity">FEAT</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="derived-row fight-facts">
+        <div>Init +{{initMod}}</div>
+        <div>Move {{movementText}}</div>
+      </section>
+      <section class="derived-row reference-facts">
+        {{#each movementModes as |mode|}}
+        <div>{{mode.label}} {{mode.text}}</div>
+        {{/each}}
+        <div>Throw {{throwText}}</div>
+        <div>Heal {{healRate}} / hour</div>
+        <div>Power slots {{powerSlotsUsed}}{{#if generation}} / {{generation.powerNeed}}{{/if}}</div>
+        {{#if speedAction}}<div>{{speedAction}}</div>{{/if}}
+        {{#if houseLethal}}{{#if system.identity.lethal}}<div>Lethal methods</div>{{/if}}{{/if}}
+        {{#if inhibitorLabel}}<div>Inhibitor {{inhibitorLabel}}</div>{{/if}}
+      </section>
+      <p class="hint">1 area = {{feetPerArea}} ft ({{squaresPerArea}} squares). Each square is {{gridFeet}} ft. A roll of 1 stays a 1.</p>
+
+      <section class="toolbox">
+        <h2>This round</h2>
+        <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>
+        <label class="check"><input type="checkbox" name="energyAttack" /> Energy (−20 armor)</label>
+        <label class="check"><input type="checkbox" name="useForceField" /> Use Force Field (instead of armor)</label>
+        <button type="button" data-action="applyDamage">Apply Damage</button>
+        <button type="button" data-action="heal">Heal</button>
+        <button type="button" data-action="recover">Recovery</button>
+        <button type="button" data-action="naturalHeal" title="Endurance rank number once an hour. Shift-click doubles it under medical care.">Hour Heal</button>
+        <label>Universal
+          <select name="universalRank">
+            {{#each ranks as |r|}}<option value="{{r.id}}">{{r.label}}</option>{{/each}}
+          </select>
+        </label>
+        <button type="button" data-action="universal">Roll FEAT</button>
+        <button type="button" data-action="toggleTable">Universal Table</button>
+        {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
+        {{#if coverBlown}}<p class="hint">The cover is below Typical. Private-life Karma does not come in until Secrecy is repaired.</p>{{/if}}
+        <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
+      </section>
+      <section class="toolbox hazards">
+        <h2>Hazards</h2>
+        <button type="button" data-action="fallImpact">Fall</button>
+        <button type="button" data-action="catchFall">Catch</button>
+        <button type="button" data-action="holdBreath">Hold breath</button>
+        <button type="button" data-action="drown">Drowning</button>
+        <button type="button" data-action="poison">Poison</button>
+        <button type="button" data-action="treatPoison">Treat poison</button>
+        <button type="button" data-action="escapeFate">Escape to 100 Karma</button>
+        {{#if houseFear}}<button type="button" data-action="fear">Fear</button>{{/if}}
+        {{#if houseTeam}}<button type="button" data-action="teamManeuver">Team Maneuver</button>{{/if}}
+      </section>
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="actions">
+      <p class="hint">Click a button to roll. Shift-click to spend Karma or change the column. Target a token before a hit so Health is subtracted.</p>
+      {{#each actionGroups as |group|}}
+      <section class="action-group group-{{group.id}}">
+        <h2>{{group.label}}</h2>
+        <div class="action-grid">
+          {{#each group.actions as |act|}}
+          {{#if act.veiled}}
+          <button type="button" class="action-card" data-action="identifyItem" data-item-id="{{act.itemId}}">
+            <span class="action-name">Unknown</span>
+            <span class="action-detail">Identify this first</span>
+          </button>
+          {{else}}
+          <button type="button" class="action-card" data-action="rollSheetAction" data-standard="{{act.standard}}" data-item-id="{{act.itemId}}" title="{{act.title}}">
+            <span class="action-name">{{act.name}}</span>
+            <span class="action-detail">{{act.detail}}</span>
+          </button>
+          {{/if}}
+          {{/each}}
+        </div>
+      </section>
+      {{/each}}
+      {{#if hasOpenStunts}}
+      <section class="action-group group-stunts">
+        <h2>Stunts</h2>
+        <div class="action-grid">
+          {{#each powers as |item|}}
+          {{#each item.stunts as |stunt|}}
+          {{#unless stunt.mastered}}
+          <button type="button" class="action-card" data-action="stuntAttempt" data-item-id="{{item.id}}" data-stunt="{{stunt.index}}" {{#if @root.freeStunt}}data-pay="free"{{/if}}>
+            <span class="action-name">{{stunt.name}}</span>
+            <span class="action-detail">{{item.name}}{{#if @root.freeStunt}} · free{{else}} · −100 Karma{{/if}}</span>
+          </button>
+          {{/unless}}
+          {{/each}}
+          {{/each}}
+        </div>
+      </section>
+      {{/if}}
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="identity">
       <div class="identity-row four">
         <label>Public / Hero ID
           <input name="system.identity.public" type="text" value="{{system.identity.public}}" />
@@ -30,223 +262,6 @@
           <input name="system.identity.group" type="text" value="{{system.identity.group}}" />
         </label>
       </div>
-    </div>
-  </header>
-
-  <nav class="sheet-tabs tabs" data-group="primary">
-    <a class="item" data-action="sheetTab" data-tab="record">Record</a>
-    <a class="item" data-action="sheetTab" data-tab="actions">Actions</a>
-    <a class="item" data-action="sheetTab" data-tab="identity">Identity</a>
-    <a class="item" data-action="sheetTab" data-tab="powers">Powers</a>
-    <a class="item" data-action="sheetTab" data-tab="stunts">Stunts</a>
-    <a class="item" data-action="sheetTab" data-tab="talents">Talents</a>
-    <a class="item" data-action="sheetTab" data-tab="contacts">Contacts</a>
-    <a class="item" data-action="sheetTab" data-tab="gear">Gear</a>
-    <a class="item" data-action="sheetTab" data-tab="karma">Karma Bank</a>
-    <a class="item" data-action="sheetTab" data-tab="bio">Notes</a>
-  </nav>
-
-  <section class="sheet-body">
-    <div class="tab active" data-group="primary" data-tab="record">
-      <div class="panel-grid two">
-        <section class="panel characteristics">
-          <h2>Characteristics</h2>
-          <div class="ability-grid">
-            {{#each abilities as |ab|}}
-            <div class="ability-card">
-              <button type="button" class="ability-roll" data-action="rollAbility" data-ability="{{ab.key}}" title="Roll {{ab.label}} FEAT">
-                <span class="abbr">{{ab.abbr}}</span>
-                <span class="name">{{ab.label}}</span>
-              </button>
-              <select name="system.abilities.{{ab.key}}.rank" title="{{ab.rankLabel}}">
-                {{#each ab.options as |r|}}
-                <option value="{{r.id}}" {{#if r.selected}}selected{{/if}}>{{r.abbr}} {{r.min}}-{{r.max}}</option>
-                {{/each}}
-              </select>
-              <input type="number" name="system.abilities.{{ab.key}}.number" value="{{ab.number}}" min="0" title="Rank number (0 = use standard)" />
-            </div>
-            {{/each}}
-          </div>
-        </section>
-
-        <section class="panel vitals">
-          <h2>Health / Karma / Standing</h2>
-          <div class="resource-row">
-            <div class="stat-box health">
-              <header>Health (F+A+S+E)</header>
-              <div class="stat-values">
-                <input type="number" name="system.health.value" value="{{system.health.value}}" />
-                <span>/</span>
-                <span class="max">{{system.health.max}}</span>
-              </div>
-              <div class="bar"><span style="width: {{healthPct}}%"></span></div>
-              <label class="mini">Regen <input type="number" name="system.health.regen" value="{{system.health.regen}}" min="0" /></label>
-              <button type="button" data-action="resetHealth">Reset</button>
-            </div>
-            {{#if coatHealth}}
-            <div class="stat-box health coat">
-              <header title="Equals Health. Heals the Regeneration rank each round. Attacks aimed at the coat are −4 CS.">Coat</header>
-              <div class="stat-values">
-                <input type="number" name="flags.faserip.coatHealth" value="{{coatHealth.value}}" min="0" />
-                <span>/</span>
-                <span class="max">{{coatHealth.max}}</span>
-              </div>
-              <div class="bar"><span style="width: {{coatHealth.pct}}%"></span></div>
-              <p class="coat-note">Heals {{coatHealth.regen}} each round</p>
-              <button type="button" data-action="resetCoat">Reset</button>
-            </div>
-            {{/if}}
-            <div class="stat-box karma">
-              <header>Karma (R+I+P)</header>
-              <div class="stat-values">
-                <input type="number" name="system.karma.value" value="{{system.karma.value}}" />
-                <span>/</span>
-                <span class="max">{{system.karma.max}}</span>
-              </div>
-              <div class="bar"><span style="width: {{karmaPct}}%"></span></div>
-              <label class="mini">Pool <input type="number" name="system.karmaBank.pool" value="{{system.karmaBank.pool}}" min="0" /></label>
-              {{#if houseKarmaCeiling}}<p class="hint">Karma cannot sit above Reason + Intuition + Psyche. The rest is lost.</p>{{/if}}
-              <button type="button" data-action="resetKarma">Reset</button>
-            </div>
-            <div class="stat-box resources">
-              <header>Resources</header>
-              <select name="system.resources.rank" title="Resources rank">
-                {{#each ranks as |r|}}
-                <option value="{{r.id}}" {{#if (eq ../system.resources.rank r.id)}}selected{{/if}}>{{r.label}} {{r.value}}</option>
-                {{/each}}
-              </select>
-              <div class="mini-grid">
-                <label>Used<input name="system.resources.usedThisWeek" type="text" value="{{system.resources.usedThisWeek}}" /></label>
-                <label>Loan<input name="system.resources.loan" type="text" value="{{system.resources.loan}}" /></label>
-                <label>Pay<input name="system.resources.payment" type="text" value="{{system.resources.payment}}" /></label>
-              </div>
-              <button type="button" data-action="rollResources">FEAT</button>
-              {{#if housePurse}}<p class="hint">Purse {{purseLeft}} / {{purseMax}} this week. Spending it leaves the Resources FEAT free.</p><button type="button" data-action="spendPurse">Spend purse</button>{{/if}}
-            </div>
-            <div class="stat-box popularity">
-              <header>Popularity</header>
-              <div class="stat-values twin">
-                <label>Hero <input type="number" name="system.popularity.value" value="{{system.popularity.value}}" /></label>
-                <label>Secret <input type="number" name="system.popularity.secret" value="{{system.popularity.secret}}" /></label>
-              </div>
-              <button type="button" data-action="rollPopularity">FEAT</button>
-            </div>
-            {{#if houseFocus}}
-            <div class="stat-box">
-              <header title="Short-term pool. New scene or the start of a fight refills it.">Focus</header>
-              <div class="stat-values"><span>{{focus.value}}</span><span>/</span><span class="max">{{focus.max}}</span></div>
-              <button type="button" data-action="refreshFocus">New scene</button>
-            </div>
-            {{/if}}
-          </div>
-        </section>
-      </div>
-
-      <section class="derived-row">
-        <div>Init +{{initMod}} <span class="hint">(1 stays 1)</span></div>
-        <div>Move {{movementText}}</div>
-        {{#each movementModes as |mode|}}
-        <div>{{mode.label}} {{mode.text}}</div>
-        {{/each}}
-        <div>Throw {{throwText}}</div>
-        <div>Heal {{healRate}} / hour</div>
-        <div>Armor {{bodyArmor}}</div>
-        <div>Field {{forceField}}</div>
-        <div>Power slots {{powerSlotsUsed}}{{#if generation}} / {{generation.powerNeed}}{{/if}}</div>
-        {{#if speedAction}}<div>{{speedAction}}</div>{{/if}}
-        {{#if houseLethal}}{{#if system.identity.lethal}}<div>Lethal methods</div>{{/if}}{{/if}}
-        {{#if inhibitorLabel}}<div>Inhibitor {{inhibitorLabel}}</div>{{/if}}
-      </section>
-
-      <p class="hint">1 area = {{feetPerArea}} ft ({{squaresPerArea}} squares). Each square is {{gridFeet}} ft.</p>
-      {{#if poisoned}}
-      <p class="condition-banner">{{poisonText}}</p>
-      {{/if}}
-      {{#if fearText}}
-      <p class="condition-banner">{{fearText}}</p>
-      {{/if}}
-      {{#if breakText}}
-      <p class="condition-banner">{{breakText}}</p>
-      {{#unless breakSet}}<button type="button" data-action="setBone">Set the bone</button>{{/unless}}
-      {{/if}}
-      {{#if conditionText}}
-      <p class="condition-banner">{{conditionText}}</p>
-      <div class="advancement-actions">
-        {{#if conditionDying}}
-        <button type="button" data-action="holdOn">Hold on (50 Karma)</button>
-        <button type="button" data-action="dyingFeat">Endurance FEAT (200 Karma)</button>
-        <button type="button" data-action="aidDying">Aid received</button>
-        {{/if}}
-        {{#if conditionHours}}
-        <button type="button" data-action="hourPasses">An hour passes</button>
-        {{/if}}
-        <button type="button" data-action="tickCondition">Count one round</button>
-        <button type="button" data-action="clearCondition">Clear condition</button>
-      </div>
-      {{/if}}
-
-      <section class="toolbox">
-        <label>Damage <input type="number" name="damageAmount" value="0" min="0" /></label>
-        <label class="check"><input type="checkbox" name="energyAttack" /> Energy (−20 armor)</label>
-        <label class="check"><input type="checkbox" name="useForceField" /> Use Force Field (instead of armor)</label>
-        <button type="button" data-action="applyDamage">Apply Damage</button>
-        <button type="button" data-action="heal">Heal</button>
-        <button type="button" data-action="recover">Recovery</button>
-        <button type="button" data-action="naturalHeal" title="Endurance rank number once an hour. Shift-click doubles it under medical care.">Hour Heal</button>
-        <label>Universal
-          <select name="universalRank">
-            {{#each ranks as |r|}}<option value="{{r.id}}">{{r.label}}</option>{{/each}}
-          </select>
-        </label>
-        <button type="button" data-action="universal">Roll FEAT</button>
-        {{#if houseFear}}<button type="button" data-action="fear">Fear</button>{{/if}}
-        <button type="button" data-action="toggleTable">Universal Table</button>
-        <button type="button" data-action="fallImpact">Fall</button>
-        <button type="button" data-action="catchFall">Catch</button>
-        <button type="button" data-action="holdBreath">Hold breath</button>
-        <button type="button" data-action="drown">Drowning</button>
-        <button type="button" data-action="poison">Poison</button>
-        <button type="button" data-action="treatPoison">Treat poison</button>
-        <button type="button" data-action="escapeFate">Escape to 100 Karma</button>
-        {{#if houseTeam}}<button type="button" data-action="teamManeuver">Team Maneuver</button>{{/if}}
-        {{#if isGM}}<button type="button" data-action="award">Award</button>{{/if}}
-        {{#if coverBlown}}<p class="hint">The cover is below Typical. Private-life Karma does not come in until Secrecy is repaired.</p>{{/if}}
-        {{#if pendingText}}<p class="hint pending-shift">{{pendingText}}</p>{{/if}}
-        <p class="hint">Slugfest, powers, and weapons are on the Actions tab.</p>
-        <label>Battle Effects
-          <select name="combatColumn">
-            {{#each combatColumns as |c|}}<option value="{{c.id}}">{{c.label}}</option>{{/each}}
-          </select>
-        </label>
-        <button type="button" data-action="combatFeat">Combat FEAT</button>
-      </section>
-    </div>
-
-    <div class="tab" data-group="primary" data-tab="actions">
-      <p class="hint">Click a button to roll. Shift-click to spend Karma or change the column. Target a token before a hit so Health is subtracted.</p>
-      {{#each actionGroups as |group|}}
-      <section class="action-group group-{{group.id}}">
-        <h2>{{group.label}}</h2>
-        <div class="action-grid">
-          {{#each group.actions as |act|}}
-          {{#if act.veiled}}
-          <button type="button" class="action-card" data-action="identifyItem" data-item-id="{{act.itemId}}">
-            <span class="action-name">Unknown</span>
-            <span class="action-detail">Identify this first</span>
-          </button>
-          {{else}}
-          <button type="button" class="action-card" data-action="rollSheetAction" data-standard="{{act.standard}}" data-item-id="{{act.itemId}}" title="{{act.title}}">
-            <span class="action-name">{{act.name}}</span>
-            <span class="action-detail">{{act.detail}}</span>
-          </button>
-          {{/if}}
-          {{/each}}
-        </div>
-      </section>
-      {{/each}}
-    </div>
-
-    <div class="tab" data-group="primary" data-tab="identity">
       <div class="id-grid three">
         <label>Archetype <input name="system.identity.archetype" type="text" value="{{system.identity.archetype}}" /></label>
         <label>Calling <input name="system.identity.calling" type="text" value="{{system.identity.calling}}" /></label>
@@ -341,7 +356,7 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="powers">
-      <p class="hint">Click Attack or FEAT. Target a token first so a hit applies Health. Shift-click to spend Karma or change the column.{{#if generation}} Slots {{powerSlotsUsed}} / {{generation.powerNeed}}.{{/if}}</p>
+      <p class="hint">Roll a power from Actions. Target a token first so a hit applies Health. Shift-click to spend Karma or change the column. Try a stunt from this card or from Actions.{{#if generation}} Slots {{powerSlotsUsed}} / {{generation.powerNeed}}.{{/if}}</p>
       {{#if housePowerPool}}<p class="hint">Powers marked in the pool share one ready slot. A power that is set aside cannot be used until you make it ready.</p>{{/if}}
       {{#if houseInhibitor}}
       <label>Inhibitor
@@ -368,13 +383,15 @@
           <button type="button" data-action="makePoolReady">Make ready</button>
           {{else if item.veiled}}
           <button type="button" data-action="identifyItem">Identify</button>
-          {{else}}
-          <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
           {{/if}}
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
-          <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </header>
         {{#unless item.veiled}}
+        {{#each item.stunts as |stunt|}}
+        {{#unless stunt.mastered}}
+        <button type="button" data-action="stuntAttempt" data-item-id="{{item.id}}" data-stunt="{{stunt.index}}" {{#if @root.freeStunt}}data-pay="free"{{/if}}>Try {{stunt.name}}{{#if @root.freeStunt}} (free){{else}} (−100 Karma){{/if}}</button>
+        {{/unless}}
+        {{/each}}
         <div class="record-grid five">
           <label>Type <span>{{item.category}}</span></label>
           <label>Range <span>{{item.range}}</span></label>
@@ -424,15 +441,13 @@
     </div>
 
     <div class="tab" data-group="primary" data-tab="talents">
-      {{#if generation}}<p class="hint">Rolled {{generation.talentNeed}} talent(s). Click the button to use that talent. Shift-click to spend Karma.</p>{{else}}<p class="hint">Click the button to use that talent. Shift-click to spend Karma.</p>{{/if}}
+      {{#if generation}}<p class="hint">Rolled {{generation.talentNeed}} talent(s). Roll a talent from Actions. Shift-click to spend Karma.</p>{{else}}<p class="hint">Roll a talent from Actions. Shift-click to spend Karma.</p>{{/if}}
       {{#each talents as |item|}}
       <article class="record-card item" data-item-id="{{item.id}}">
         <header>
           <strong>{{item.name}}</strong>
           <span>{{item.category}}</span>
-          <button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
-          <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </header>
         <div class="record-grid">
           <label>Bonus <span>{{item.bonus}}</span></label>
@@ -454,7 +469,6 @@
           <span>{{item.category}}</span>
           {{#if item.acquired}}<span class="mastered">Acquired</span>{{/if}}
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
-          <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </header>
         <div class="record-grid">
           <label>Occupation <span>{{item.occupation}}</span></label>
@@ -479,7 +493,7 @@
     <div class="tab" data-group="primary" data-tab="gear">
       <p class="hint">+ Weapon and + Equipment open the gear shop. A cheaper item is automatic. The same Resource rank needs a Yellow FEAT. One rank higher needs Red. Two or more ranks higher is refused. The rank itself is not spent.</p>
       {{#if houseGadgets}}<p class="hint">Design a gadget stakes Karma, rolls Resources for the parts, then rolls Reason for the body and each piece. The workshop caps the ranks. An omni-gadget is named when used and then burns out.</p>{{/if}}
-      <p class="hint">Guns, bows, and other ammo weapons show shots left. One attack spends one. Reload draws from ammunition on this sheet. Grenades, kits, spray, tablets, and parachutes spend one use. Spend on gas, fuel, and other ammunition uses one from the stack.</p>
+      <p class="hint">Roll a weapon from Actions. Guns, bows, and other ammo weapons show shots left here. One attack spends one. Reload draws from ammunition on this sheet. Grenades, kits, spray, tablets, and parachutes spend one use. Spend on gas, fuel, and other ammunition uses one from the stack.</p>
       <ol class="item-list">
         {{#each gear as |item|}}
         <li class="item" data-item-id="{{item.id}}">
@@ -497,11 +511,10 @@
           {{else if item.gadgetBurned}}
           <button type="button" data-action="repairGadget">Repair</button>
           {{else}}
-          {{#if item.gadgetOmni}}<button type="button" data-action="useGadget">Use ({{item.gadgetUses}} left)</button>{{else}}<button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>{{/if}}
+          {{#if item.gadgetOmni}}<button type="button" data-action="useGadget">Use ({{item.gadgetUses}} left)</button>{{else if (eq item.type "equipment")}}<button type="button" data-action="rollItem" title="{{item.actionTitle}}">{{item.actionLabel}}</button>{{/if}}
           {{#if item.gadget}}<button type="button" data-action="breakGadget">It broke</button>{{/if}}
           {{/if}}
           <a data-action="itemEdit"><i class="fas fa-edit"></i></a>
-          <a data-action="itemDelete"><i class="fas fa-trash"></i></a>
         </li>
         {{/each}}
       </ol>
@@ -587,14 +600,6 @@
         {{/each}}
       </div>
       {{/if}}
-      <div class="form-group">
-        <label>Manual Body Armor
-          <input type="number" name="system.defense.bodyArmor" value="{{system.defense.bodyArmor}}" min="0" />
-        </label>
-        <label>Manual Force Field
-          <input type="number" name="system.defense.forceField" value="{{system.defense.forceField}}" min="0" />
-        </label>
-      </div>
     </div>
   </section>
 </div>

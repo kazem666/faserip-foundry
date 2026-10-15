@@ -1,7 +1,7 @@
 import { RANKS, BATTLE_EFFECTS } from "../config.mjs";
 import { ammoStatus, defaultCapacity, isSpareAmmo, spareRounds, tracksAmmo } from "../ammo.mjs";
 import { chargeStatus, expendableKind, tracksCharges } from "../charges.mjs";
-import { getItemSheetV2, getItemSheetV1, getItemSheetClass, getHandlebarsMixin } from "../foundry-api.mjs";
+import { confirmDialog, getItemSheetV2, getItemSheetV1, getItemSheetClass, getHandlebarsMixin } from "../foundry-api.mjs";
 
 const TEMPLATE = "systems/faserip/templates/item/item-sheet.hbs";
 
@@ -63,6 +63,12 @@ export function buildItemSheetClass() {
           reloadWeapon(_event) {
             const item = this.document;
             import("../ammo.mjs").then((mod) => mod.reloadWeapon(item?.actor, item));
+          },
+          async deleteItem() {
+            const item = this.document;
+            if (!item) return;
+            const ok = await confirmDialog({ title: "Delete Item", content: `<p>Delete <strong>${item.name}</strong>?</p>` });
+            if (ok) await item.delete();
           }
         }
       };

@@ -216,6 +216,38 @@ html.faserip-theme-dark,
   box-sizing: border-box;
   overflow: hidden;
 }
+.faserip-sheet .sheet-header.compact {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: start;
+}
+.faserip-sheet .sheet-header.compact .profile { grid-row: 1 / span 2; }
+.faserip-sheet .sheet-header.compact .header-fields,
+.faserip-sheet .vitals-strip { grid-column: 2; min-width: 0; }
+.faserip-sheet .sheet-header > .condition-banner,
+.faserip-sheet .sheet-header > .advancement-actions,
+.faserip-sheet .sheet-header > button { grid-column: 1 / -1; margin: 0; }
+.faserip-sheet .vitals-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+.faserip-sheet .strip-stat {
+  min-width: 148px;
+  border: 2px solid var(--rule);
+  background: var(--field);
+  padding: 4px 6px;
+}
+.faserip-sheet .strip-label, .faserip-sheet .strip-max {
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.faserip-sheet .strip-stat input[type="number"] { width: 64px; text-align: center; }
+.faserip-sheet .strip-defense { min-width: 88px; }
+.faserip-sheet .strip-defense input { width: 72px; }
 
 .faserip-sheet .profile {
   width: 72px;
@@ -418,6 +450,25 @@ html.faserip-theme-dark,
   font-family: "Bangers", Impact, sans-serif;
   font-size: 22px;
 }
+.faserip-sheet .ability-roll .face-number {
+  display: block;
+  font-family: "Oswald", sans-serif;
+  font-size: 22px;
+  line-height: 1;
+}
+.faserip-sheet .ability-roll .short-rank {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.faserip-sheet .ability-edit summary {
+  cursor: pointer;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 4px;
+}
 .faserip-sheet .ability-roll .name {
   display: block;
   font-size: 11px;
@@ -433,7 +484,18 @@ html.faserip-theme-dark,
   align-items: end;
   border: 2px dashed var(--rule);
   padding: 6px;
+  margin-top: 8px;
 }
+.faserip-sheet .toolbox h2 {
+  flex: 1 0 100%;
+  margin: 0;
+  font-family: "Oswald", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.faserip-sheet .reference-facts { opacity: 0.8; }
+.faserip-item-sheet .item-delete { margin-top: 12px; }
 .faserip-sheet .toolbox button,
 .faserip-sheet .stat-box button,
 .faserip-sheet button.create,
