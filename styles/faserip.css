@@ -589,6 +589,21 @@ html.faserip-theme-dark,
   padding: 6px 8px;
   font-size: 13px;
 }
+.faserip-chat details.feat-explain {
+  margin: 0 8px 6px;
+  border: 2px solid var(--rule);
+  background: var(--field);
+}
+.faserip-chat details.feat-explain summary {
+  cursor: pointer;
+  padding: 4px 8px;
+  font-weight: 800;
+}
+.faserip-chat details.feat-explain ul {
+  margin: 0;
+  padding: 0 8px 6px 22px;
+}
+.faserip-chat details.feat-explain li { margin: 2px 0; }
 .faserip-chat .target-pill {
   font-family: "Oswald", sans-serif;
   text-transform: uppercase;

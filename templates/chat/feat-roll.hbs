@@ -4,7 +4,6 @@
     <span class="result-chip {{color}}{{#if fantastic}} fantastic{{/if}}">{{colorLabel}}</span>
     {{#if actorName}}<span class="who">{{actorName}}</span>{{/if}}
   </header>
-  <p class="hint">{{colorHint}}</p>
   {{#if effect}}
   <div class="effect-banner">{{effectLabel}}: <strong>{{effect}}</strong></div>
   {{/if}}
@@ -19,7 +18,20 @@
     <span>{{baseRank}}{{#if cs}} {{#if (gt cs 0)}}+{{/if}}{{cs}} CS → {{effectiveRank}}{{/if}}</span>
     {{#if targetName}}<button type="button" class="target-pill" data-faserip-pan title="Pan to {{targetName}}">{{targetName}}</button>{{/if}}
   </div>
-  {{#if shiftNotes}}<p class="hint">{{shiftNotes}}</p>{{/if}}
+  <details class="feat-explain">
+    <summary>Why this is {{colorLabel}}</summary>
+    <ul>
+      {{#each formulaLines}}<li>{{this}}</li>{{/each}}
+    </ul>
+  </details>
+  {{#if shiftLines.length}}
+  <details class="feat-explain">
+    <summary>Where the column shift came from</summary>
+    <ul>
+      {{#each shiftLines}}<li>{{this}}</li>{{/each}}
+    </ul>
+  </details>
+  {{/if}}
   {{#if healthNote}}<p class="effect-banner">{{healthNote}}</p>{{/if}}
   <div class="feat-actions">
     {{#if showButtons}}

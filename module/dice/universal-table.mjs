@@ -8,7 +8,8 @@ import {
   BATTLE_EFFECTS,
   intensityNeeded,
   battleResult,
-  rankValue
+  rankValue,
+  UNIVERSAL_TABLE
 } from "../config.mjs";
 import { magicColumnShift, magicEnergy, magicHarm, magicResult, pulledResultColor, resistLine, takeMagic } from "../magic.mjs";
 import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, signed, writePending } from "../play-rules.mjs";
@@ -61,6 +62,48 @@ function resolveBattleColumn(columnId) {
   if (!raw) return "";
   if (BATTLE_EFFECTS[raw]) return raw;
   return COLUMN_ALIAS[raw] || COLUMN_ALIAS[raw.toLowerCase()] || raw;
+}
+
+function colorName(color) {
+  const name = String(color || "");
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : "";
+}
+
+function explainResult({ rankId, roll, color, columnColor, colorSteps, raw, karma, flat, effect, effectLabel }) {
+  const lines = [];
+  const parts = [`d100 ${raw}`];
+  if (karma) parts.push(`${karma > 0 ? "+" : ""}${karma} Karma`);
+  if (flat) parts.push(`${flat > 0 ? "+" : ""}${flat}`);
+  lines.push(roll === raw ? parts.join(" ") : `${parts.join(" ")} = ${roll}`);
+  const table = UNIVERSAL_TABLE[rankId] ?? UNIVERSAL_TABLE.typical;
+  const bands = [
+    ["White", 1, table.green - 1],
+    ["Green", table.green, table.yellow - 1],
+    ["Yellow", table.yellow, table.red - 1],
+    ["Red", table.red, 100]
+  ].filter(([, lo, hi]) => hi >= lo);
+  lines.push(`${rankLabel(rankId)} reads ${bands.map(([name, lo, hi]) => lo === hi ? `${name} ${lo}` : `${name} ${lo}–${hi}`).join(", ")}.`);
+  const hit = bands.find(([, lo, hi]) => roll >= lo && roll <= hi);
+  if (hit) {
+    const [name, lo, hi] = hit;
+    lines.push(lo === hi ? `${roll} is ${name}.` : `${roll} is ${name}, from ${lo} to ${hi}.`);
+  }
+  if (colorSteps && columnColor && columnColor !== color) {
+    lines.push(`${colorName(columnColor)} is lowered ${colorSteps} ${colorSteps === 1 ? "step" : "steps"}, to ${colorName(color)}.`);
+  }
+  if (effect && effectLabel) lines.push(`${colorName(color)} on ${effectLabel} is ${effect}.`);
+  return lines;
+}
+
+function explainShift({ fromId, toId, cs, notes }) {
+  const lines = [];
+  if (fromId && toId && fromId !== toId) lines.push(`Started at ${rankLabel(fromId)}. Read on ${rankLabel(toId)}.`);
+  if (cs) lines.push(`Net column shift ${cs > 0 ? `+${cs}` : cs} CS.`);
+  for (const line of String(notes || "").split(/\s*;\s*|\.\s+/)) {
+    const text = line.trim().replace(/\.$/, "");
+    if (text && !lines.includes(text)) lines.push(text);
+  }
+  return lines;
 }
 
 export async function rollFeat({
@@ -201,7 +244,8 @@ export async function rollFeat({
   const roll = await new Roll("1d100").evaluate({ allowInteractive: false });
   const raw = Number(roll.total);
   const adjusted = Math.min(100, Math.max(1, raw + spend + combatFlat));
-  let color = downgradeColor(colorForRoll(effectiveId, adjusted), colorSteps);
+  const columnColor = colorForRoll(effectiveId, adjusted);
+  let color = downgradeColor(columnColor, colorSteps);
   const fantasticPlan = fantasticOutcome({ color, raw, paid: fantasticKarma });
   let fantastic = fantasticPlan.fantastic;
   if (fantasticPlan.spend > 0 && actor?.system?.karma) {
@@ -453,7 +497,19 @@ export async function rollFeat({
     showAdjusted: adjusted !== raw,
     combatFlat,
     colorLabel: fantastic ? "Fantastic" : game.i18n.localize(`FASERIP.Color.${color}`),
-    colorHint: game.i18n.localize(`FASERIP.ColorHint.${color}`),
+    formulaLines: explainResult({
+      rankId: effectiveId,
+      roll: adjusted,
+      color,
+      columnColor,
+      colorSteps,
+      raw,
+      karma: spend,
+      flat: combatFlat,
+      effect,
+      effectLabel
+    }),
+    shiftLines: explainShift({ fromId: rankId, toId: effectiveId, cs: columnShift, notes: shiftNotes }),
     baseRank: rankLabel(rankId),
     effectiveRank: rankLabel(effectiveId),
     rankValue: rank?.value ?? 0,
