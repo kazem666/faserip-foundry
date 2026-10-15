@@ -12,7 +12,7 @@ import {
   UNIVERSAL_TABLE
 } from "../config.mjs";
 import { magicColumnShift, magicEnergy, magicHarm, magicResult, pulledResultColor, resistLine, takeMagic } from "../magic.mjs";
-import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, signed, writePending } from "../play-rules.mjs";
+import { abilityForColumn, actorFromRef, combatTarget, effectRule, readPending, sceneActorChoices, signed, writePending } from "../play-rules.mjs";
 import { damageCardParts } from "../play.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
@@ -526,6 +526,7 @@ export async function rollFeat({
     actionName,
     rollCaption: bareLabel && actionName && bareLabel !== actionName ? bareLabel : "",
     effectSentence: shortEffect ? "" : (effect || ""),
+    effectRule: effectRule(effect, columnId),
     faceRank: RANK_BY_ID[effectiveId]?.label || rankLabel(effectiveId),
     formulaLines: explainResult({
       rankId: effectiveId,

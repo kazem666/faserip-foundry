@@ -673,6 +673,15 @@ html.faserip-theme-dark,
   font-size: 18px;
 }
 .faserip-chat .effect-sentence { margin: 0; padding: 4px 8px 0; text-align: center; font-weight: 800; }
+.faserip-chat .effect-rule {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  background: var(--field);
+  border-bottom: 2px solid var(--rule);
+}
 .faserip-chat .feat-damage {
   margin: 6px 8px;
   padding: 6px 8px;

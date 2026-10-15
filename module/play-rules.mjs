@@ -50,6 +50,54 @@ export function checkForEffect(effect) {
   return CHECK_BY_EFFECT[String(effect || "")] || "";
 }
 
+export function effectRule(effect, columnId = "") {
+  const text = String(effect || "").trim();
+  if (!text || text.includes(".")) return "";
+  const cs = text.match(/([+-]?\d+)\s*CS/i);
+  const n = cs ? Number(cs[1]) : 0;
+  const signed = n > 0 ? `+${n}` : String(n);
+  if (columnId === "dodging") {
+    if (!cs) return "The dodge does not change the next attack.";
+    return `The next attack against this hero is ${signed} CS.`;
+  }
+  if (columnId === "blocking") {
+    if (!cs) return "";
+    return `Armor against this blow is ${signed} CS.`;
+  }
+  if (columnId === "evading") {
+    if (/auto-hit/i.test(text)) return "The attack connects.";
+    if (n) return `The attack misses. This hero's next roll is ${signed} CS.`;
+    if (/evasion/i.test(text)) return "The attack misses.";
+  }
+  const rules = {
+    Miss: "No damage, and no Slam, Stun, or Kill.",
+    Hit: "Damage applies. No Slam, Stun, or Kill check.",
+    Bullseye: "The hit lands on the aim point. Damage applies. No Slam, Stun, or Kill check.",
+    Slam: "The target rolls Endurance. White slams them one area for each step of the attacker's Strength rank. Green knocks them back 1 area. Yellow staggers them one square. Red, they stay standing.",
+    "Great Slam": "Slammed back one area for each step of the attacker's Strength rank.",
+    "1 Area": "Knocked back 1 area.",
+    Stagger: "Staggered one square.",
+    "No Slam": "Stays standing. No slam.",
+    Stun: "The target rolls Endurance. Yellow: stunned for 1 round and cannot act. White or green: unconscious for 1d10 rounds. Red: no effect.",
+    "Stunned 1 turn": "Stunned for 1 round. No actions.",
+    "Unconscious 1d10 turns": "Unconscious for 1d10 rounds. Cannot act.",
+    Kill: "The target rolls Endurance. White or green: loses one Endurance rank now, then one more each round. Yellow does that only for edged and shooting. Red: no Endurance loss.",
+    "Endurance Loss": "Loses one Endurance rank now, and one more each round until they hold on or receive aid.",
+    "E/S (edged/shooting only)": "Endurance loss only if this was edged or shooting. Otherwise no effect.",
+    "No Effect": columnId === "killCheck" ? "No Endurance loss." : "No effect. The target can still act.",
+    "Partial Hold": "A partial hold. The grab has started.",
+    Hold: "A full hold.",
+    Take: "The object is taken.",
+    Grab: "The target is grabbed.",
+    Break: "The held object breaks.",
+    Escape: "The hold is broken.",
+    Reverse: "The hold is turned back on the grappler.",
+    Catch: "The throw is caught.",
+    Damage: "The catch fails and the damage lands."
+  };
+  return rules[text] || "";
+}
+
 export function attackDamageNumber(actor, item, columnId) {
   if (!actor || !DAMAGE_COLUMNS.has(columnId)) return 0;
   const listed = parseInt(String(item?.system?.damage ?? ""), 10);
