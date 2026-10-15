@@ -13,6 +13,7 @@ import {
 } from "../config.mjs";
 import { magicColumnShift, magicEnergy, magicHarm, magicResult, pulledResultColor, resistLine, takeMagic } from "../magic.mjs";
 import { abilityForColumn, actorFromRef, combatTarget, readPending, sceneActorChoices, signed, writePending } from "../play-rules.mjs";
+import { damageCardNote } from "../play.mjs";
 import { shiftPlan, showCombatButtons, workflowActive } from "../workflow.mjs";
 import { playComicHit } from "../comic-hit.mjs";
 import { playAttackSound } from "../psfx.mjs";
@@ -352,6 +353,8 @@ export async function rollFeat({
   }
   const shieldValue = shieldRank ? rankValue(shieldRank) : 0;
   let healthNote = "";
+  let healthBefore = null;
+  let healthAfter = null;
   let damageApplied = false;
   let taken = null;
   let effectBlocked = false;
@@ -402,6 +405,8 @@ export async function rollFeat({
         taken = await victim.applyDamage(amount, { energy: true, protection });
         const after = Number(victim.system?.health?.value ?? before);
         damageApplied = true;
+        healthBefore = before;
+        healthAfter = after;
         healthNote = taken > 0
           ? `${target.name} reflects the energy. ${victim.name} Health ${before} → ${after} (−${taken}).`
           : `${target.name} reflects the energy. ${victim.name} loses no Health.`;
@@ -436,6 +441,8 @@ export async function rollFeat({
         });
         const after = Number(target.system?.health?.value ?? before);
         damageApplied = true;
+        healthBefore = before;
+        healthAfter = after;
         const amount = Number(combat.damageAmount) || 0;
         const through = effectGetsThrough(amount, protection, taken);
         healthNote = taken > 0
@@ -522,6 +529,16 @@ export async function rollFeat({
     shiftNotes,
     targetName: combat.targetName || target?.name || "",
     healthNote,
+    damageLine: damageCardNote({
+      damageAmount: combat.damageAmount ?? null,
+      damageEnergy: !!combat.damageEnergy,
+      damageApplied,
+      damageTaken: taken,
+      healthBefore,
+      healthAfter,
+      healthNote,
+      targetName: combat.targetName || target?.name || ""
+    }),
     damageAmount: combat.damageAmount ?? null,
     canDamage: combat.damageAmount != null,
     damageEnergy: !!combat.damageEnergy,
@@ -557,6 +574,9 @@ export async function rollFeat({
         damageEnergy: !!combat.damageEnergy,
         damageApplied,
         damageTaken: taken,
+        healthBefore,
+        healthAfter,
+        healthNote,
         checkColumn: combat.checkColumn || null,
         attackerId: actor?.id || null,
         strengthRank: actor?.getAbilityRank?.("strength") || null,

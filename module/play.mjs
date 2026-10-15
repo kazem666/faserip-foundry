@@ -20,6 +20,55 @@ function flagOf(message, key) {
   return message.getFlag?.("faserip", key) ?? message.flags?.faserip?.[key];
 }
 
+export function damageCardNote(flags = {}) {
+  if (flags.healthNote) return String(flags.healthNote);
+  const amount = flags.damageAmount;
+  const name = flags.targetName || "";
+  const kind = flags.damageEnergy ? "energy" : "Health";
+  const n = Number(amount);
+  if (flags.damageApplied && flags.healthBefore != null && flags.healthAfter != null) {
+    const taken = Number(flags.damageTaken) || 0;
+    const change = taken > 0
+      ? `Health ${flags.healthBefore} → ${flags.healthAfter} (−${taken})`
+      : `${name || "The target"} loses no Health`;
+    return n > 0 ? `${n} ${kind} damage applied to ${name || "the target"}. ${change}.` : `${change}.`;
+  }
+  if (amount == null || amount === "" || !n) return "";
+  return name ? `${n} ${kind} damage to ${name}.` : `${n} ${kind} damage.`;
+}
+
+function featFlagBag(message) {
+  return {
+    damageAmount: flagOf(message, "damageAmount"),
+    damageEnergy: flagOf(message, "damageEnergy"),
+    damageApplied: flagOf(message, "damageApplied"),
+    damageTaken: flagOf(message, "damageTaken"),
+    healthBefore: flagOf(message, "healthBefore"),
+    healthAfter: flagOf(message, "healthAfter"),
+    healthNote: flagOf(message, "healthNote"),
+    targetName: flagOf(message, "targetName")
+  };
+}
+
+function paintDamageNote(root, message) {
+  const note = damageCardNote(featFlagBag(message));
+  const card = root.querySelector?.(".faserip-chat") || root;
+  let box = card.querySelector?.(".feat-damage");
+  if (!note) {
+    box?.remove();
+    return;
+  }
+  if (!box) {
+    box = document.createElement("section");
+    box.className = "feat-damage";
+    const facts = card.querySelector(".feat-facts");
+    if (facts) facts.before(box);
+    else card.append(box);
+  }
+  box.classList.toggle("is-applied", !!flagOf(message, "damageApplied"));
+  box.textContent = note;
+}
+
 async function resolvePsycheGate(message, target) {
   if (!flagOf(message, "psycheGate")) return "skip";
   const resolved = flagOf(message, "psycheResolved");
@@ -82,14 +131,21 @@ export async function openCombatChain(message) {
   let through = !blocked;
   if (damageAmount != null && workflowActive("autoApplyDamage") && !alreadyApplied) {
     if (target.isOwner || game.user.isGM) {
+      const before = Number(target.system?.health?.value ?? 0);
       const useForceField = workflowActive("preferForceField") && Number(target.getForceField?.() || 0) > 0;
       const bonusArmor = Number(message.getFlag?.("faserip", "bonusArmor") ?? message.flags?.faserip?.bonusArmor ?? 0);
       const protection = soakAmount(target, { energy: energyDefault, useForceField, bonusArmor: useForceField ? 0 : bonusArmor });
       const taken = await target.applyDamage(Number(damageAmount) || 0, { energy: energyDefault, useForceField, protection });
       through = effectGetsThrough(Number(damageAmount) || 0, protection, taken);
+      const after = Number(target.system?.health?.value ?? before);
       try {
-        await message.setFlag("faserip", "damageApplied", true);
-        if (!through) await message.setFlag("faserip", "effectBlocked", true);
+        await message.update({
+          "flags.faserip.damageApplied": true,
+          "flags.faserip.damageTaken": taken,
+          "flags.faserip.healthBefore": before,
+          "flags.faserip.healthAfter": after,
+          "flags.faserip.effectBlocked": !through
+        });
       } catch {}
       ui.notifications.info(`${target.name} loses ${taken} Health.`);
       playComicHit({
@@ -166,15 +222,22 @@ export async function applyDamageFromChat(message) {
     ui.notifications.info(`Damage was already applied to ${target.name}.`);
     return;
   }
+  const before = Number(target.system?.health?.value ?? 0);
   const amount = Number(message.getFlag("faserip", "damageAmount") || 0);
   const energy = !!message.getFlag("faserip", "damageEnergy");
   const bonusArmor = Number(message.getFlag("faserip", "bonusArmor") || 0);
   const protection = soakAmount(target, { energy, bonusArmor });
   const taken = await target.applyDamage(amount, { energy, protection });
   const through = effectGetsThrough(amount, protection, taken);
+  const after = Number(target.system?.health?.value ?? before);
   try {
-    await message.setFlag("faserip", "damageApplied", true);
-    if (!through) await message.setFlag("faserip", "effectBlocked", true);
+    await message.update({
+      "flags.faserip.damageApplied": true,
+      "flags.faserip.damageTaken": taken,
+      "flags.faserip.healthBefore": before,
+      "flags.faserip.healthAfter": after,
+      "flags.faserip.effectBlocked": !through
+    });
   } catch {}
   ui.notifications.info(`${target.name} loses ${taken} Health.`);
   playComicHit({
@@ -246,6 +309,7 @@ async function panToFeatTarget(message) {
 export function bindFeatChat(message, html) {
   const root = html instanceof HTMLElement ? html : html?.[0];
   if (!root?.querySelectorAll) return;
+  paintDamageNote(root, message);
   const applyButton = root.querySelector("[data-faserip-apply]");
   const applied = !!(message.getFlag?.("faserip", "damageApplied") ?? message.flags?.faserip?.damageApplied);
   if (applied) markApplied(applyButton);

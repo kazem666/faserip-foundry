@@ -13,6 +13,9 @@
     {{#if intensityPass}} · SUCCESS{{else}} · FAIL{{/if}}
   </p>
   {{/if}}
+  {{#if damageLine}}
+  <section class="feat-damage{{#if damageApplied}} is-applied{{/if}}">{{damageLine}}</section>
+  {{/if}}
   <div class="feat-facts">
     <span>d100 {{raw}}{{#if showAdjusted}}{{#if karma}} +{{karma}}{{/if}}{{#if combatFlat}}{{#if (gt combatFlat 0)}} +{{else}} {{/if}}{{combatFlat}}{{/if}} = {{adjusted}}{{/if}}</span>
     <span>{{baseRank}}{{#if cs}} {{#if (gt cs 0)}}+{{/if}}{{cs}} CS → {{effectiveRank}}{{/if}}</span>
@@ -32,7 +35,6 @@
     </ul>
   </details>
   {{/if}}
-  {{#if healthNote}}<p class="effect-banner">{{healthNote}}</p>{{/if}}
   <div class="feat-actions">
     {{#if showButtons}}
     {{#if psycheGate}}<button type="button" data-faserip-psyche>Psyche FEAT</button>{{/if}}
